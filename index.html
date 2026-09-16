@@ -1178,9 +1178,9 @@ const CUSTOM_GAMES = [
   },
   {
     name: "Mist",
-    url: "https://austinisachillguy.eminescusm.ro/mizu.html?v=",
-    cover: "https://austinisachillguy.eminescusm.ro/images/other/pinkdino.png",
-    author: "idk",
+    url: "https://s3.amazonaws.com/mathisgreataf/index.html#/?v=",
+    cover: "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTMjhIlxuTtExEfm3_3AzTDBiRfrJy-a9UtjSVTUz1l5Q&s=10",
+    author: "justaguy",
     authorLink: "",
     special: ["social"],
     featured: false
@@ -1204,14 +1204,58 @@ const CUSTOM_GAMES = [
     featured: false
   },
   {
-    name: "mafia",
-    url: "https://mafia.gg/?v=",
-    cover: "https://th.bing.com/th/id/OIP.vM-K0E6fsjBFX3RAfLRg5AHaHT?w=190&h=188&c=7&r=0&o=7&pid=1.7&rm=3",
-    author: "ishoweyes",
+    name: "Noahs hub",
+    url: "https://unpkg.com/noahs-tutoring-hub@1.0.1/index.html?v=",
+    cover: "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQGcJTQVYN7TeDiZtSzBw2-2VjdHlEnjuVgtINZQOD_ow&s=10",
+    author: "justaguy",
     authorLink: "",
     special: ["social"],
     featured: false
   },
+  {
+    name: "NautillusOS",
+    url: "https://unpkg.com/curvetheback@1.0.19/index.html",
+    cover: "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSolvb9Io5A0Srl123lPx57lHDG3mw-233sXzpuaC1U9w&s=10",
+    author: "justaguy",
+    authorLink: "",
+    special: ["social"],
+    featured: false
+  },
+  {
+    name: "Link Finder",
+    url: "https://cvzdmqxxvhgtgdbyfo3xmhm7yy0bolmt.lambda-url.us-east-2.on.aws/",
+    cover: "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSQWHLmLMEas7ZwMwoytcRAhblBlymlwgbTvpE-jSJf-Q&s=10",
+    author: "idk",
+    authorLink: "",
+    special: ["social"],
+    featured: false
+  },
+  {
+    name: "lucid",
+    url: "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRipErLby0t__V1vElJb-0ha-8Cug7BfGZlrNwH9KMoFA&s=10",
+    author: "justaguy",
+    authorLink: "",
+    special: ["social"],
+    featured: false
+  },
+  {
+    name: "Get Bad News",
+    url: "https://www.getbadnews.com/books/english/play",
+    cover: "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcT7n8UiOLltiuNV7KRBUsVpqNe4oNxu0BgKJShywRdYyQ&s=10",
+    author: "EMU!",
+    authorLink: "",
+    special: ["social"],
+    featured: false
+  },
+  {
+    name: "Rotating Sandwiches",
+    url: "https://rotatingsandwiches.com/",
+    cover: "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRiTzuqNFHtLeO1Kt9D1vvTnt0eoQcilsdR_Szy3UksJQ&s=10",
+    author: "EMU!",
+    authorLink: "",
+    special: ["social"],
+    featured: false
+  }
 ];
 // Assign negative IDs to custom games so they don't clash with gn-math IDs
 // and prepend them to the zones list so they appear first.
@@ -1545,7 +1589,7 @@ listZones();
       document.body.removeChild(ta);
     });
     const btn=document.getElementById('shareCopyBtn');
-    btn.textContent='THANK YOU';btn.classList.add('copied');
+    btn.textContent='THANK YOU :D';btn.classList.add('copied');
     setTimeout(()=>{btn.textContent='⎘ COPY LINK';btn.classList.remove('copied');},2200);
   }
   // Expose to global scope so onclick handlers work
