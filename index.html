@@ -454,7 +454,6 @@
       #hud{padding:0.58rem 0.85rem;gap:0.5rem;}
       .logo{font-size:1rem;}
       .gcard{width:130px;}
-    }
     /* Green accent pass — keeps the existing layout, spacing, and behavior intact. */
     #hud{background:rgba(1,9,7,.96);border-color:rgba(57,229,140,.12)}
     .logo{text-shadow:0 0 16px rgba(57,229,140,.42)}
@@ -477,7 +476,675 @@
     #shareCopyBtn:hover{background:rgba(57,229,140,.16)}
     #loaderTitle{ text-shadow:0 0 40px rgba(57,229,140,.6),0 0 80px rgba(57,229,140,.25) }
     .ol.show{ text-shadow:0 0 30px rgba(57,229,140,.9),0 0 60px rgba(57,229,140,.4) }
-  </style>
+  
+/* =========================================================
+   CYBERPUNK REFRESH — VISUAL ONLY
+   Keeps the existing IDs, layout logic, and JavaScript intact.
+   ========================================================= */
+
+:root{
+  --void:#020509;
+  --pulsar:#39e58c;
+  --nova:#0a9b5b;
+  --neon:#55ffc0;
+  --cyan:#20e6ff;
+  --muted:rgba(230,255,245,.42);
+  --card-bg:rgba(4,16,13,.88);
+  --card-border:rgba(57,229,140,.22);
+  --glass:rgba(4,14,12,.78);
+}
+
+/* Atmospheric background */
+body{
+  background:
+    radial-gradient(circle at 15% 20%,rgba(57,229,140,.075),transparent 28%),
+    radial-gradient(circle at 85% 70%,rgba(32,230,255,.055),transparent 30%),
+    linear-gradient(135deg,#020509 0%,#03100b 48%,#020609 100%);
+}
+
+body::before{
+  content:"";
+  position:fixed;
+  inset:0;
+  z-index:2;
+  pointer-events:none;
+  opacity:.28;
+  background:
+    linear-gradient(rgba(57,229,140,.025) 1px,transparent 1px),
+    linear-gradient(90deg,rgba(57,229,140,.025) 1px,transparent 1px);
+  background-size:48px 48px;
+  mask-image:linear-gradient(to bottom,transparent,#000 20%,#000 80%,transparent);
+  animation:gridDrift 18s linear infinite;
+}
+body::after{
+  content:"";
+  position:fixed;
+  inset:0;
+  z-index:3;
+  pointer-events:none;
+  background:repeating-linear-gradient(
+    to bottom,
+    transparent 0,
+    transparent 3px,
+    rgba(255,255,255,.012) 4px,
+    transparent 5px
+  );
+  opacity:.32;
+}
+@keyframes gridDrift{
+  from{background-position:0 0,0 0}
+  to{background-position:0 48px,48px 0}
+}
+
+/* Glass HUD */
+#hud{
+  background:linear-gradient(180deg,rgba(2,10,8,.94),rgba(2,8,7,.80)) !important;
+  border-bottom:1px solid rgba(57,229,140,.24) !important;
+  box-shadow:
+    0 10px 35px rgba(0,0,0,.42),
+    0 1px 0 rgba(255,255,255,.025) inset,
+    0 0 30px rgba(57,229,140,.035);
+  backdrop-filter:blur(16px) saturate(140%);
+}
+#hud::after{
+  content:"";
+  position:absolute;
+  left:0;right:0;bottom:-1px;
+  height:1px;
+  background:linear-gradient(90deg,transparent 0%,rgba(57,229,140,.7) 25%,rgba(32,230,255,.45) 50%,rgba(57,229,140,.7) 75%,transparent 100%);
+  opacity:.7;
+}
+.logo{
+  position:relative;
+  letter-spacing:.09em;
+  color:#a8ffda !important;
+  text-shadow:
+    0 0 8px rgba(57,229,140,.55),
+    0 0 22px rgba(57,229,140,.24),
+    0 0 42px rgba(32,230,255,.12) !important;
+}
+.logo::after{
+  content:"ONLINE";
+  position:absolute;
+  left:1px;
+  bottom:-9px;
+  font-family:'Rajdhani',sans-serif;
+  font-size:.38rem;
+  letter-spacing:.34em;
+  color:rgba(57,229,140,.42);
+}
+
+/* Search */
+#searchWrap::before{
+  color:rgba(57,229,140,.6) !important;
+  text-shadow:0 0 8px rgba(57,229,140,.35);
+}
+#searchBar{
+  background:linear-gradient(90deg,rgba(57,229,140,.055),rgba(32,230,255,.025)) !important;
+  border-color:rgba(57,229,140,.22) !important;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.025);
+}
+#searchBar:focus{
+  border-color:rgba(57,229,140,.75) !important;
+  box-shadow:
+    0 0 0 3px rgba(57,229,140,.055),
+    0 0 22px rgba(57,229,140,.10);
+}
+
+/* Controls */
+.hud-btn,.pill-select,.fav-pill,.visits-pill,.live-pill{
+  background:rgba(3,15,12,.72) !important;
+  border-color:rgba(57,229,140,.20) !important;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.025);
+  backdrop-filter:blur(8px);
+}
+.hud-btn:hover,.pill-select:hover,.fav-pill:hover{
+  background:rgba(57,229,140,.09) !important;
+  border-color:rgba(57,229,140,.75) !important;
+  box-shadow:0 0 18px rgba(57,229,140,.10);
+}
+.live-pill{
+  color:rgba(255,255,255,.68);
+}
+.live-pill .live-dot{
+  box-shadow:0 0 5px #22ff88,0 0 13px rgba(34,255,136,.38);
+}
+
+/* Game cards */
+.gcard{
+  filter:drop-shadow(0 14px 20px rgba(0,0,0,.30));
+}
+.gcard-inner{
+  position:relative;
+  background:
+    linear-gradient(145deg,rgba(9,30,23,.92),rgba(2,10,8,.94)) !important;
+  border:1px solid rgba(57,229,140,.20) !important;
+  border-radius:15px !important;
+  box-shadow:
+    0 0 0 1px rgba(255,255,255,.012) inset,
+    0 12px 30px rgba(0,0,0,.30),
+    0 0 0 rgba(57,229,140,0);
+  transition:
+    transform .22s cubic-bezier(.22,1,.36,1),
+    border-color .22s,
+    box-shadow .22s,
+    filter .22s;
+}
+.gcard-inner::before{
+  content:"";
+  position:absolute;
+  inset:0;
+  z-index:2;
+  pointer-events:none;
+  background:
+    linear-gradient(135deg,rgba(255,255,255,.07),transparent 22%,transparent 72%,rgba(57,229,140,.035));
+  opacity:.65;
+}
+.gcard-inner::after{
+  content:"";
+  position:absolute;
+  left:10%;right:10%;top:0;
+  height:1px;
+  z-index:4;
+  background:linear-gradient(90deg,transparent,rgba(57,229,140,.75),rgba(32,230,255,.38),transparent);
+  opacity:.65;
+}
+.gcard:hover .gcard-inner{
+  transform:translateY(-7px) scale(1.055) !important;
+  border-color:rgba(57,229,140,.78) !important;
+  box-shadow:
+    0 0 0 1px rgba(57,229,140,.13),
+    0 16px 35px rgba(0,0,0,.48),
+    0 0 28px rgba(57,229,140,.12);
+}
+.gcard img{
+  position:relative;
+  z-index:1;
+  filter:saturate(.92) contrast(1.04);
+  transition:filter .25s,transform .35s;
+}
+.gcard:hover img{
+  filter:saturate(1.12) contrast(1.08);
+}
+.gcard-label{
+  position:relative;
+  z-index:3;
+  background:linear-gradient(180deg,rgba(3,12,10,.20),rgba(3,12,10,.92));
+  border-top:1px solid rgba(57,229,140,.08);
+  font-family:'Rajdhani',sans-serif;
+  font-weight:600;
+  letter-spacing:.03em;
+}
+.gcard:hover .gcard-label{
+  color:#b7ffdf !important;
+  text-shadow:0 0 12px rgba(57,229,140,.30);
+}
+.feat-badge{
+  box-shadow:0 0 14px rgba(57,229,140,.20);
+  border:1px solid rgba(255,255,255,.12);
+}
+
+/* Favorites */
+.gcard.fav .gcard-inner{
+  border-color:rgba(255,200,40,.82) !important;
+  box-shadow:
+    0 0 0 1px rgba(255,200,40,.22),
+    0 12px 34px rgba(0,0,0,.40),
+    0 0 24px rgba(255,190,0,.12);
+}
+.gcard.fav .gcard-label{
+  color:#ffe9a0;
+}
+
+/* Status */
+#statusBar{
+  bottom:3.3rem;
+}
+#zoneCount{
+  color:rgba(57,229,140,.48) !important;
+  text-shadow:0 0 10px rgba(57,229,140,.16);
+}
+#scrollHint{
+  color:rgba(210,255,235,.22) !important;
+}
+
+/* Zone viewer */
+#zoneViewer{
+  background:
+    radial-gradient(circle at 50% 0,rgba(57,229,140,.045),transparent 35%),
+    #020806;
+}
+.zone-header{
+  background:linear-gradient(180deg,rgba(2,12,9,.98),rgba(2,8,7,.96)) !important;
+  border-bottom-color:rgba(57,229,140,.20) !important;
+  box-shadow:0 8px 30px rgba(0,0,0,.35);
+}
+#zoneName{
+  color:#9dffd3 !important;
+  text-shadow:0 0 12px rgba(57,229,140,.24);
+}
+.zone-controls button{
+  background:rgba(57,229,140,.035) !important;
+  border-color:rgba(57,229,140,.18) !important;
+}
+.zone-controls button:hover{
+  background:rgba(57,229,140,.08) !important;
+  border-color:rgba(57,229,140,.65) !important;
+  box-shadow:0 0 15px rgba(57,229,140,.08);
+}
+
+/* Popups */
+#popupOverlay{
+  background:rgba(0,5,4,.76) !important;
+  backdrop-filter:blur(10px);
+}
+.popup{
+  background:linear-gradient(150deg,#071c14,#030d09) !important;
+  border-color:rgba(57,229,140,.30) !important;
+  box-shadow:
+    0 0 0 1px rgba(255,255,255,.02) inset,
+    0 0 60px rgba(57,229,140,.10),
+    0 35px 80px rgba(0,0,0,.72) !important;
+}
+.popup::before{
+  content:"";
+  position:absolute;
+  top:0;left:12%;right:12%;
+  height:1px;
+  background:linear-gradient(90deg,transparent,#39e58c,#20e6ff,transparent);
+}
+.popup-header{
+  background:rgba(57,229,140,.045) !important;
+}
+#popupTitle{
+  color:#a8ffda !important;
+}
+.settings-btn:hover,.preset-btn:hover{
+  background:rgba(57,229,140,.08) !important;
+}
+
+/* Footer */
+#footer{
+  background:linear-gradient(180deg,rgba(2,9,7,.82),rgba(1,7,6,.96)) !important;
+  border-top-color:rgba(57,229,140,.16) !important;
+  backdrop-filter:blur(12px);
+}
+#footer a:hover{
+  color:#9dffd3 !important;
+  text-shadow:0 0 10px rgba(57,229,140,.25);
+}
+
+/* Loader */
+#loader{
+  background:
+    radial-gradient(circle at 50% 45%,rgba(57,229,140,.065),transparent 24%),
+    radial-gradient(circle at 30% 70%,rgba(32,230,255,.035),transparent 28%),
+    #010605 !important;
+}
+#loaderTitle{
+  color:#a8ffda !important;
+  text-shadow:
+    0 0 25px rgba(57,229,140,.55),
+    0 0 70px rgba(57,229,140,.22) !important;
+}
+#loaderSub{
+  color:rgba(57,229,140,.48) !important;
+}
+#loaderRing .arc{
+  filter:drop-shadow(0 0 6px rgba(57,229,140,.8));
+}
+#loaderBar{
+  box-shadow:0 0 12px rgba(57,229,140,.35);
+}
+
+/* Share modal */
+#shareModal{
+  background:rgba(0,5,4,.82) !important;
+}
+#shareModalBox{
+  background:linear-gradient(150deg,#08251a,#03100b) !important;
+  border-color:rgba(57,229,140,.34) !important;
+  box-shadow:
+    0 0 55px rgba(57,229,140,.13),
+    0 30px 70px rgba(0,0,0,.75);
+}
+#shareCopyBtn{
+  background:rgba(57,229,140,.08) !important;
+  border-color:rgba(57,229,140,.45) !important;
+}
+#shareCopyBtn:hover{
+  background:rgba(57,229,140,.15) !important;
+  box-shadow:0 0 20px rgba(57,229,140,.12);
+}
+
+/* Disguise overlay */
+#disguiseOverlay{
+  box-shadow:inset 0 0 80px rgba(0,0,0,.25);
+}
+
+/* Better mobile behavior */
+@media (max-width:700px){
+  #hud{
+    flex-wrap:wrap;
+    padding:.48rem .6rem !important;
+  }
+  #searchWrap{
+    order:10;
+    flex-basis:100%;
+    max-width:none;
+  }
+  .pill-select,.fav-pill{
+    font-size:.68rem;
+    padding:.22rem .55rem;
+  }
+  .visits-pill{
+    display:none;
+  }
+  .gcard{
+    width:120px;
+  }
+}
+
+/* Accessibility */
+@media (prefers-reduced-motion:reduce){
+  *,*::before,*::after{
+    animation-duration:.001ms !important;
+    animation-iteration-count:1 !important;
+    scroll-behavior:auto !important;
+    transition-duration:.001ms !important;
+  }
+}
+
+  
+
+/* ============================================================
+   IDK.GG NEON OVERDRIVE — VISUAL UPGRADE
+   Existing functionality preserved; visual layer only.
+   ============================================================ */
+:root{
+  --overdrive-green:#39ff88;
+  --overdrive-cyan:#19e8ff;
+  --overdrive-purple:#a855f7;
+  --overdrive-pink:#ff3bd4;
+  --overdrive-bg:#020607;
+}
+
+/* Deep-space atmosphere */
+body{
+  background:
+    radial-gradient(circle at 15% 15%, rgba(57,255,136,.11), transparent 28%),
+    radial-gradient(circle at 85% 12%, rgba(25,232,255,.10), transparent 26%),
+    radial-gradient(circle at 75% 82%, rgba(168,85,247,.09), transparent 30%),
+    radial-gradient(circle at 25% 90%, rgba(255,59,212,.06), transparent 25%),
+    linear-gradient(135deg,#010304 0%,#03100c 45%,#02050a 100%) !important;
+}
+
+/* Animated energy grid */
+body::after{
+  content:"";
+  position:fixed;
+  inset:0;
+  pointer-events:none;
+  z-index:-1;
+  opacity:.22;
+  background-image:
+    linear-gradient(rgba(57,255,136,.08) 1px,transparent 1px),
+    linear-gradient(90deg,rgba(25,232,255,.07) 1px,transparent 1px);
+  background-size:55px 55px;
+  mask-image:linear-gradient(to bottom,transparent 0%,black 18%,black 78%,transparent 100%);
+  animation:idkGridDrift 18s linear infinite;
+}
+@keyframes idkGridDrift{
+  from{background-position:0 0,0 0}
+  to{background-position:0 55px,55px 0}
+}
+
+/* HUD becomes a premium glass command deck */
+header,.topbar,.hud,.controls,.toolbar{
+  backdrop-filter:blur(18px) saturate(150%);
+}
+
+.card{
+  position:relative;
+  isolation:isolate;
+  border-color:rgba(57,255,136,.28) !important;
+  box-shadow:
+    0 0 0 1px rgba(25,232,255,.05),
+    0 12px 40px rgba(0,0,0,.42),
+    0 0 28px rgba(57,255,136,.10) !important;
+  transition:
+    transform .28s cubic-bezier(.2,.8,.2,1),
+    border-color .28s ease,
+    box-shadow .28s ease,
+    filter .28s ease !important;
+  overflow:hidden;
+}
+
+.card::before{
+  content:"";
+  position:absolute;
+  inset:-1px;
+  z-index:-1;
+  border-radius:inherit;
+  background:
+    linear-gradient(120deg,
+      transparent 20%,
+      rgba(57,255,136,.16) 42%,
+      rgba(25,232,255,.18) 50%,
+      transparent 70%);
+  background-size:220% 100%;
+  opacity:0;
+  transition:opacity .3s ease,background-position .7s ease;
+  pointer-events:none;
+}
+.card::after{
+  content:"";
+  position:absolute;
+  left:0;
+  right:0;
+  top:0;
+  height:2px;
+  background:linear-gradient(90deg,transparent,var(--overdrive-green),var(--overdrive-cyan),transparent);
+  box-shadow:0 0 14px var(--overdrive-green);
+  transform:scaleX(.25);
+  transform-origin:center;
+  opacity:.35;
+  transition:.3s ease;
+  pointer-events:none;
+}
+.card:hover{
+  transform:translateY(-8px) scale(1.018) !important;
+  border-color:rgba(57,255,136,.72) !important;
+  box-shadow:
+    0 20px 55px rgba(0,0,0,.58),
+    0 0 22px rgba(57,255,136,.22),
+    0 0 70px rgba(25,232,255,.08) !important;
+  filter:saturate(1.12);
+}
+.card:hover::before{
+  opacity:1;
+  background-position:100% 0;
+}
+.card:hover::after{
+  transform:scaleX(1);
+  opacity:.9;
+}
+
+/* Make images feel like holographic game panels */
+.card img{
+  transition:transform .5s cubic-bezier(.2,.8,.2,1),filter .5s ease !important;
+}
+.card:hover img{
+  transform:scale(1.055);
+  filter:saturate(1.25) contrast(1.05);
+}
+
+/* Search/control polish */
+input,select,button{
+  transition:
+    border-color .2s ease,
+    box-shadow .2s ease,
+    transform .15s ease,
+    background .2s ease !important;
+}
+input:focus,select:focus{
+  outline:none !important;
+  border-color:var(--overdrive-cyan) !important;
+  box-shadow:
+    0 0 0 2px rgba(25,232,255,.10),
+    0 0 24px rgba(25,232,255,.16) !important;
+}
+button:hover{
+  transform:translateY(-2px);
+  box-shadow:0 0 20px rgba(57,255,136,.16);
+}
+button:active{transform:translateY(0) scale(.98)}
+
+/* Neon status chips */
+.live,.live-pill,.status{
+  text-shadow:0 0 10px currentColor;
+  box-shadow:
+    0 0 12px rgba(57,255,136,.14),
+    inset 0 0 12px rgba(57,255,136,.04);
+}
+
+/* Logo/title energy */
+.logo,.brand,h1{
+  text-shadow:
+    0 0 8px rgba(57,255,136,.65),
+    0 0 24px rgba(25,232,255,.22);
+}
+
+/* Favorite state gets a subtle reactor glow */
+.favorite,.fav,.is-favorite{
+  filter:drop-shadow(0 0 7px rgba(255,59,212,.42));
+}
+
+/* Modal glass + neon rim */
+.modal,.popup,.share-modal,.viewer,.zone-viewer{
+  backdrop-filter:blur(22px) saturate(145%);
+  box-shadow:
+    0 25px 90px rgba(0,0,0,.65),
+    0 0 45px rgba(25,232,255,.10),
+    inset 0 0 0 1px rgba(57,255,136,.08);
+}
+
+/* Subtle scanline overlay */
+body::before{
+  pointer-events:none !important;
+}
+
+/* Hide overflow caused by glow without changing layout behavior */
+html{scrollbar-color:#163c2b #020504}
+::-webkit-scrollbar{width:9px;height:9px}
+::-webkit-scrollbar-track{background:#020504}
+::-webkit-scrollbar-thumb{
+  background:linear-gradient(180deg,#39ff88,#19e8ff);
+  border-radius:999px;
+  box-shadow:0 0 12px rgba(57,255,136,.45);
+}
+::-webkit-scrollbar-thumb:hover{
+  background:linear-gradient(180deg,#19e8ff,#a855f7);
+}
+
+/* Mobile keeps the effect but reduces visual intensity */
+@media(max-width:700px){
+  body::after{opacity:.12;background-size:38px 38px}
+  .card:hover{transform:translateY(-4px) scale(1.01) !important}
+}
+
+/* Accessibility: don't animate for users who request reduced motion */
+@media(prefers-reduced-motion:reduce){
+  *,*::before,*::after{
+    animation-duration:.001ms !important;
+    animation-iteration-count:1 !important;
+    transition-duration:.001ms !important;
+  }
+}
+
+
+
+/* ============================================================
+   IDK.GG LOW-END PERFORMANCE MODE
+   Keeps the Neon Overdrive look while reducing GPU/CPU work.
+   ============================================================ */
+
+/* Reduce expensive backdrop-filter and huge blur workloads */
+header,.topbar,.hud,.controls,.toolbar,
+.modal,.popup,.share-modal,.viewer,.zone-viewer{
+  backdrop-filter:none !important;
+}
+
+/* Keep glass appearance without live background blur */
+header,.topbar,.hud,.controls,.toolbar{
+  background-color:rgba(3,10,8,.88) !important;
+}
+
+/* Remove the continuously animated full-page grid */
+body::after{
+  animation:none !important;
+  opacity:.10 !important;
+  background-size:70px 70px !important;
+}
+
+/* Remove expensive card pseudo-element animation */
+.card::before{
+  display:none !important;
+}
+
+/* Make card animations cheaper */
+.card{
+  transition:transform .16s ease, border-color .16s ease, box-shadow .16s ease !important;
+  box-shadow:0 8px 25px rgba(0,0,0,.32),0 0 14px rgba(57,255,136,.07) !important;
+}
+
+/* Don't constantly animate/scale images on hover */
+.card img{
+  transition:filter .16s ease !important;
+}
+.card:hover img{
+  transform:none !important;
+  filter:saturate(1.08) !important;
+}
+.card:hover{
+  transform:translateY(-3px) !important;
+  box-shadow:0 12px 30px rgba(0,0,0,.40),0 0 18px rgba(57,255,136,.12) !important;
+}
+
+/* Reduce large text-shadow rendering */
+.logo,.brand,h1{
+  text-shadow:0 0 6px rgba(57,255,136,.45) !important;
+}
+
+/* Avoid animated gradient work on the scrollbar */
+::-webkit-scrollbar-thumb{
+  box-shadow:none !important;
+}
+
+/* Keep UI responsive */
+button,input,select{
+  transition:border-color .12s ease,box-shadow .12s ease,transform .08s ease !important;
+}
+
+/* Lower GPU cost on smaller devices */
+@media(max-width:700px){
+  body::after{display:none !important;}
+  .card{
+    box-shadow:0 6px 18px rgba(0,0,0,.30) !important;
+  }
+}
+
+/* User preference: if the browser reports reduced motion,
+   eliminate visual animation work across the page. */
+@media(prefers-reduced-motion:reduce){
+  *,*::before,*::after{
+    animation:none !important;
+    transition:none !important;
+    scroll-behavior:auto !important;
+  }
+}
+
+</style>
   <script src="https://cdn.pubnub.com/sdk/javascript/pubnub.7.2.2.min.js"></script>
 </head>
 <body>
