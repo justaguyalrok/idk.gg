@@ -1146,6 +1146,138 @@ button,input,select{
 
 </style>
   <script src="https://cdn.pubnub.com/sdk/javascript/pubnub.7.2.2.min.js"></script>
+
+<style id="ultra-low-end">
+/* =========================================================
+   IDK.GG — ULTRA LOW-END MODE
+   Keeps the cyber/neon appearance but removes expensive work.
+   ========================================================= */
+
+/* Static background: gradients are cheap compared with animated effects. */
+body{
+  background:
+    radial-gradient(circle at 18% 22%,rgba(57,255,136,.055),transparent 24%),
+    radial-gradient(circle at 82% 72%,rgba(25,232,255,.035),transparent 26%),
+    #020607 !important;
+}
+
+/* No live blur/compositing. */
+#hud,.hud-btn,.pill-select,.fav-pill,.visits-pill,.live-pill,
+.popup,#popupOverlay,#shareModal,#shareModalBox,#footer,
+.zone-header,.zone-controls button{
+  backdrop-filter:none !important;
+  -webkit-backdrop-filter:none !important;
+}
+
+/* Keep panels opaque enough that the GPU has less work to do. */
+#hud,#footer,.zone-header{
+  background:#03100c !important;
+}
+.popup,#shareModalBox{
+  background:#06150f !important;
+}
+
+/* Kill decorative full-screen animation layers. */
+body::before,body::after,#parallaxLayer{
+  animation:none !important;
+  transform:none !important;
+}
+body::before{
+  opacity:.10 !important;
+}
+body::after{
+  opacity:.045 !important;
+  background-size:90px 90px !important;
+}
+
+/* Much cheaper cards: no giant shadows, filters or animated pseudo-elements. */
+.gcard,.card{
+  filter:none !important;
+}
+.gcard-inner,.card{
+  box-shadow:0 5px 12px rgba(0,0,0,.28) !important;
+  transition:transform .10s ease,border-color .10s ease !important;
+}
+.gcard-inner::before,.gcard-inner::after,.card::before,.card::after{
+  display:none !important;
+}
+.gcard img,.card img{
+  filter:none !important;
+  transition:none !important;
+}
+.gcard:hover .gcard-inner,
+.card:hover{
+  transform:translateY(-2px) !important;
+  box-shadow:0 7px 16px rgba(0,0,0,.30) !important;
+}
+.gcard:hover img,.card:hover img{
+  transform:none !important;
+  filter:none !important;
+}
+
+/* Avoid expensive glow effects. */
+.logo,#loaderTitle,.ol.show,#zoneName{
+  text-shadow:0 0 8px rgba(57,229,140,.22) !important;
+}
+.live-pill .live-dot{
+  box-shadow:none !important;
+  animation:none !important;
+}
+.feat-badge{
+  box-shadow:none !important;
+}
+.gcard.fav .gcard-inner{
+  box-shadow:0 0 0 1px rgba(255,200,40,.18) !important;
+}
+
+/* Static loader instead of multiple animated effects. */
+#loaderRing .arc{
+  animation:none !important;
+  filter:none !important;
+}
+#loaderBar{
+  box-shadow:none !important;
+}
+
+/* Disable decorative hover motion. */
+.hud-btn:hover svg{
+  transform:none !important;
+}
+button:hover{
+  transform:none !important;
+  box-shadow:none !important;
+}
+
+/* Smaller scrollbar paint cost. */
+::-webkit-scrollbar{width:5px;height:5px}
+::-webkit-scrollbar-thumb{
+  background:#176b47 !important;
+  box-shadow:none !important;
+}
+
+/* On small screens, reduce card work further. */
+@media(max-width:700px){
+  .gcard{width:112px !important}
+}
+
+/* Users who already request reduced motion get the absolute minimum. */
+@media(prefers-reduced-motion:reduce){
+  *,*::before,*::after{
+    animation:none !important;
+    transition:none !important;
+    scroll-behavior:auto !important;
+  }
+}
+
+/* Optional manual emergency mode:
+   add class="ultra-save" to <body> if a very old PC still struggles. */
+body.ultra-save #starCanvas{display:none !important}
+body.ultra-save .gcard-inner,
+body.ultra-save .card{box-shadow:none !important}
+body.ultra-save body::before,
+body.ultra-save body::after{display:none !important}
+</style>
+
 </head>
 <body>
 
@@ -1338,12 +1470,12 @@ const canvas = document.getElementById('starCanvas');
 const ctx = canvas.getContext('2d',{alpha:false});
 let W=0,H=0;
 let nebulaCache=null,starCache=null;
-const STAR_COUNT=180;
+const STAR_COUNT=55;
 const bgStars=[];
 const starAlphas=new Float32Array(STAR_COUNT);
 const P_COLORS=['rgba(0,229,255,','rgba(180,79,255,'];
 const particles=[];
-const MAX_P=50;
+const MAX_P=8;
 let svx=0,svy=0; // star velocity (fed from pan)
 let tick=0;
 
@@ -1808,7 +1940,7 @@ function mainLoop(){
   }
 
   renderWorld();
-  requestAnimationFrame(mainLoop);
+  setTimeout(mainLoop, 33);
 }
 
 /* ═══════════════════════════════════════════════════
@@ -2592,12 +2724,8 @@ function clearDisguiseImg(){
 (function initParallax(){
   const layer = document.getElementById('parallaxLayer');
   if(!layer) return;
-  const STRENGTH = 14;
-  document.addEventListener('mousemove', e=>{
-    const mx = (e.clientX/window.innerWidth - 0.5)  * STRENGTH;
-    const my = (e.clientY/window.innerHeight - 0.5) * STRENGTH;
-    layer.style.transform = `translate(${mx}px,${my}px)`;
-  }, {passive:true});
+  // Low-end mode: keep the layer static instead of updating it on every mouse move.
+  layer.style.transform = 'none';
 })();
 
 /* ═══════════════════════════════════════════════════
@@ -2714,5 +2842,17 @@ function clearDisguiseImg(){
 })();
 
 </script>
+
+<script>
+(function(){
+  try{
+    const cores = navigator.hardwareConcurrency || 4;
+    const memory = navigator.deviceMemory || 4;
+    const save = cores <= 2 || memory <= 2;
+    if(save) document.body.classList.add('ultra-save');
+  }catch(e){}
+})();
+</script>
+
 </body>
 </html>
