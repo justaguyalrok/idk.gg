@@ -7,7 +7,8 @@
   <script>window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments);}gtag('js',new Date());gtag('config','G-WX5VS54ZDW');</script>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>IDK.GG</title>
+  <meta name="idk-design-version" content="FEATURED-V3-COMPACT-GRID">
+<title>IDK.GG</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@700;900&family=Rajdhani:wght@400;600&display=swap" rel="stylesheet">
   <style>
@@ -60,7 +61,7 @@
 
     /* ── CARDS ── absolute in world space */
     .gcard{
-      position:absolute;width:160px;
+      position:absolute;width:150px;
       cursor:pointer;
     }
     .gcard-inner{
@@ -1278,6 +1279,33 @@ body.ultra-save body::before,
 body.ultra-save body::after{display:none !important}
 </style>
 
+
+
+<style id="featured-ultimate">
+/* FEATURED V7 — flagship / centerpiece treatment, same compact grid footprint */
+.gcard.featured{width:150px!important;transform:none!important;z-index:50!important;position:absolute!important;filter:drop-shadow(0 0 8px rgba(32,230,255,.42))!important;animation:featuredAura 2.4s ease-in-out infinite!important;}
+.gcard.featured::before{content:"";position:absolute;inset:-4px;border-radius:19px;z-index:-2;background:conic-gradient(from 0deg,transparent 0deg,#20e6ff 38deg,#ffffff 58deg,#39e58c 92deg,transparent 132deg,transparent 210deg,#20e6ff 260deg,#39e58c 300deg,transparent 340deg);animation:featuredSpin 3s linear infinite;filter:blur(.15px);}
+.gcard.featured::after{content:"";position:absolute;left:7px;right:7px;bottom:-8px;height:8px;border-radius:50%;background:linear-gradient(90deg,transparent,#20e6ff 20%,#dffff7 50%,#39e58c 80%,transparent);filter:blur(6px);opacity:.72;z-index:-1;animation:featuredFloor 1.8s ease-in-out infinite;}
+.gcard.featured .gcard-inner{position:relative!important;overflow:hidden!important;isolation:isolate!important;border:1px solid rgba(171,255,238,.98)!important;border-radius:15px!important;background:radial-gradient(circle at 50% -5%,rgba(32,230,255,.23),transparent 30%),radial-gradient(circle at 10% 100%,rgba(57,229,140,.13),transparent 35%),linear-gradient(145deg,#092c22,#020807 68%)!important;box-shadow:0 0 0 1px rgba(32,230,255,.28),0 0 18px rgba(57,229,140,.3),0 0 42px rgba(32,230,255,.13),inset 0 0 28px rgba(32,230,255,.08),inset 0 -18px 30px rgba(57,229,140,.04)!important;transition:transform .22s ease,box-shadow .22s ease,border-color .22s ease!important;}
+/* animated glass + HUD corner accents */
+.gcard.featured .gcard-inner::before{content:"";position:absolute;inset:0;z-index:2;pointer-events:none;background:linear-gradient(110deg,transparent 0 30%,rgba(32,230,255,.18) 42%,rgba(255,255,255,.12) 49%,rgba(57,229,140,.13) 54%,transparent 67%),linear-gradient(90deg,rgba(32,230,255,.9) 0 14px,transparent 14px calc(100% - 14px),rgba(32,230,255,.9) calc(100% - 14px)),linear-gradient(180deg,rgba(57,229,140,.85) 0 10px,transparent 10px calc(100% - 10px),rgba(57,229,140,.85) calc(100% - 10px)),repeating-linear-gradient(0deg,rgba(255,255,255,.024) 0 1px,transparent 1px 5px);background-size:240% 100%,100% 100%,100% 100%,100% 100%;background-position:-240% 0,0 0,0 0,0 0;background-repeat:no-repeat;animation:featuredSweep 3.6s linear infinite;opacity:.95;}
+.gcard.featured .gcard-inner::after{content:"";position:absolute;left:8px;right:8px;top:5px;height:3px;z-index:5;pointer-events:none;background:linear-gradient(90deg,transparent,#20e6ff 18%,#ffffff 42%,#39e58c 58%,#20e6ff 82%,transparent);box-shadow:0 0 10px rgba(32,230,255,.95),0 0 22px rgba(57,229,140,.45);animation:featuredPulse 1.35s ease-in-out infinite;}
+.gcard.featured img{filter:saturate(1.2) contrast(1.08);transition:filter .25s ease,transform .35s ease!important;}
+.gcard.featured:hover img{filter:saturate(1.3) contrast(1.1);transform:scale(1.025);}
+.gcard.featured .feat-badge{top:7px!important;right:7px!important;padding:4px 8px!important;border-radius:7px!important;font-family:'Orbitron',monospace!important;font-size:8px!important;font-weight:900!important;letter-spacing:.13em!important;color:#01100a!important;background:linear-gradient(100deg,#ffffff,#baffed 25%,#39e58c 55%,#20e6ff)!important;border:1px solid rgba(255,255,255,.98)!important;box-shadow:0 0 9px rgba(57,229,140,.7),0 0 20px rgba(32,230,255,.28)!important;text-shadow:none!important;animation:featuredBadge 1.8s ease-in-out infinite;}
+.gcard.featured .feat-badge::before{content:"✦  "!important;opacity:.85!important;font-size:7px!important;}
+.gcard.featured .gcard-label{color:#f5fffc!important;letter-spacing:.075em;text-shadow:0 0 9px rgba(57,229,140,.5),0 0 18px rgba(32,230,255,.22);}
+.gcard.featured:hover{animation:none!important;}
+.gcard.featured:hover::before{animation-duration:1.35s;filter:blur(.1px);}
+.gcard.featured:hover .gcard-inner{transform:translateY(-5px) scale(1.055)!important;border-color:#d0fff5!important;box-shadow:0 0 0 1px rgba(32,230,255,.48),0 0 36px rgba(32,230,255,.42),0 0 70px rgba(57,229,140,.18),0 16px 34px rgba(0,0,0,.5),inset 0 0 30px rgba(57,229,140,.12)!important;}
+@keyframes featuredSpin{to{transform:rotate(360deg)}}
+@keyframes featuredSweep{0%{background-position:-240% 0,0 0,0 0,0 0}100%{background-position:240% 0,0 0,0 0,0 0}}
+@keyframes featuredPulse{0%,100%{opacity:.52;transform:scaleX(.92)}50%{opacity:1;transform:scaleX(1)}}
+@keyframes featuredAura{0%,100%{filter:drop-shadow(0 0 7px rgba(32,230,255,.32))}50%{filter:drop-shadow(0 0 16px rgba(57,229,140,.58)) drop-shadow(0 0 28px rgba(32,230,255,.16))}}
+@keyframes featuredFloor{0%,100%{transform:scaleX(.58);opacity:.34}50%{transform:scaleX(1);opacity:.82}}
+@keyframes featuredBadge{0%,100%{transform:translateY(0);box-shadow:0 0 8px rgba(57,229,140,.55),0 0 16px rgba(32,230,255,.2)}50%{transform:translateY(-1px);box-shadow:0 0 13px rgba(57,229,140,.82),0 0 25px rgba(32,230,255,.34)}}
+@media(max-width:700px){.gcard.featured{width:112px!important}.gcard.featured .feat-badge{font-size:7px!important;padding:3px 5px!important}.gcard.featured:hover .gcard-inner{transform:translateY(-2px) scale(1.03)!important}}
+</style>
 </head>
 <body>
 
@@ -1524,7 +1552,11 @@ function resize(){
   bakeNebula();bakeStars();
 }
 resize();
-window.addEventListener('resize',()=>{resize();layoutWorld();},{passive:true});
+window.addEventListener('resize',()=>{
+  resize();
+  COLS=Math.max(6, Math.ceil((W + STEP_X)/STEP_X));
+  layoutWorld();
+},{passive:true});
 
 /* ═══════════════════════════════════════════════════
    PAN ENGINE — horizontal LOOPING (Pac-Man wrap)
@@ -1540,15 +1572,16 @@ const stageEl = document.getElementById('stage');
 const countEl = document.getElementById('zoneCount');
 const hintEl  = document.getElementById('scrollHint');
 
-const CARD_W  = 170;
-const CARD_H  = 220;
-const GAP_X   = 32;
-const GAP_Y   = 36;
-const COLS    = 6;
+const CARD_W  = 150;
+const CARD_H  = 196;
+const GAP_X   = 26;
+const GAP_Y   = 28;
+let COLS      = 6;
 const PAD_TOP = 100;  // below HUD
 
 const STEP_X  = CARD_W + GAP_X;
 const STEP_Y  = CARD_H + GAP_Y;
+COLS = Math.max(6, Math.ceil((W + STEP_X) / STEP_X));
 
 // rowWidth = total width of one full row (used for horizontal wrap)
 function rowWidth() { return COLS * STEP_X; }
@@ -1559,7 +1592,7 @@ function centerOffsetX() { return Math.max(0, Math.round((W - rowWidth()) / 2));
 
 // Total world height
 function worldHeight() {
-  return Math.ceil(filteredZones.length / COLS) * STEP_Y + PAD_TOP + 60;
+  return layoutRowCount * STEP_Y + PAD_TOP + 60;
 }
 
 // Camera — camX is unbounded (wraps), camY is clamped
@@ -1570,6 +1603,52 @@ let dragMoved = false;
 
 let filteredZones = [];
 let zones = [], popularityData = {};
+
+// Featured layout: featured cards keep a single grid cell so the layout stays compact
+// while preserving the original item order.
+let cardLayouts = [];
+let layoutRowCount = 0;
+
+function rebuildCardLayout(){
+  cardLayouts = new Array(filteredZones.length);
+  const occupied = [];
+
+  function cellFree(row, col, span){
+    if(col + span > COLS) return false;
+    for(let r=row; r<row+span; r++){
+      if(!occupied[r]) occupied[r] = new Array(COLS).fill(false);
+      for(let c=col; c<col+span; c++){
+        if(occupied[r][c]) return false;
+      }
+    }
+    return true;
+  }
+
+  function occupy(row, col, span){
+    for(let r=row; r<row+span; r++){
+      if(!occupied[r]) occupied[r] = new Array(COLS).fill(false);
+      for(let c=col; c<col+span; c++) occupied[r][c] = true;
+    }
+  }
+
+  let row = 0, col = 0;
+  for(let idx=0; idx<filteredZones.length; idx++){
+    const span = 1;
+
+    while(!cellFree(row, col, span)){
+      col++;
+      if(col >= COLS){ col = 0; row++; }
+    }
+
+    cardLayouts[idx] = {row, col, span};
+    occupy(row, col, span);
+
+    col += span;
+    if(col >= COLS){ col = 0; row++; }
+  }
+
+  layoutRowCount = filteredZones.length ? (Math.max(...cardLayouts.map(x=>x.row + x.span))) : 0;
+}
 
 // Card pool — one DOM element per zone index (reused, never destroyed on scroll)
 const cardPool = new Map();
@@ -1647,7 +1726,7 @@ const HOLD_MS = 600;
 
 function makeCardEl(zone){
   const card = document.createElement('div');
-  card.className = 'gcard';
+  card.className = 'gcard' + (zone.featured ? ' featured' : '');
   card.style.position = 'absolute';
 
   const inner = document.createElement('div');
@@ -1760,6 +1839,7 @@ function getCard(pk){
 function layoutWorld(){
   cardPool.forEach(el=>el.remove());
   cardPool.clear();
+  rebuildCardLayout();
   camX = 0; camY = 0; velX = 0; velY = 0;
   countEl.textContent = filteredZones.length + ' ZONES';
 }
@@ -1780,48 +1860,43 @@ function renderWorld(){
   if(!total) return;
 
   const rw = rowWidth();
-  const off = centerOffsetX(); // px to shift grid so it's centered in viewport
+  const off = centerOffsetX();
   const cy = camY;
-  const rows = Math.ceil(total / COLS);
 
-  // Visible row range
+  // Featured cards occupy a 2x2 footprint, preserving the exact item order.
   const rowMin = Math.max(0, Math.floor((cy - STEP_Y - PAD_TOP) / STEP_Y));
-  const rowMax = Math.min(rows - 1, Math.floor((cy + H + STEP_Y - PAD_TOP) / STEP_Y));
+  const rowMax = Math.min(layoutRowCount - 1, Math.floor((cy + H + STEP_Y - PAD_TOP) / STEP_Y));
 
   const placed = new Set();
 
-  for(let row = rowMin; row <= rowMax; row++){
-    const sy = PAD_TOP + row * STEP_Y - cy;
+  for(let idx = 0; idx < total; idx++){
+    const layout = cardLayouts[idx];
+    if(!layout) continue;
+    if(layout.row + layout.span < rowMin || layout.row > rowMax) continue;
 
-    for(let col = 0; col < COLS; col++){
-      const idx = row * COLS + col;
-      if(idx >= total) continue;
+    const sy = PAD_TOP + layout.row * STEP_Y - cy;
+    const wx = layout.col * STEP_X + off;
+    const rawSX = wx - camX;
+    const visualW = CARD_W;
 
-      // Column's world X within one period, shifted to center
-      const wx = col * STEP_X + off;
+    // Keep the initial viewport clean: cards are rendered once in their real
+    // positions. Wrap copies are only added when the camera actually crosses
+    // the horizontal world boundary. This prevents the duplicate cards that
+    // were appearing on the far left/right edges of the screen.
+    const copies = [rawSX];
+    if(rawSX < -STEP_X) copies.push(rawSX + rw);
+    if(rawSX > W + STEP_X) copies.push(rawSX - rw);
 
-      // camX is unbounded. Project world X to screen X using raw subtraction,
-      // then wrap so the result is in the range [-(rw), (rw*2)] covering viewport + overscan.
-      // We use mod to find the canonical screen position, then also place ghost copies
-      // one period to the left and right so the seam is always filled.
-      const rawSX = wx - mod(camX, rw);
+    for(let ci = 0; ci < copies.length; ci++){
+      const sx = copies[ci];
+      if(sx + visualW < -STEP_X || sx > W + STEP_X) continue;
 
-      // Place up to 3 copies: rawSX, rawSX+rw, rawSX-rw
-      // Only those that intersect the viewport get rendered
-      const copies = [rawSX, rawSX + rw, rawSX - rw];
-      for(let ci = 0; ci < copies.length; ci++){
-        const sx = copies[ci];
-        if(sx + CARD_W < -STEP_X || sx > W + STEP_X) continue;
-
-        // Pool key: ci==0 → idx, ci==1 → idx+total, ci==2 → idx+total*2
-        const pk = idx + total * ci;
-        placeCard(pk, sx, sy);
-        placed.add(pk);
-      }
+      const pk = idx + total * ci;
+      placeCard(pk, sx, sy);
+      placed.add(pk);
     }
   }
 
-  // Hide cards not placed this frame
   cardPool.forEach((el, pk) => {
     if(!placed.has(pk)) el.style.display = 'none';
   });
