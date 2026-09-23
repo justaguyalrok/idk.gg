@@ -1574,8 +1574,8 @@ const hintEl  = document.getElementById('scrollHint');
 
 const CARD_W  = 150;
 const CARD_H  = 196;
-const GAP_X   = 26;
-const GAP_Y   = 28;
+const GAP_X   = 42;
+const GAP_Y   = 42;
 let COLS      = 6;
 const PAD_TOP = 100;  // below HUD
 
@@ -1605,6 +1605,7 @@ let filteredZones = [];
 let zones = [], popularityData = {};
 
 // Featured layout: featured cards keep a single grid cell so the layout stays compact
+// Spacing is intentionally wider for a more open, premium card grid.
 // while preserving the original item order.
 let cardLayouts = [];
 let layoutRowCount = 0;
