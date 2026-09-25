@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -356,6 +357,101 @@
       transition:opacity 0.7s ease;
     }
     #loader.done{opacity:0;pointer-events:none;}
+
+    /* ── USERNAME GATE + LIVE ROSTER ── */
+    #usernameGate{position:fixed;inset:0;z-index:11000;display:none;
+      align-items:center;justify-content:center;padding:1rem;
+      background:rgba(1,7,10,.93);backdrop-filter:blur(10px);}
+    #usernameGate.visible{display:flex;}
+    .username-card{width:min(100%,370px);padding:1.8rem;border-radius:16px;
+      border:1px solid rgba(57,229,140,.32);background:linear-gradient(155deg,#08120f,#030807);
+      box-shadow:0 0 44px rgba(57,229,140,.12),0 28px 65px rgba(0,0,0,.7);}
+    .username-card h1{font-family:'Orbitron',monospace;font-size:.85rem;letter-spacing:.14em;
+      color:var(--pulsar);margin-bottom:.55rem;}
+    .username-card p{color:rgba(255,255,255,.48);font-size:.86rem;line-height:1.45;margin-bottom:1.1rem;}
+    #usernameInput{width:100%;padding:.72rem .85rem;border:1px solid rgba(57,229,140,.22);
+      border-radius:8px;background:rgba(57,229,140,.045);color:#fff;font:600 1rem 'Rajdhani',sans-serif;
+      outline:none;}
+    #usernameInput:focus{border-color:var(--pulsar);box-shadow:0 0 0 3px rgba(57,229,140,.1);}
+    #usernameError{min-height:1.2rem;color:#ff8585;font-size:.73rem;margin:.38rem 0 .65rem;}
+    #usernameSubmit{width:100%;padding:.68rem;border:1px solid rgba(57,229,140,.55);border-radius:8px;
+      background:rgba(57,229,140,.13);color:var(--pulsar);font:700 .65rem 'Orbitron',monospace;
+      letter-spacing:.12em;cursor:pointer;transition:background .18s,transform .18s;}
+    #usernameSubmit:hover{background:rgba(57,229,140,.22);transform:translateY(-1px);}
+    #rankGate{position:fixed;inset:0;z-index:11000;display:none;
+      align-items:center;justify-content:center;padding:1rem;
+      background:rgba(1,7,10,.93);backdrop-filter:blur(10px);}
+    #rankGate.visible{display:flex;}
+    #rankGate .username-card{border-color:rgba(255,200,40,.5);background:
+      radial-gradient(circle at 85% 5%,rgba(255,200,40,.13),transparent 33%),linear-gradient(155deg,#171207,#070603);}
+    #rankGate h1{color:#ffd66b;text-shadow:0 0 18px rgba(255,200,40,.35);}
+    #rankCodeInput{letter-spacing:.14em;text-align:center;border-color:rgba(255,200,40,.28)!important;
+      background:rgba(255,200,40,.045)!important;}
+    #rankCodeInput:focus{border-color:#ffd66b!important;box-shadow:0 0 0 3px rgba(255,200,40,.1)!important;}
+    #rankSubmit{border-color:rgba(255,200,40,.65);background:linear-gradient(100deg,rgba(255,183,0,.14),rgba(255,220,95,.23),rgba(255,183,0,.14));
+      color:#ffe38b;text-shadow:0 0 10px rgba(255,220,95,.35);}
+    #rankSubmit:hover{background:linear-gradient(100deg,rgba(255,183,0,.25),rgba(255,220,95,.36),rgba(255,183,0,.25));}
+    #ownerGranted{position:fixed;inset:0;z-index:12000;display:none;place-items:center;pointer-events:none;
+      background:radial-gradient(circle,rgba(255,206,65,.2),rgba(1,7,10,.9) 58%);opacity:0;transition:opacity .18s;}
+    #ownerGranted.visible{display:grid;opacity:1;}
+    .owner-granted-card{text-align:center;padding:2rem 2.6rem;border:1px solid rgba(255,220,100,.7);border-radius:18px;
+      background:linear-gradient(145deg,rgba(51,36,5,.96),rgba(8,7,2,.97));box-shadow:0 0 30px rgba(255,201,43,.25),0 0 90px rgba(255,201,43,.15);
+      animation:ownerReveal 1.3s cubic-bezier(.2,.85,.25,1) both;}
+    .owner-crown{font-size:2.5rem;filter:drop-shadow(0 0 12px rgba(255,220,80,.8));margin-bottom:.45rem;}
+    .owner-granted-card h2{font:900 .9rem 'Orbitron',monospace;letter-spacing:.16em;color:#ffe183;text-shadow:0 0 18px rgba(255,220,95,.6);}
+    .owner-granted-card p{margin-top:.5rem;font:.68rem 'Rajdhani',sans-serif;letter-spacing:.18em;color:rgba(255,238,184,.65);}
+    @keyframes ownerReveal{0%{transform:scale(.72) translateY(18px);opacity:0;filter:blur(8px)}45%{transform:scale(1.07) translateY(-2px);opacity:1;filter:blur(0)}100%{transform:scale(1);opacity:1}}
+    .identity-chip{max-width:180px;min-width:0;display:inline-flex;align-items:center;gap:.32rem;white-space:nowrap;
+      border:1px solid rgba(57,229,140,.28);border-radius:999px;background:rgba(57,229,140,.08);
+      color:var(--pulsar);font:600 .76rem 'Rajdhani',sans-serif;padding:.35rem .72rem;cursor:pointer;
+      transition:background .18s,border-color .18s;}
+    #liveUsername{min-width:0;overflow:hidden;text-overflow:ellipsis;}
+    .identity-chip:hover{background:rgba(57,229,140,.15);border-color:var(--pulsar);}
+    .identity-settings{width:31px;height:31px;border-radius:50%;border:1px solid rgba(57,229,140,.28);
+      background:rgba(57,229,140,.08);color:var(--pulsar);display:grid;place-items:center;cursor:pointer;
+      transition:background .18s,border-color .18s;}
+    .identity-settings:hover{background:rgba(57,229,140,.15);border-color:var(--pulsar);}
+    .rank-badge{display:inline-block;margin:0;padding:.1rem .3rem;border:1px solid rgba(255,200,40,.55);
+      border-radius:999px;color:#ffd66b;background:rgba(255,200,40,.1);font:700 .48rem 'Orbitron',monospace;
+      letter-spacing:.08em;vertical-align:middle;}
+    #rankBadge[hidden]{display:none!important;}
+    .roster-list{display:grid;gap:.45rem;max-height:45vh;overflow:auto;padding-right:.2rem;}
+    .roster-user{display:flex;align-items:center;gap:.55rem;padding:.52rem .62rem;border:1px solid rgba(57,229,140,.1);
+      border-radius:7px;background:rgba(57,229,140,.035);color:rgba(255,255,255,.8);}
+    button.roster-user{width:100%;font:inherit;text-align:left;cursor:pointer;transition:border-color .16s,background .16s;}
+    button.roster-user:hover{border-color:rgba(255,200,40,.6);background:rgba(255,200,40,.06);}
+    .roster-user::before{content:'';width:7px;height:7px;border-radius:50%;background:var(--pulsar);
+      box-shadow:0 0 8px rgba(57,229,140,.85);flex:0 0 auto;}
+    #liveChatFeed{height:260px;overflow-y:auto;display:grid;align-content:start;gap:.45rem;
+      padding:.15rem .2rem .15rem 0;margin-bottom:.75rem;}
+    .chat-message{padding:.48rem .6rem;border-radius:8px;background:rgba(57,229,140,.04);
+      border:1px solid rgba(57,229,140,.09);font-size:.82rem;line-height:1.35;word-break:break-word;}
+    .chat-message-name{color:var(--pulsar);font-weight:600;margin-right:.35rem;}
+    #liveChatForm{display:flex;gap:.45rem;}
+    #liveChatInput{min-width:0;flex:1;padding:.56rem .68rem;border:1px solid rgba(57,229,140,.2);
+      border-radius:8px;background:rgba(57,229,140,.04);color:#fff;font:600 .86rem 'Rajdhani',sans-serif;outline:none;}
+    #liveChatInput:focus{border-color:var(--pulsar);}
+    #liveChatSend{padding:.45rem .65rem;border:1px solid rgba(57,229,140,.45);border-radius:8px;
+      background:rgba(57,229,140,.11);color:var(--pulsar);font:700 .56rem 'Orbitron',monospace;letter-spacing:.08em;cursor:pointer;}
+    .moderation-target{padding:.7rem .8rem;border:1px solid rgba(255,200,40,.22);border-radius:9px;background:rgba(255,200,40,.05);
+      color:#ffe5a0;font:700 .77rem 'Orbitron',monospace;letter-spacing:.06em;margin-bottom:.8rem;}
+    .moderation-note{font-size:.7rem;color:rgba(255,255,255,.38);line-height:1.45;margin:.55rem 0 .85rem;}
+    .moderation-actions{display:grid;grid-template-columns:1fr 1fr;gap:.45rem;}
+    .moderation-actions button{padding:.58rem .4rem;border-radius:8px;border:1px solid rgba(255,120,100,.25);
+      background:rgba(255,90,70,.06);color:rgba(255,185,175,.85);font:700 .57rem 'Orbitron',monospace;
+      letter-spacing:.06em;cursor:pointer;transition:background .16s,border-color .16s;}
+    .moderation-actions button:hover{background:rgba(255,90,70,.14);border-color:rgba(255,130,110,.65);}
+    .moderation-actions .severe{border-color:rgba(255,64,64,.45);color:#ff9b9b;background:rgba(255,50,50,.1);}
+    #moderationBlocker{position:fixed;inset:0;z-index:13000;display:none;place-items:center;padding:1rem;
+      background:radial-gradient(circle at 50% 44%,rgba(255,60,60,.16),rgba(1,4,6,.97) 62%);}
+    #moderationBlocker.visible{display:grid;}
+    .moderation-blocker-card{max-width:390px;width:100%;padding:2rem;border:1px solid rgba(255,88,88,.48);border-radius:16px;
+      background:linear-gradient(155deg,#1a0808,#070303);box-shadow:0 0 50px rgba(255,50,50,.16),0 28px 65px rgba(0,0,0,.8);text-align:center;}
+    .moderation-blocker-card h2{font:900 .86rem 'Orbitron',monospace;letter-spacing:.13em;color:#ff9999;margin-bottom:.75rem;}
+    .moderation-blocker-card p{font-size:.86rem;line-height:1.5;color:rgba(255,255,255,.58);}
+    .moderation-blocker-card button{margin-top:1.1rem;padding:.57rem .9rem;border:1px solid rgba(255,130,130,.45);border-radius:8px;
+      background:rgba(255,90,90,.1);color:#ffc1c1;font:700 .58rem 'Orbitron',monospace;letter-spacing:.1em;cursor:pointer;}
+    #moderationBlockerButton[hidden]{display:none!important;}
 
     /* Letter-by-letter IDK.GG title */
     #loaderTitle{
@@ -1376,6 +1472,43 @@ body.ultra-save body::after{display:none !important}
   <div id="loaderSub">Remade by justaguy</div>
   <div id="loaderBar"></div>
 </div>
+
+<!-- Shown only after the loading screen has completed. It intentionally blocks the site until a name is chosen. -->
+<section id="usernameGate" aria-modal="true" aria-labelledby="usernameGateTitle" role="dialog">
+  <form class="username-card" id="usernameForm">
+    <h1 id="usernameGateTitle">ENTER USERNAME</h1>
+    <p>Choose the name other people will see while you are browsing.</p>
+    <input id="usernameInput" type="text" maxlength="24" autocomplete="nickname" placeholder="Your username" required>
+    <div id="usernameError" aria-live="polite"></div>
+    <button id="usernameSubmit" type="submit">ENTER IDK.GG</button>
+  </form>
+</section>
+
+<section id="rankGate" aria-modal="true" aria-labelledby="rankGateTitle" role="dialog">
+  <form class="username-card" id="rankForm">
+    <h1 id="rankGateTitle">RANK SETTINGS</h1>
+    <p>Enter an owner code to add a public rank to your username.</p>
+    <input id="rankCodeInput" type="password" autocomplete="off" placeholder="Owner code" required>
+    <div id="rankError" aria-live="polite"></div>
+    <button id="rankSubmit" type="submit">APPLY RANK</button>
+  </form>
+</section>
+
+<div id="ownerGranted" aria-live="assertive" aria-label="Owner access granted">
+  <div class="owner-granted-card">
+    <div class="owner-crown">♛</div>
+    <h2>OWNER ACCESS GRANTED</h2>
+    <p>RANK SYNCHRONIZED</p>
+  </div>
+</div>
+
+<section id="moderationBlocker" aria-live="assertive" aria-modal="true" role="dialog">
+  <div class="moderation-blocker-card">
+    <h2 id="moderationBlockerTitle">ACCESS RESTRICTED</h2>
+    <p id="moderationBlockerText"></p>
+    <button id="moderationBlockerButton" type="button" onclick="location.reload()">REJOIN SITE</button>
+  </div>
+</section>
 <script>
 // Intercept loader.classList.add('done') EARLY — before listZones() fires
 (function(){
@@ -1393,6 +1526,8 @@ body.ultra-save body::after{display:none !important}
     bar && bar.classList.add('done');
     setTimeout(function(){
       orig('done');
+      // Wait for the loader fade to finish before asking for the user's name.
+      setTimeout(function(){ if(window.showUsernameGate) window.showUsernameGate(); }, 720);
       setTimeout(function(){ if(ldr.parentNode) ldr.parentNode.removeChild(ldr); }, 900);
     }, 340);
   }
@@ -1464,6 +1599,10 @@ body.ultra-save body::after{display:none !important}
       <span class="live-dot"></span>
       <span class="live-count" id="liveNum">1</span>
     </span>
+    <button id="liveUserBtn" class="identity-chip" type="button" onclick="openLiveUsers()" title="Show people online" aria-label="Show people online"><span id="liveUsername">…</span><span id="rankBadge" class="rank-badge" hidden>OWNER</span></button>
+    <button class="identity-settings" type="button" onclick="openRankSettings()" title="Rank settings" aria-label="Rank settings">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1z"/></svg>
+    </button>
   </div>
 </header>
 
@@ -2916,65 +3055,390 @@ function clearDisguiseImg(){
 })();
 
 /* ═══════════════════════════════════════════════════
-   LIVE PLAYER COUNT — BroadcastChannel + localStorage
-   No external APIs needed
+   LIVE USER ROSTER — PubNub presence state
 ═══════════════════════════════════════════════════ */
-(function initLivePlayers(){
-  const el = document.getElementById('liveNum');
-  const CCU_CHANNEL = 'orion-ccu-v2'; // bump version to flush old ghost tabs
+(function initLiveUsers(){
+  const CHANNEL = 'idkgg-live-users-v1'; // Use a unique channel for this site.
+  const CHAT_CHANNEL = 'idkgg-live-chat-v1';
+  const MODERATION_CHANNEL = 'idkgg-moderation-v1';
+  const RESTRICTIONS_KEY = 'idkgg_local_restrictions_v1';
+  const DEVICE_ID_KEY = 'idkgg_device_id_v1';
+  const countEl = document.getElementById('liveNum');
+  const usernameEl = document.getElementById('liveUsername');
+  const rankBadge = document.getElementById('rankBadge');
+  const gate = document.getElementById('usernameGate');
+  const form = document.getElementById('usernameForm');
+  const input = document.getElementById('usernameInput');
+  const error = document.getElementById('usernameError');
+  const rankGate = document.getElementById('rankGate');
+  const rankForm = document.getElementById('rankForm');
+  const rankInput = document.getElementById('rankCodeInput');
+  const rankError = document.getElementById('rankError');
+  const ownerGranted = document.getElementById('ownerGranted');
+  const blocker = document.getElementById('moderationBlocker');
+  const blockerTitle = document.getElementById('moderationBlockerTitle');
+  const blockerText = document.getElementById('moderationBlockerText');
+  const blockerButton = document.getElementById('moderationBlockerButton');
+  let client = null;
+  let myId = null;
+  let myName = '';
+  let myRank = '';
+  let onlineUsers = [];
+  let chatMessages = [];
+  const seenChatIds = new Set();
+  const seenModerationIds = new Set();
+  let selectedTarget = null;
+  let restrictions = loadRestrictions();
 
-  try{
-    const userId = 'orion-' + Math.random().toString(36).slice(2);
-    const pn = new PubNub({
-      publishKey:        'demo',
-      subscribeKey:      'demo',
-      userId:            userId,
-      heartbeatInterval: 10,
-      presenceTimeout:   20
-    });
+  const escapeHtml = value => String(value).replace(/[&<>'"]/g, char => ({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[char]));
+  const normalizeName = value => value.trim().replace(/\s+/g, ' ').slice(0, 24);
 
-    pn.addListener({
-      presence: function(e){
-        if(e.channel !== CCU_CHANNEL) return;
-        if(e.occupancy != null){
-          if(el) el.textContent = e.occupancy;
-        }
-      }
-    });
-
-    pn.subscribe({ channels: [CCU_CHANNEL], withPresence: true });
-
-    pn.hereNow({ channels: [CCU_CHANNEL] }).then(function(r){
-      const occ = r.totalOccupancy;
-      if(el && occ != null) el.textContent = occ;
-    }).catch(function(){});
-
-    window.addEventListener('pagehide', function(){
-      const leaveURL = 'https://ps.pndsn.com/v2/presence/sub-key/demo/channel/' + CCU_CHANNEL + '/leave?uuid=' + encodeURIComponent(userId);
-      try{ navigator.sendBeacon(leaveURL); } catch(e){}
-      try{ pn.unsubscribeAll(); } catch(e){}
-    });
-
-  } catch(e){
-    // PubNub unavailable — fall back to localStorage count
-    const PREFIX = 'orion_peer_';
-    const HB = 2000, TOUT = 6000;
-    const myKey = PREFIX + Math.random().toString(36).slice(2);
-    function stamp(){ try{ localStorage.setItem(myKey, Date.now()); }catch(e){} }
-    function countLive(){
-      const now = Date.now(); let n = 0;
-      try{ for(let i=0;i<localStorage.length;i++){
-        const k=localStorage.key(i); if(!k||!k.startsWith(PREFIX)) continue;
-        const t=parseInt(localStorage.getItem(k),10);
-        if(!isNaN(t)&&now-t<TOUT) n++;
-      }}catch(e){}
-      return Math.max(1,n);
-    }
-    stamp(); if(el) el.textContent = countLive();
-    const hbInt = setInterval(()=>{ stamp(); if(el) el.textContent = countLive(); }, HB);
-    window.addEventListener('storage', e=>{ if(e.key&&e.key.startsWith(PREFIX)&&el) el.textContent=countLive(); });
-    window.addEventListener('beforeunload',()=>{ try{localStorage.removeItem(myKey);}catch(e){} clearInterval(hbInt); });
+  function loadRestrictions(){
+    try{
+      const stored = JSON.parse(localStorage.getItem(RESTRICTIONS_KEY) || '{}');
+      const now = Date.now();
+      Object.keys(stored).forEach(key => { if(!Number.isFinite(+stored[key]) || +stored[key] <= now) delete stored[key]; });
+      return stored;
+    }catch(e){ return {}; }
   }
+
+  function saveRestrictions(){
+    try{ localStorage.setItem(RESTRICTIONS_KEY, JSON.stringify(restrictions)); }catch(e){}
+  }
+
+  function activeUntil(key){
+    const until = Number(restrictions[key]) || 0;
+    if(until && until <= Date.now()){
+      delete restrictions[key];
+      saveRestrictions();
+      return 0;
+    }
+    return until;
+  }
+
+  function durationLabel(until){
+    const minutes = Math.max(1, Math.ceil((until - Date.now()) / 60000));
+    return `${minutes} minute${minutes === 1 ? '' : 's'}`;
+  }
+
+  function rememberRestriction(key, until){
+    if(!Number.isFinite(until) || until <= Date.now()) return;
+    restrictions[key] = until;
+    saveRestrictions();
+    setTimeout(enforceRestrictions, Math.min(until - Date.now() + 100, 2147483647));
+  }
+
+  function showSiteBlock(title, message, canRejoin){
+    blockerTitle.textContent = title;
+    blockerText.textContent = message;
+    blockerButton.hidden = !canRejoin;
+    blocker.classList.add('visible');
+  }
+
+  function enforceRestrictions(){
+    const siteBanUntil = activeUntil('siteBanUntil');
+    if(siteBanUntil){
+      blocker.dataset.reason = 'ban';
+      showSiteBlock('SITE ACCESS BANNED', `Your access is restricted for ${durationLabel(siteBanUntil)}.`, false);
+    }else if(blocker.dataset.reason === 'ban'){
+      blocker.classList.remove('visible');
+      blocker.dataset.reason = '';
+    }
+
+    const chatBanUntil = activeUntil('chatBanUntil');
+    const chatMuteUntil = activeUntil('chatMuteUntil');
+    const title = document.getElementById('popupTitle');
+    if(title && title.textContent === 'REAL-TIME CHAT'){
+      if(chatBanUntil){
+        showPopup('CHAT ACCESS BANNED', `<p style="text-align:center;padding:1.3rem .4rem;color:#ffadad">You cannot view or use chat for ${durationLabel(chatBanUntil)}.</p>`);
+      }else if(chatMuteUntil){
+        const chatInput = document.getElementById('liveChatInput');
+        const chatSend = document.getElementById('liveChatSend');
+        if(chatInput) chatInput.disabled = true;
+        if(chatSend) chatSend.disabled = true;
+      }
+    }
+    const nextExpiry = ['siteBanUntil','chatMuteUntil','chatBanUntil']
+      .map(activeUntil).filter(Boolean).sort(function(a,b){ return a-b; })[0];
+    if(nextExpiry) setTimeout(enforceRestrictions, Math.min(nextExpiry - Date.now() + 100, 2147483647));
+  }
+
+  function getOrCreateDeviceId(){
+    try{
+      const existing = localStorage.getItem(DEVICE_ID_KEY);
+      if(existing && /^idkgg-[a-z0-9-]{8,}$/i.test(existing)) return existing;
+      const values = crypto.getRandomValues(new Uint32Array(2));
+      const id = `idkgg-${values[0].toString(36)}-${values[1].toString(36)}`;
+      localStorage.setItem(DEVICE_ID_KEY, id);
+      return id;
+    }catch(e){
+      return `idkgg-${Math.random().toString(36).slice(2)}-${Date.now().toString(36)}`;
+    }
+  }
+
+  function receiveModeration(command){
+    if(!command || command.targetId !== myId || typeof command.action !== 'string') return;
+    const commandId = String(command.id || `${command.action}-${command.issuedAt || ''}`);
+    if(seenModerationIds.has(commandId)) return;
+    seenModerationIds.add(commandId);
+    const until = Number(command.until) || 0;
+    if(['mute','ban','chat-ban'].includes(command.action) && until <= Date.now()) return;
+
+    if(command.action === 'kick'){
+      blocker.dataset.reason = 'kick';
+      showSiteBlock('SITE KICK', 'You were removed from this session. This is a kick, not a ban — you may rejoin whenever you are ready.', true);
+    }else if(command.action === 'mute'){
+      rememberRestriction('chatMuteUntil', until);
+      showPopup('CHAT MUTED', `<p style="text-align:center;padding:.9rem .3rem;color:#ffcf8f">You have been muted for <strong>${durationLabel(until)}</strong>. You can still read chat, but cannot send messages.</p>`);
+      enforceRestrictions();
+    }else if(command.action === 'ban'){
+      blocker.dataset.reason = 'ban';
+      rememberRestriction('siteBanUntil', until);
+      enforceRestrictions();
+    }else if(command.action === 'chat-ban'){
+      rememberRestriction('chatBanUntil', until);
+      showPopup('CHAT BANNED', `<p style="text-align:center;padding:.9rem .3rem;color:#ffadad">You are banned from chat for <strong>${durationLabel(until)}</strong>. You cannot view or send chat messages until then.</p>`);
+      enforceRestrictions();
+    }else if(command.action === 'chat-kick'){
+      const title = document.getElementById('popupTitle');
+      if(title && title.textContent === 'REAL-TIME CHAT') closePopup();
+      showPopup('CHAT KICK', '<p style="text-align:center;padding:.9rem .3rem;color:#ffcf8f">You were kicked from chat. This is not a ban — you can open chat again whenever you want.</p>');
+    }
+  }
+
+  function setUsers(occupants){
+    const seen = new Set();
+    onlineUsers = (occupants || []).map(function(occupant){
+      const name = normalizeName(occupant.state && occupant.state.username || 'Guest');
+      const rank = occupant.state && occupant.state.rank === 'owner' ? 'owner' : '';
+      return { id: occupant.uuid || occupant.userId || name, name: name || 'Guest', rank: rank };
+    }).filter(function(user){
+      if(seen.has(user.id)) return false;
+      seen.add(user.id);
+      return true;
+    }).sort(function(a,b){ return a.name.localeCompare(b.name); });
+    if(countEl) countEl.textContent = onlineUsers.length || 1;
+  }
+
+  function refreshRoster(){
+    if(!client) return Promise.resolve();
+    return client.hereNow({channels:[CHANNEL], includeUUIDs:true, includeState:true}).then(function(result){
+      const channel = result.channels && result.channels[CHANNEL];
+      setUsers(channel && channel.occupants);
+    }).catch(function(){});
+  }
+
+  window.openLiveUsers = function(){
+    refreshRoster().finally(function(){
+      const rows = onlineUsers.length
+        ? onlineUsers.map(function(user, index){
+            const label = `${escapeHtml(user.name)}${user.rank === 'owner' ? ' <span class="rank-badge">OWNER</span>' : ''}${user.id === myId ? ' <span style="color:var(--pulsar);font-size:.7rem">(you)</span>' : ''}`;
+            return myRank === 'owner' && user.id !== myId
+              ? `<button class="roster-user" type="button" data-moderation-index="${index}">${label}<span style="margin-left:auto;color:#ffd66b;font-size:.56rem;letter-spacing:.08em">MANAGE</span></button>`
+              : `<div class="roster-user">${label}</div>`;
+          }).join('')
+        : '<p>No presence data has arrived yet. Try again in a moment.</p>';
+      showPopup('ONLINE NOW', `<p style="margin-bottom:.75rem">${onlineUsers.length || 0} people currently browsing</p><div class="roster-list">${rows}</div><button class="settings-btn" style="margin-top:.8rem;margin-bottom:0;text-align:center" onclick="openLiveChat()">◉ OPEN REAL-TIME CHAT</button>`);
+      document.querySelectorAll('[data-moderation-index]').forEach(function(button){
+        button.addEventListener('click', function(){ window.openModerationMenu(Number(button.dataset.moderationIndex)); });
+      });
+    });
+  };
+
+  window.openModerationMenu = function(index){
+    if(myRank !== 'owner') return;
+    const target = onlineUsers[index];
+    if(!target || target.id === myId) return;
+    selectedTarget = target;
+    showPopup('OWNER MODERATION', `
+      <div class="moderation-target">${escapeHtml(target.name)}${target.rank === 'owner' ? ' <span class="rank-badge">OWNER</span>' : ''}</div>
+      <label for="moderationDuration">TIMED ACTION LENGTH</label>
+      <div style="display:flex;align-items:center;gap:.5rem;margin-bottom:.4rem">
+        <input id="moderationDuration" type="number" min="1" max="10080" value="10" style="width:86px;padding:.5rem .6rem;border:1px solid rgba(255,200,40,.24);border-radius:7px;background:rgba(255,200,40,.04);color:#fff;font:600 .85rem 'Rajdhani',sans-serif;outline:none">
+        <span style="font-size:.75rem;color:rgba(255,255,255,.45)">minutes</span>
+      </div>
+      <p class="moderation-note">Kick only ends the current visit. Timed actions are enforced until their countdown ends.</p>
+      <div class="moderation-actions">
+        <button type="button" onclick="issueModeration('kick')">KICK SITE</button>
+        <button type="button" onclick="issueModeration('mute')">MUTE CHAT</button>
+        <button type="button" onclick="issueModeration('chat-kick')">CHAT KICK</button>
+        <button type="button" onclick="issueModeration('chat-ban')">CHAT BAN</button>
+        <button class="severe" type="button" style="grid-column:1 / -1" onclick="issueModeration('ban')">BAN FROM SITE</button>
+      </div>
+    `);
+  };
+
+  window.issueModeration = function(action){
+    if(myRank !== 'owner' || !selectedTarget || selectedTarget.id === myId || !client) return;
+    const timed = ['mute', 'ban', 'chat-ban'].includes(action);
+    const durationInput = document.getElementById('moderationDuration');
+    const minutes = Math.max(1, Math.min(10080, Number.parseInt(durationInput && durationInput.value, 10) || 10));
+    const command = {
+      id: `mod-${myId}-${Date.now()}-${Math.random().toString(36).slice(2,7)}`,
+      action: action,
+      targetId: selectedTarget.id,
+      issuedAt: Date.now(),
+      until: timed ? Date.now() + minutes * 60000 : 0
+    };
+    client.publish({channel:MODERATION_CHANNEL, message:command}).then(function(){
+      showPopup('ACTION SENT', `<p style="text-align:center;padding:.8rem .3rem">${escapeHtml(action.replace('-', ' ').toUpperCase())} sent to <strong>${escapeHtml(selectedTarget.name)}</strong>.</p>`);
+    }).catch(function(){
+      showPopup('ACTION NOT SENT', '<p style="text-align:center;padding:.8rem .3rem;color:#ffadad">The live moderation service is unavailable.</p>');
+    });
+  };
+
+  function renderChat(){
+    const feed = document.getElementById('liveChatFeed');
+    if(!feed) return;
+    feed.innerHTML = chatMessages.length
+      ? chatMessages.map(message => `<div class="chat-message"><span class="chat-message-name">${escapeHtml(message.name)}</span>${message.rank === 'owner' ? '<span class="rank-badge">OWNER</span>' : ''}<span>${escapeHtml(message.text)}</span></div>`).join('')
+      : '<p style="color:rgba(255,255,255,.35);text-align:center;padding:2rem .5rem">No messages yet. Say hello.</p>';
+    feed.scrollTop = feed.scrollHeight;
+  }
+
+  function addChatMessage(message){
+    if(!message || typeof message.text !== 'string') return;
+    const id = String(message.id || `${message.name}-${message.sentAt}-${message.text}`);
+    if(seenChatIds.has(id)) return;
+    seenChatIds.add(id);
+    chatMessages.push({
+      id:id,
+      name:normalizeName(message.name || 'Guest') || 'Guest',
+      rank:message.rank === 'owner' ? 'owner' : '',
+      text:message.text.trim().slice(0, 300)
+    });
+    if(chatMessages.length > 100) chatMessages = chatMessages.slice(-100);
+    renderChat();
+  }
+
+  window.openLiveChat = function(){
+    const chatBanUntil = activeUntil('chatBanUntil');
+    if(chatBanUntil){
+      showPopup('CHAT ACCESS BANNED', `<p style="text-align:center;padding:1.3rem .4rem;color:#ffadad">You cannot view or use chat for ${durationLabel(chatBanUntil)}.</p>`);
+      return;
+    }
+    const chatMuteUntil = activeUntil('chatMuteUntil');
+    showPopup('REAL-TIME CHAT', `
+      <div id="liveChatFeed" aria-live="polite"></div>
+      <form id="liveChatForm">
+        <input id="liveChatInput" type="text" maxlength="300" autocomplete="off" placeholder="${chatMuteUntil ? `Muted for ${durationLabel(chatMuteUntil)}` : 'Send a message'}" ${(client && !chatMuteUntil) ? '' : 'disabled'}>
+        <button id="liveChatSend" type="submit" ${(client && !chatMuteUntil) ? '' : 'disabled'}>SEND</button>
+      </form>
+      ${chatMuteUntil ? `<p style="margin-top:.5rem;color:#ffcf8f;font-size:.7rem">You can read chat, but cannot send messages for ${durationLabel(chatMuteUntil)}.</p>` : (client ? '' : '<p style="margin-top:.5rem;color:#ff8585;font-size:.7rem">Chat is unavailable because the live service did not load.</p>')}
+    `);
+    renderChat();
+    const form = document.getElementById('liveChatForm');
+    const input = document.getElementById('liveChatInput');
+    if(input && !input.disabled) input.focus();
+    if(form) form.addEventListener('submit', function(event){
+      event.preventDefault();
+      const text = input.value.trim();
+      if(!text || !client || activeUntil('chatMuteUntil') || activeUntil('chatBanUntil')) return;
+      const message = {id:`${myId}-${Date.now()}-${Math.random().toString(36).slice(2,7)}`, name:myName, rank:myRank, text:text, sentAt:Date.now()};
+      input.value = '';
+      addChatMessage(message);
+      client.publish({channel:CHAT_CHANNEL, message:message}).catch(function(){});
+    });
+  };
+
+  function updateIdentityView(){
+    if(usernameEl) usernameEl.textContent = myName || '…';
+    if(rankBadge) rankBadge.hidden = myRank !== 'owner';
+  }
+
+  function clearRank(){
+    myRank = '';
+    if(rankBadge) rankBadge.setAttribute('hidden', '');
+  }
+
+  function publishIdentity(){
+    const state = {username:myName, rank:myRank};
+    if(!client){
+      setUsers([{uuid:myId, state:state}]);
+      return;
+    }
+    client.setState({channels:[CHANNEL], state:state}).then(refreshRoster).catch(refreshRoster);
+  }
+
+  function startPresence(){
+    if(!window.PubNub){
+      // The roster can only be shared between devices when PubNub loads.
+      publishIdentity();
+      return;
+    }
+    try{
+      client = new PubNub({
+        publishKey: 'demo', subscribeKey: 'demo', userId: myId,
+        heartbeatInterval: 10, presenceTimeout: 20
+      });
+      client.addListener({
+        presence: function(event){
+          if(event.channel !== CHANNEL) return;
+          if(event.occupancy != null && countEl) countEl.textContent = event.occupancy;
+          refreshRoster();
+        },
+        message: function(event){
+          if(event.channel === CHAT_CHANNEL) addChatMessage(event.message);
+          if(event.channel === MODERATION_CHANNEL) receiveModeration(event.message);
+        }
+      });
+      client.subscribe({channels:[CHANNEL, CHAT_CHANNEL, MODERATION_CHANNEL], withPresence:true});
+      publishIdentity();
+      window.addEventListener('pagehide', function(){
+        try{ client.unsubscribeAll(); }catch(e){}
+      }, {once:true});
+      setTimeout(refreshRoster, 1000);
+    }catch(e){
+      client = null;
+      publishIdentity();
+    }
+  }
+
+  function submitName(event){
+    event.preventDefault();
+    const name = normalizeName(input.value);
+    if(name.length < 2){
+      error.textContent = 'Use at least 2 characters.';
+      input.focus();
+      return;
+    }
+    // Every new page join starts rankless. The only way to become owner is submitRank().
+    clearRank();
+    myName = name;
+    myId = getOrCreateDeviceId();
+    updateIdentityView();
+    gate.classList.remove('visible');
+    startPresence();
+  }
+
+  function submitRank(event){
+    event.preventDefault();
+    if(rankInput.value !== '0962:)'){
+      rankError.textContent = 'That owner code is not valid.';
+      rankInput.select();
+      return;
+    }
+    myRank = 'owner';
+    updateIdentityView();
+    rankGate.classList.remove('visible');
+    rankInput.value = '';
+    publishIdentity();
+    ownerGranted.classList.add('visible');
+    setTimeout(function(){ ownerGranted.classList.remove('visible'); }, 1650);
+  }
+
+  window.showUsernameGate = function(){
+    gate.classList.add('visible');
+    setTimeout(() => input.focus(), 50);
+  };
+  window.openRankSettings = function(){
+    rankError.textContent = '';
+    rankGate.classList.add('visible');
+    setTimeout(() => rankInput.focus(), 50);
+  };
+  enforceRestrictions();
+  form.addEventListener('submit', submitName);
+  rankForm.addEventListener('submit', submitRank);
 })();
 
 </script>
