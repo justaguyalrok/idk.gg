@@ -258,6 +258,19 @@
       width:15px;height:15px;border-radius:50%;background:var(--pulsar);
       box-shadow:0 0 8px rgba(57,229,140,.7);cursor:pointer;border:2px solid #04120d;
     }
+    .settings-toggle-row{display:flex;align-items:center;justify-content:space-between;
+      margin-bottom:0.9rem;}
+    .settings-toggle-row label{margin:0;}
+    .toggle-switch{position:relative;display:inline-block;width:38px;height:21px;flex-shrink:0;}
+    .toggle-switch input{opacity:0;width:0;height:0;}
+    .toggle-slider{position:absolute;cursor:pointer;inset:0;
+      background:rgba(255,255,255,0.12);border:1px solid rgba(57,229,140,.25);
+      border-radius:999px;transition:background .18s,border-color .18s;}
+    .toggle-slider::before{content:'';position:absolute;height:15px;width:15px;left:2px;top:2px;
+      background:rgba(255,255,255,0.6);border-radius:50%;transition:transform .18s,background .18s;}
+    .toggle-switch input:checked + .toggle-slider{background:rgba(57,229,140,.28);border-color:var(--pulsar);}
+    .toggle-switch input:checked + .toggle-slider::before{transform:translateX(17px);background:var(--pulsar);
+      box-shadow:0 0 6px rgba(57,229,140,.8);}
 
     /* ── FOOTER ── */
     #footer{position:fixed;bottom:0;left:0;right:0;z-index:50;
@@ -2665,6 +2678,14 @@ function openSettings(){showPopup('SETTINGS',`
     <input type="range" id="hueSlider" min="0" max="360" step="1" value="${getThemeHue()}"
       oninput="setThemeHue(this.value);document.getElementById('hueVal').textContent=Math.round(this.value)+'°'">
   </div>
+  <div class="settings-toggle-row">
+    <label>🔕 Disable Chat Notifications</label>
+    <label class="toggle-switch">
+      <input type="checkbox" id="notifDisableToggle" ${getNotifDisabled() ? 'checked' : ''}
+        onchange="setNotifDisabled(this.checked)">
+      <span class="toggle-slider"></span>
+    </label>
+  </div>
   <button class="settings-btn" onclick="openTabCloak()">⚑ Tab Cloak</button>
   <button class="settings-btn" onclick="saveData()">↓ Export Data</button>
   <button class="settings-btn" onclick="document.getElementById('importData').click()">↑ Import Data</button>`);}
@@ -2752,7 +2773,8 @@ async function loadData(event){
 }
 
 /* ═══════════════════════════════════════════════════
-   NOTIFICATION VOLUME + SITE COLOR (persisted settings)
+   NOTIFICATION VOLUME + SITE COLOR + DISABLE TOGGLE
+   (persisted settings)
 ═══════════════════════════════════════════════════ */
 function getChatVolume(){
   const v = parseFloat(localStorage.getItem('orion_chat_volume'));
@@ -2760,6 +2782,13 @@ function getChatVolume(){
 }
 function setChatVolume(v){
   localStorage.setItem('orion_chat_volume', v);
+}
+
+function getNotifDisabled(){
+  return localStorage.getItem('orion_notif_disabled') === '1';
+}
+function setNotifDisabled(disabled){
+  localStorage.setItem('orion_notif_disabled', disabled ? '1' : '0');
 }
 
 const THEME_HUE_TARGETS = [
@@ -3469,6 +3498,7 @@ function clearDisguiseImg(){
 
   function showChatToast(message){
     if(!chatToastContainer) return;
+    if(typeof getNotifDisabled === 'function' && getNotifDisabled()) return;
     const popupTitleEl = document.getElementById('popupTitle');
     const chatOpen = popupOverlay.style.display === 'flex' &&
       popupTitleEl && popupTitleEl.textContent === 'REAL-TIME CHAT';
@@ -3552,6 +3582,16 @@ function clearDisguiseImg(){
     if(rankBadge) rankBadge.setAttribute('hidden', '');
   }
 
+  function getSavedRank(){
+    try{ return localStorage.getItem('idkgg_saved_rank') === 'owner' ? 'owner' : ''; }catch(e){ return ''; }
+  }
+  function setSavedRank(rank){
+    try{
+      if(rank === 'owner') localStorage.setItem('idkgg_saved_rank', 'owner');
+      else localStorage.removeItem('idkgg_saved_rank');
+    }catch(e){}
+  }
+
   function publishIdentity(){
     const state = {username:myName, rank:myRank};
     if(!client){
@@ -3603,8 +3643,10 @@ function clearDisguiseImg(){
       input.focus();
       return;
     }
-    // Every new page join starts rankless. The only way to become owner is submitRank().
-    clearRank();
+    // Restore a previously unlocked rank instead of requiring the code every visit.
+    const saved = getSavedRank();
+    if(saved === 'owner') myRank = 'owner';
+    else clearRank();
     myName = name;
     myId = getOrCreateDeviceId();
     updateIdentityView();
@@ -3620,6 +3662,7 @@ function clearDisguiseImg(){
       return;
     }
     myRank = 'owner';
+    setSavedRank('owner');
     updateIdentityView();
     rankGate.classList.remove('visible');
     rankInput.value = '';
