@@ -518,6 +518,36 @@ sweep(document)})();</script>
     #liveChatInput:focus{border-color:var(--pulsar);}
     #liveChatSend{padding:.45rem .65rem;border:1px solid rgba(57,229,140,.45);border-radius:8px;
       background:rgba(57,229,140,.11);color:var(--pulsar);font:700 .56rem 'Orbitron',monospace;letter-spacing:.08em;cursor:pointer;}
+    /* ── CHAT IMAGE / GIF ATTACHMENTS ── */
+    #chatAttachBtn{flex:0 0 auto;width:38px;padding:0;border:1px solid rgba(57,229,140,.35);border-radius:8px;
+      background:rgba(57,229,140,.08);color:var(--pulsar);font:700 1.15rem/1 'Orbitron',monospace;cursor:pointer;
+      display:flex;align-items:center;justify-content:center;
+      transition:background .16s,border-color .16s,box-shadow .16s;}
+    #chatAttachBtn:hover:not(:disabled){background:rgba(57,229,140,.2);border-color:var(--pulsar);
+      box-shadow:0 0 14px rgba(57,229,140,.35);}
+    #chatAttachBtn:disabled{opacity:.4;cursor:not-allowed;}
+    #chatAttachPreview{display:flex;align-items:center;gap:.6rem;margin-bottom:.55rem;padding:.5rem .6rem;
+      border:1px solid rgba(57,229,140,.28);border-radius:9px;
+      background:linear-gradient(150deg,rgba(57,229,140,.08),rgba(32,230,255,.04));
+      box-shadow:inset 0 0 18px rgba(57,229,140,.06);}
+    #chatAttachPreview[hidden]{display:none!important;}
+    #chatAttachThumb{width:46px;height:46px;object-fit:cover;border-radius:7px;flex:0 0 auto;
+      border:1px solid rgba(57,229,140,.35);background:rgba(0,0,0,.35);}
+    .chat-attach-meta{display:flex;flex-direction:column;gap:.1rem;min-width:0;flex:1;}
+    #chatAttachName{font:600 .74rem 'Rajdhani',sans-serif;color:rgba(255,255,255,.82);
+      overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+    #chatAttachSize{font:700 .58rem 'Orbitron',monospace;letter-spacing:.06em;color:rgba(57,229,140,.75);}
+    #chatAttachRemove{flex:0 0 auto;width:26px;height:26px;border-radius:7px;border:1px solid rgba(255,120,100,.35);
+      background:rgba(255,90,70,.08);color:rgba(255,185,175,.9);font-size:.8rem;line-height:1;cursor:pointer;
+      display:flex;align-items:center;justify-content:center;transition:background .16s,border-color .16s;}
+    #chatAttachRemove:hover{background:rgba(255,90,70,.2);border-color:rgba(255,130,110,.7);}
+    #chatAttachError{margin-bottom:.55rem;padding:.5rem .6rem;border:1px solid rgba(255,120,100,.35);
+      border-radius:9px;background:rgba(255,90,70,.07);color:#ffadad;font-size:.74rem;line-height:1.4;}
+    #chatAttachError[hidden]{display:none!important;}
+    .chat-image{display:block;margin-top:.4rem;max-width:100%;max-height:260px;width:auto;height:auto;
+      border-radius:8px;border:1px solid rgba(57,229,140,.22);background:rgba(0,0,0,.3);}
+    .chat-toast-image{display:block;margin-top:.5rem;max-width:100%;max-height:150px;border-radius:8px;
+      border:1px solid rgba(57,229,140,.25);}
     .moderation-target{padding:.7rem .8rem;border:1px solid rgba(255,200,40,.22);border-radius:9px;background:rgba(255,200,40,.05);
       color:#ffe5a0;font:700 .77rem 'Orbitron',monospace;letter-spacing:.06em;margin-bottom:.8rem;}
     .moderation-note{font-size:.7rem;color:rgba(255,255,255,.38);line-height:1.45;margin:.55rem 0 .85rem;}
@@ -1780,9 +1810,62 @@ body.ultra-save body::after{display:none !important}
   color:rgba(255,255,255,.6);min-height:.9rem;}
 .owner-panel-status.ok{color:#8ff0b8;}
 .owner-panel-status.error{color:#ffadad;}
+/* Collapsible header. The whole row is the toggle, so the panel can be shut
+   down to a single line without leaving an empty gap behind. */
+.owner-panel-toggle{display:flex;align-items:center;gap:.4rem;flex:1 1 auto;min-width:0;
+  padding:.25rem .35rem;border:1px solid transparent;border-radius:7px;background:transparent;
+  cursor:pointer;text-align:left;transition:background .16s,border-color .16s;}
+.owner-panel-toggle:hover{background:rgba(255,200,40,.12);border-color:rgba(255,200,40,.32);}
+.owner-panel-toggle:focus-visible{outline:2px solid rgba(255,200,40,.55);outline-offset:1px;}
+.owner-panel-chevron{font:900 .68rem 'Orbitron',monospace;color:#ffd66b;line-height:1;
+  transition:transform .2s ease;display:inline-block;}
+#ownerPanel.collapsed .owner-panel-chevron{transform:rotate(-90deg);}
+#ownerPanel.collapsed .owner-panel-head{margin-bottom:0;}
+#ownerPanelBody[hidden]{display:none;}
+#ownerPanel.collapsed .owner-panel-body{display:none;}
+/* Destructive zone: reads as dangerous, separated by a red rule. */
+.owner-panel-danger{margin-top:.6rem;padding-top:.6rem;border-top:1px solid rgba(255,110,90,.22);}
+.owner-danger-warn{margin:0 0 .45rem;font:600 .7rem 'Rajdhani',sans-serif;line-height:1.35;color:#ffc9bd;}
+.owner-btn-wide{flex:1 1 auto;width:100%;}
+/* ── ACTION LOG ──
+   Per-user moderation history. Newest first, colour-coded per action type,
+   filterable from the user picker above. Lives inside the collapsible body,
+   so it disappears with the panel and is never visible to non-owners. */
+.owner-panel-log{margin-top:.6rem;padding-top:.6rem;border-top:1px solid rgba(57,229,140,.18);}
+.action-log-head{display:flex;align-items:center;gap:.35rem;margin-bottom:.45rem;}
+.action-log-title{font:900 .56rem 'Orbitron',monospace;letter-spacing:.14em;color:#8ff0b8;
+  text-shadow:0 0 10px rgba(57,229,140,.35);flex:1 1 auto;min-width:0;}
+.action-log-filter{font:700 .5rem 'Orbitron',monospace;letter-spacing:.05em;color:#ffd66b;
+  padding:.18rem .38rem;border:1px solid rgba(255,200,40,.35);border-radius:6px;
+  background:rgba(255,200,40,.08);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+  max-width:8.5rem;flex:0 1 auto;}
+.action-log-list{max-height:11rem;overflow:auto;display:flex;flex-direction:column;gap:.3rem;
+  padding-right:.15rem;}
+.action-log-entry{display:flex;align-items:baseline;gap:.4rem;padding:.34rem .45rem;
+  border:1px solid rgba(255,255,255,.07);border-radius:7px;background:rgba(255,255,255,.025);}
+.action-log-action{font:900 .5rem 'Orbitron',monospace;letter-spacing:.07em;padding:.16rem .34rem;
+  border-radius:5px;white-space:nowrap;flex:0 0 auto;}
+.action-log-action.severe{color:#ff9b9b;border:1px solid rgba(255,80,80,.45);background:rgba(255,60,60,.12);}
+.action-log-action.warn{color:#ffd66b;border:1px solid rgba(255,200,40,.42);background:rgba(255,200,40,.1);}
+.action-log-action.ok{color:#8ff0b8;border:1px solid rgba(57,229,140,.42);background:rgba(57,229,140,.1);}
+.action-log-body{flex:1 1 auto;min-width:0;font:600 .68rem 'Rajdhani',sans-serif;
+  color:rgba(255,255,255,.7);line-height:1.3;}
+.action-log-body strong{color:#fff;font-weight:700;}
+.action-log-time{flex:0 0 auto;font:600 .6rem 'Rajdhani',sans-serif;color:rgba(255,255,255,.4);
+  white-space:nowrap;}
+.action-log-empty{margin:0;padding:.5rem .3rem;text-align:center;font:600 .68rem 'Rajdhani',sans-serif;
+  color:rgba(255,255,255,.35);}
+.owner-btn-mini{padding:.24rem .45rem;border-radius:6px;border:1px solid rgba(57,229,140,.35);
+  background:rgba(57,229,140,.08);color:var(--pulsar);font:700 .5rem 'Orbitron',monospace;
+  letter-spacing:.07em;cursor:pointer;white-space:nowrap;transition:background .16s,border-color .16s;}
+.owner-btn-mini:hover{background:rgba(57,229,140,.18);border-color:var(--pulsar);}
+.owner-btn-mini.danger{border-color:rgba(255,110,90,.4);background:rgba(255,90,70,.08);color:#ffb3a6;}
+.owner-btn-mini.danger:hover{background:rgba(255,90,70,.18);border-color:rgba(255,130,110,.75);}
 @media(max-width:700px){
   .owner-panel-row{flex-wrap:wrap;}
   #ownerAnnounceInput,#ownerTargetSelect{flex:1 1 100%;}
+  .owner-panel-toggle{flex:1 1 100%;}
+  .action-log-filter{max-width:6rem;}
 }
 </style>
 </head>
@@ -3216,31 +3299,229 @@ try{
   }
 }catch(e){}
 
-// Local visit counter — increments by exactly 1 per page load.
-// This runs once at script-parse time, so re-renders, popup opens and the
-// 30s poll that used to exist can never re-count a single visit.
-(function countVisitOnce(){
-  if(window.__idkggVisitCounted) return;   // hard guard: once per page load
-  window.__idkggVisitCounted = true;
-  const el = document.getElementById('visitCount');
-  let n = 0;
-  try{ n = parseInt(localStorage.getItem(VISITS_KEY), 10) || 0; }catch(e){ n = 0; }
-  n += 1;
-  try{ localStorage.setItem(VISITS_KEY, String(n)); }catch(e){}
-  if(el) el.textContent = n.toLocaleString('en-US');
-  // Hourly snapshot so the visit-history graph keeps working
+/* ── GLOBAL VISIT COUNTER — one shared total for every visitor ─────────
+   This counter used to live in localStorage, so each visitor saw only
+   their OWN personal join count. It is now a single value shared by all
+   visitors, synced over PubNub on the same demo key the chat, presence
+   and moderation channels already use.
+
+   Every page load publishes one "join" event carrying a DISTINCT join
+   id minted for that load. Clients merge the value with a MAX, which
+   gives two properties that make this safe on a public channel:
+
+     • MAX is idempotent — the same event replayed from history, or a
+       join delivered twice, can never inflate the number (unlike a
+       "+1 per event" scheme, which double-counts on every replay);
+     • each load owns its own join id, so two simultaneous loads each
+       add exactly one instead of colliding on a single shared id.
+
+   The number is rebuilt from the channel's retained history, so it
+   survives reloads and suspends without trusting any local counter. */
+const VISIT_CHANNEL = 'idkgg-visits-v1';
+// Same key family as the serverside "Abacus" total, so the pill shows one
+// consistent number even if that total is ever wired in.
+const VISIT_TOTAL_KEY = 'orion_visits_global';
+const VISIT_HOURLY_KEY = 'orion_hourly_snap';
+const VISIT_CLEANUP_KEY = 'idkgg_visits_cleanup_v1';
+const VISIT_SYNC_MS = 60000;
+// A page load only counts once the page has actually been shown for a
+// moment, so a bounce does not inflate the shared total.
+const VISIT_HOLD_MS = 8000;
+
+// The shared total, and the flags that keep this page load to a single join.
+let visitTotal = 0;
+let visitJoinAccepted = false;
+let visitSyncTimer = null;
+let visitHoldUntil = 0;
+let visitJoinSeen = false;
+
+// One-time cleanup: drop the per-browser value left behind by the old local
+// counter, so a stale personal total can never shadow the shared one.
+try{
+  if(localStorage.getItem(VISIT_CLEANUP_KEY) !== '1'){
+    localStorage.removeItem(VISIT_TOTAL_KEY);
+    localStorage.removeItem(VISIT_HOURLY_KEY);
+    localStorage.setItem(VISIT_CLEANUP_KEY, '1');
+  }
+}catch(e){}
+
+// Exactly ONE join id per page load. It is minted at parse time and never
+// replaced, so the heartbeat, a reconnect or a resume republishing the join
+// can never count this visit a second time.
+const VISIT_JOIN_ID = 'join_' + (function(){
   try{
-    const hourKey = new Date().toISOString().slice(0,13);
-    const snap = JSON.parse(localStorage.getItem('orion_hourly_snap')||'{}');
-    snap[hourKey] = n;
-    const hkeys = Object.keys(snap).sort();
-    if(hkeys.length > 25) hkeys.slice(0, hkeys.length-25).forEach(k=>delete snap[k]);
-    localStorage.setItem('orion_hourly_snap', JSON.stringify(snap));
+    if(window.crypto && typeof window.crypto.randomUUID === 'function') return window.crypto.randomUUID();
   }catch(e){}
+  return Date.now().toString(36) + '_' + Math.random().toString(36).slice(2, 10);
 })();
 
+function formatVisits(value){
+  return (Number(value) || 0).toLocaleString('en-US');
+}
+
+/* The counter owns its own PubNub client so that a rebuild of the main
+   live-users client (resume / reconnect) can never republish the join and
+   double-count this page load. */
+function getVisitClient(){
+  if('__idkggVisitClient' in window) return window.__idkggVisitClient;
+  if(!window.PubNub){ window.__idkggVisitClient = null; return null; }
+  try{
+    window.__idkggVisitClient = new PubNub({
+      publishKey:'demo', subscribeKey:'demo', userId:'visitor-'+VISIT_JOIN_ID,
+      heartbeatInterval:10, presenceTimeout:20
+    });
+  }catch(e){ window.__idkggVisitClient = null; }
+  return window.__idkggVisitClient;
+}
+
+function cacheVisitTotal(value){
+  visitTotal = value;
+  try{ localStorage.setItem(VISIT_TOTAL_KEY, String(value)); }catch(e){}
+}
+
+/* Render into the existing pill — same ID, same thousands separators. */
+function renderVisitTotal(value){
+  if(typeof value === 'number' && isFinite(value)) cacheVisitTotal(value);
+  const el = document.getElementById('visitCount');
+  if(el) el.textContent = formatVisits(visitTotal);
+}
+
+/* The max-merge. Returns true only when the value actually moved. */
+function setVisitTotal(value){
+  if(!isFinite(value) || value <= visitTotal) return false;
+  cacheVisitTotal(value);
+  renderVisitTotal();
+  // Hourly snapshot so the visit-history graph keeps working exactly as before
+  try{
+    const hourKey = new Date().toISOString().slice(0,13);
+    const snap = JSON.parse(localStorage.getItem(VISIT_HOURLY_KEY)||'{}');
+    snap[hourKey] = visitTotal;
+    const hkeys = Object.keys(snap).sort();
+    if(hkeys.length > 25) hkeys.slice(0, hkeys.length-25).forEach(function(k){ delete snap[k]; });
+    localStorage.setItem(VISIT_HOURLY_KEY, JSON.stringify(snap));
+  }catch(e){}
+  return true;
+}
+
+/* Every event the channel carries.
+   A "join" is only accepted once per page load (visitJoinAccepted): our own
+   join echoes back over the subscription, and a reconnect or a history replay
+   may deliver it again. Accepting it a second time could only raise the total
+   to a value our own join had already produced, so it is dropped.
+   A "sync" whose holder is our own join id proves that join reached the
+   channel, so the recovery path can stand down. */
+function applyVisitEvent(message){
+  if(!message || typeof message !== 'object') return;
+  if(message.type === 'join'){
+    // A join that merely re-delivers the sequence number this load already
+    // contributed is not counted again.
+    if(message.id === VISIT_JOIN_ID && visitJoinAccepted) return;
+    if(setVisitTotal(Number(message.seq) || 0)) visitJoinAccepted = true;
+    return;
+  }
+  if(message.type === 'sync'){
+    if(message.holder === VISIT_JOIN_ID) visitJoinSeen = true;
+    setVisitTotal(Number(message.total) || 0);
+  }
+}
+
+function publishVisitEvent(message){
+  const c = getVisitClient();
+  if(!c) return Promise.resolve(false);
+  return c.publish({channel:VISIT_CHANNEL, message:message})
+    .then(function(){ return true; }, function(){ return false; });
+}
+
+function publishVisitJoin(){
+  return publishVisitEvent({ type:'join', id:VISIT_JOIN_ID, seq:visitTotal, at:Date.now() });
+}
+
+/* Confirm the shared value, so a load landing on an idle channel still
+   learns the current total instead of sitting on its cached value. */
+function publishVisitSnapshot(){
+  return publishVisitEvent({ type:'sync', total:visitTotal, holder:VISIT_JOIN_ID, at:Date.now() });
+}
+
+/* Recovery: if our join never made it onto the channel (the socket was down
+   at that instant) it is re-sent under the SAME id, which is why a re-send
+   can never count this visit twice. */
+function republishVisitJoinIfLost(){
+  if(!visitJoinSeen && visitTotal > 0) publishVisitJoin();
+}
+
+/* Rebuild the number from the channel's retained history. PubNub replays our
+   own publishes, so this also recovers the local total across reloads and
+   suspends — no local counter is trusted for the shared value. */
+function seedVisitsFromHistory(){
+  const c = getVisitClient();
+  if(!c || typeof c.fetchMessages !== 'function') return Promise.resolve();
+  return c.fetchMessages({ channels:[VISIT_CHANNEL], count:100, end:Date.now() })
+    .then(function(result){
+      const list = (result && result.channels && result.channels[VISIT_CHANNEL]) || [];
+      // Oldest first, so the max-merge finishes on the newest value.
+      list.slice().reverse().forEach(function(event){ applyVisitEvent(event && event.message); });
+    })
+    .catch(function(){});
+}
+
+function visitSubscribe(){
+  const c = getVisitClient();
+  if(!c || window.__idkggVisitSubscribed) return;
+  window.__idkggVisitSubscribed = true;
+  try{ c.subscribe({ channels:[VISIT_CHANNEL] }); }catch(e){}
+}
+
+/* Runs ONCE per page load, guarded the same way the old counter was. */
+function initVisitSync(){
+  if(window.__idkggVisitSyncStarted) return;   // hard guard: once per page load
+  window.__idkggVisitSyncStarted = true;
+  // Show the shared total this browser last saw, so the pill is never blank
+  // while the channel round-trip completes.
+  let cached = 0;
+  try{ cached = parseInt(localStorage.getItem(VISIT_TOTAL_KEY), 10) || 0; }catch(e){ cached = 0; }
+  renderVisitTotal(cached);
+  const c = getVisitClient();
+  if(!c) return;   // counter unavailable — the pill keeps its last known value
+  visitSubscribe();
+  c.addListener({ message:function(event){
+    if(!event || event.channel !== VISIT_CHANNEL) return;
+    applyVisitEvent(event.message);
+  }});
+  // Never let a slow history fetch hold the count back.
+  const seedTimeout = new Promise(function(resolve){ setTimeout(resolve, 3000); });
+  Promise.race([seedVisitsFromHistory(), seedTimeout]).then(function(){
+    // Count this page load exactly once, now that the current total is known.
+    // Publishing the join sets visitJoinAccepted, so the copy of it that echoes
+    // back over the subscription cannot be counted a second time.
+    visitHoldUntil = Date.now() + VISIT_HOLD_MS;
+    const mine = visitTotal + 1;
+    visitJoinAccepted = true;
+    setVisitTotal(mine);
+    publishVisitJoin().then(function(ok){
+      if(ok) return;
+      // The join did not leave the client (socket down at this instant) —
+      // release the flag so the recovery path can genuinely re-send it.
+      visitJoinAccepted = false;
+    });
+    if(visitSyncTimer) return;
+    visitSyncTimer = setInterval(function(){
+      publishVisitSnapshot();
+      republishVisitJoinIfLost();
+    }, VISIT_SYNC_MS);
+  });
+}
+initVisitSync();
+
+/* Called from the resume/reconnect path: rejoin the channel, resend a join
+   that never landed, and pull the freshest total back from history. */
+window.__idkggResumeVisit = function(){
+  visitSubscribe();
+  republishVisitJoinIfLost();
+  return seedVisitsFromHistory().then(function(){ publishVisitSnapshot(); }, function(){});
+};
+
 function showVisitGraph(){
-  const total = (parseInt(localStorage.getItem('orion_visits_global'))||0).toLocaleString('en-US');
+  const total = (visitTotal || 0).toLocaleString('en-US');
   const snap  = JSON.parse(localStorage.getItem('orion_hourly_snap')||'{}');
 
   // Build 24-hour series from hourly snapshots
@@ -3590,9 +3871,18 @@ function clearDisguiseImg(){
   const seenModerationIds = new Set();
   let selectedTarget = null;
   let restrictions = loadRestrictions();
+  // True while the owner panel is showing its "remove my rank?" confirm row.
+  // Reset on every panel render so the destructive step is never pre-armed.
+  let ownerDropConfirm = false;
   // Timestamp of the last owner /clear. Messages older than this are dropped
   // so a cleared feed stays cleared for everyone, including late joiners.
   let chatClearedAt = 0;
+  // ── CHAT IMAGE / GIF ATTACHMENTS ──
+  // One pending attachment, prepared client-side (downscaled + compressed)
+  // so it fits inside PubNub's ~32KB message limit before it is published.
+  let chatAttachment = null;
+  const MAX_ATTACH_CHARS = 30000;              // data-URL length cap
+  const MAX_SOURCE_BYTES = 8 * 1024 * 1024;    // largest file we will accept
   // ── PRESENCE HEARTBEAT ──
   // Keeps this user in the online roster while the page is open and the tab is
   // visible, and drops them out of it when the tab is hidden or closed.
@@ -3602,6 +3892,23 @@ function clearDisguiseImg(){
   let lastRosterAt = 0;
   let isOnline = false;
   const HEARTBEAT_MS = 60000;
+  // ── CONNECTION HEALTH / RESUME ──
+  // A suspended tab (laptop lid shut, Chromebook sleep, phone backgrounded)
+  // kills the PubNub websocket. These track whether the socket is known-good
+  // and drive the automatic reconnect + missed-message recovery on resume.
+  let lastChatAt = 0;
+  let connectionHealthy = false;
+  let reconnectTimer = null;
+  let reconnectAttempts = 0;
+  let watchdogTimer = null;
+  let resumeInFlight = false;
+  // Timestamp of the last sign of life from the socket (any status event or
+  // any received message). If this goes stale while we should be online, the
+  // socket is dead even though PubNub never reported it — the classic
+  // suspend/resume failure — and the watchdog rebuilds it.
+  let lastAliveAt = 0;
+  const WATCHDOG_MS = 30000;
+  const STALE_MS = 150000;
 
   const escapeHtml = value => String(value).replace(/[&<>'"]/g, char => ({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[char]));
   const normalizeName = value => value.trim().replace(/\s+/g, ' ').slice(0, 24);
@@ -3662,6 +3969,168 @@ function clearDisguiseImg(){
     };
     reader.onerror = function(){ cb(''); };
     reader.readAsDataURL(file);
+  }
+
+  /* ── CHAT ATTACHMENTS ──────────────────────────────────────────────
+     Images are downscaled + JPEG-compressed on a canvas so the data URL
+     fits inside PubNub's message limit. GIFs are kept byte-for-byte when
+     they are small enough, because re-encoding through a canvas would
+     flatten the animation to a single frame. */
+  function formatBytes(n){
+    const b = Number(n) || 0;
+    if(b < 1024) return b + ' B';
+    if(b < 1024 * 1024) return (b / 1024).toFixed(1) + ' KB';
+    return (b / (1024 * 1024)).toFixed(1) + ' MB';
+  }
+
+  function isGifFile(file){
+    return !!file && (file.type === 'image/gif' || /\.gif$/i.test(file.name || ''));
+  }
+
+  function readFileAsDataUrl(file, cb){
+    const reader = new FileReader();
+    reader.onload = function(ev){ cb(String(ev.target.result || '')); };
+    reader.onerror = function(){ cb(''); };
+    reader.readAsDataURL(file);
+  }
+
+  function prepareChatAttachment(file, cb){
+    if(!file) return cb(null, 'No file was selected.');
+    if(!/^image\//i.test(file.type || '') && !/\.(png|jpe?g|gif|webp|bmp)$/i.test(file.name || '')){
+      return cb(null, 'Only image and GIF files can be attached.');
+    }
+    if(file.size > MAX_SOURCE_BYTES){
+      return cb(null, `That file is ${formatBytes(file.size)} \u2014 the limit is ${formatBytes(MAX_SOURCE_BYTES)}.`);
+    }
+    // GIF: keep the original bytes so the animation survives.
+    if(isGifFile(file)){
+      if(file.size > 22000){
+        return cb(null, `That GIF is ${formatBytes(file.size)}. Animated GIFs cannot be compressed without losing the animation \u2014 please use one under 22 KB.`);
+      }
+      return readFileAsDataUrl(file, function(dataUrl){
+        if(!dataUrl) return cb(null, 'That file could not be read.');
+        cb({ dataUrl:dataUrl, name:file.name || 'image.gif', bytes:file.size, animated:true }, null);
+      });
+    }
+    // Static image: downscale + compress until it fits the message budget.
+    const reader = new FileReader();
+    reader.onload = function(ev){
+      const raw = String(ev.target.result || '');
+      const img = new Image();
+      img.onload = function(){
+        const attempts = [
+          { max:900, q:0.82 },
+          { max:720, q:0.72 },
+          { max:560, q:0.62 },
+          { max:420, q:0.5 }
+        ];
+        let best = '';
+        for(let i = 0; i < attempts.length; i++){
+          const a = attempts[i];
+          try{
+            const iw = img.width || a.max, ih = img.height || a.max;
+            const scale = Math.min(1, a.max / Math.max(iw, ih));
+            const w = Math.max(1, Math.round(iw * scale));
+            const h = Math.max(1, Math.round(ih * scale));
+            const c = document.createElement('canvas');
+            c.width = w; c.height = h;
+            const cx = c.getContext('2d');
+            cx.drawImage(img, 0, 0, w, h);
+            const out = __nativeToDataURL.call(c, 'image/jpeg', a.q);
+            if(out && out.length > best.length) best = out;
+            if(out && out.length <= MAX_ATTACH_CHARS){
+              return cb({ dataUrl:out, name:file.name || 'image.jpg', bytes:file.size, animated:false }, null);
+            }
+          }catch(e){}
+        }
+        if(best && best.length <= MAX_ATTACH_CHARS){
+          return cb({ dataUrl:best, name:file.name || 'image.jpg', bytes:file.size, animated:false }, null);
+        }
+        cb(null, 'That image is too large to send even after compression. Try a smaller one.');
+      };
+      img.onerror = function(){ cb(null, 'That image could not be decoded.'); };
+      img.src = raw;
+    };
+    reader.onerror = function(){ cb(null, 'That file could not be read.'); };
+    reader.readAsDataURL(file);
+  }
+
+  function showChatAttachError(text){
+    const el = document.getElementById('chatAttachError');
+    if(!el) return;
+    if(!text){ el.hidden = true; el.textContent = ''; return; }
+    el.hidden = false;
+    el.textContent = text;
+  }
+
+  function renderChatAttachmentPreview(){
+    const box = document.getElementById('chatAttachPreview');
+    if(!box) return;
+    if(!chatAttachment){ box.hidden = true; return; }
+    box.hidden = false;
+    const thumb = document.getElementById('chatAttachThumb');
+    const nameEl = document.getElementById('chatAttachName');
+    const sizeEl = document.getElementById('chatAttachSize');
+    if(thumb) thumb.src = chatAttachment.dataUrl;
+    if(nameEl) nameEl.textContent = chatAttachment.name;
+    if(sizeEl) sizeEl.textContent = (chatAttachment.animated ? 'GIF \u00b7 ' : '') + formatBytes(chatAttachment.bytes);
+  }
+
+  function setChatAttachment(att){
+    chatAttachment = att || null;
+    showChatAttachError('');
+    renderChatAttachmentPreview();
+  }
+
+  function clearChatAttachment(){
+    chatAttachment = null;
+    showChatAttachError('');
+    renderChatAttachmentPreview();
+  }
+
+  /* Wire the "+" button, the hidden file picker, the remove button and
+     image pasting. Idempotent: the popup body is rebuilt on every open. */
+  function wireChatAttach(){
+    const btn = document.getElementById('chatAttachBtn');
+    const fileInput = document.getElementById('chatAttachInput');
+    const removeBtn = document.getElementById('chatAttachRemove');
+    const input = document.getElementById('liveChatInput');
+    const accept = function(file){
+      prepareChatAttachment(file, function(att, err){
+        if(err){ showChatAttachError(err); return; }
+        setChatAttachment(att);
+      });
+    };
+    if(btn && fileInput && !btn._attachWired){
+      btn._attachWired = true;
+      btn.addEventListener('click', function(){ fileInput.click(); });
+    }
+    if(fileInput && !fileInput._attachWired){
+      fileInput._attachWired = true;
+      fileInput.addEventListener('change', function(ev){
+        const file = ev.target.files && ev.target.files[0];
+        ev.target.value = '';
+        if(file) accept(file);
+      });
+    }
+    if(removeBtn && !removeBtn._attachWired){
+      removeBtn._attachWired = true;
+      removeBtn.addEventListener('click', clearChatAttachment);
+    }
+    // Paste an image straight into the chat box (screenshot / copied image).
+    if(input && !input._attachPasteWired){
+      input._attachPasteWired = true;
+      input.addEventListener('paste', function(ev){
+        const items = (ev.clipboardData && ev.clipboardData.items) || [];
+        for(let i = 0; i < items.length; i++){
+          if(items[i].type && items[i].type.indexOf('image/') === 0){
+            const file = items[i].getAsFile();
+            if(file){ ev.preventDefault(); accept(file); return; }
+          }
+        }
+      });
+    }
+    renderChatAttachmentPreview();
   }
 
   function applyPfpToCircle(circleId, imgId, initialId, name){
@@ -3796,8 +4265,10 @@ function clearDisguiseImg(){
       }else if(chatMuteUntil){
         const chatInput = document.getElementById('liveChatInput');
         const chatSend = document.getElementById('liveChatSend');
+        const chatAttach = document.getElementById('chatAttachBtn');
         if(chatInput) chatInput.disabled = true;
         if(chatSend) chatSend.disabled = true;
+        if(chatAttach) chatAttach.disabled = true;
       }
     }
     const nextExpiry = ['siteBanUntil','chatMuteUntil','chatBanUntil']
@@ -3832,6 +4303,30 @@ function clearDisguiseImg(){
       renderChat();
       return;
     }
+    // A rank change is a broadcast about ANOTHER user, so it is handled here
+    // before the targetId gate below (which drops anything not aimed at me).
+    if(command.action === 'rank'){
+      const rankId = String(command.id || `rank-${command.targetId}-${command.issuedAt || ''}`);
+      if(seenModerationIds.has(rankId)) return;
+      seenModerationIds.add(rankId);
+      applyRosterRank(command.targetId, command.rank);
+      return;
+    }
+    // Action-log traffic is a broadcast about OTHER users, so it is handled
+    // here too, before the targetId gate. De-duped by id inside appendActionLog.
+    if(command.action === 'log'){
+      appendActionLog(command.entry);
+      return;
+    }
+    if(command.action === 'log-clear'){
+      const logClearId = String(command.id || `logclear-${command.issuedAt || ''}`);
+      if(seenModerationIds.has(logClearId)) return;
+      seenModerationIds.add(logClearId);
+      actionLog = [];
+      saveActionLog();
+      renderActionLog();
+      return;
+    }
     if(command.targetId !== myId) return;
     const commandId = String(command.id || `${command.action}-${command.issuedAt || ''}`);
     if(seenModerationIds.has(commandId)) return;
@@ -3863,8 +4358,10 @@ function clearDisguiseImg(){
       saveRestrictions();
       const chatInput = document.getElementById('liveChatInput');
       const chatSend = document.getElementById('liveChatSend');
+      const chatAttach = document.getElementById('chatAttachBtn');
       if(chatInput) chatInput.disabled = false;
       if(chatSend) chatSend.disabled = false;
+      if(chatAttach) chatAttach.disabled = false;
       showPopup('CHAT UNMUTED', '<p style="text-align:center;padding:.9rem .3rem;color:#8ff0b8">You can send chat messages again.</p>');
     }
   }
@@ -3965,24 +4462,156 @@ function clearDisguiseImg(){
     }, HEARTBEAT_MS);
   }
 
-  // Prompt online/offline updates when the tab is hidden or shown again.
-  document.addEventListener('visibilitychange', function(){ heartbeat(); });
+  /* ══════════════════════════════════════════════════════════════════
+     RESUME / RECONNECT
+     Closing the lid suspends the browser and the PubNub websocket dies.
+     On resume the page must rebuild the connection, re-assert presence and
+     pull back any chat messages that arrived while it was asleep — otherwise
+     the user silently stops receiving messages and drops off the roster.
+     ══════════════════════════════════════════════════════════════════ */
+
+  /* Re-subscribe to every channel this session needs. Chat, moderation and
+     announcements are always on; the presence channel is only joined while
+     the user counts as online. */
+  function resubscribeAll(){
+    if(!client) return;
+    try{ client.subscribe({channels:[CHAT_CHANNEL, MODERATION_CHANNEL, ANNOUNCE_CHANNEL]}); }catch(e){}
+    // The visit counter rides its own client; rejoin its channel here too so a
+    // reconnect keeps the shared total flowing.
+    try{ if(window.__idkggResumeVisit) window.__idkggResumeVisit(); }catch(e){}
+    if(isUserOnline()){
+      try{ client.subscribe({channels:[CHANNEL], withPresence:true}); }catch(e){}
+      isOnline = true;
+      publishIdentity();
+    }
+  }
+
+  function forceReconnect(){
+    if(!client) return;
+    try{ client.reconnect(); }catch(e){}
+    resubscribeAll();
+    refreshRoster();
+  }
+
+  /* Short exponential backoff so a flapping network is not hammered. */
+  function scheduleReconnect(){
+    if(reconnectTimer) return;
+    const delay = Math.min(30000, 1000 * Math.pow(2, Math.min(reconnectAttempts, 5)));
+    reconnectAttempts++;
+    reconnectTimer = setTimeout(function(){
+      reconnectTimer = null;
+      forceReconnect();
+    }, delay);
+  }
+
+  /* Pull back chat messages published while the tab was suspended.
+     addChatMessage() de-dupes by id, so re-fetching is always safe. */
+  function fetchMissedMessages(){
+    if(!client || typeof client.fetchMessages !== 'function') return Promise.resolve();
+    const since = lastChatAt || (Date.now() - 10 * 60 * 1000);
+    return client.fetchMessages({channels:[CHAT_CHANNEL], count:100, end:Date.now()})
+      .then(function(result){
+        const list = (result && result.channels && result.channels[CHAT_CHANNEL]) || [];
+        list.forEach(function(message){
+          if(Number(message && message.sentAt) > since) addChatMessage(message);
+        });
+      })
+      .catch(function(){});
+  }
+
+  /* The single entry point for every "the page came back" signal. */
+  function resumeConnection(){
+    if(!client || resumeInFlight) return;
+    resumeInFlight = true;
+    // Browsers throttle or freeze timers in background tabs, so re-arm the
+    // heartbeat and watchdog instead of trusting the old intervals.
+    startHeartbeat();
+    startWatchdog();
+    try{ client.reconnect(); }catch(e){}
+    resubscribeAll();
+    heartbeat();          // re-assert presence immediately
+    refreshRoster();
+    fetchMissedMessages().then(function(){ resumeInFlight = false; }, function(){ resumeInFlight = false; });
+  }
+
+  /* Periodic health check. Two independent signals:
+     1. PubNub reported a degraded/disconnected socket → rebuild it.
+     2. No sign of life at all for STALE_MS while we should be online → the
+        socket died without PubNub noticing (suspend/resume) → rebuild it.
+     NOTE: client.time() is deliberately NOT used as the liveness probe — it
+     is a plain HTTP call that succeeds even when the websocket is dead, so
+     it would mask exactly the failure this watchdog exists to catch. */
+  function startWatchdog(){
+    if(watchdogTimer) clearInterval(watchdogTimer);
+    watchdogTimer = setInterval(function(){
+      if(!client) return;
+      if(!connectionHealthy){ forceReconnect(); return; }
+      if(isOnline && lastAliveAt && (Date.now() - lastAliveAt) > STALE_MS){
+        lastAliveAt = Date.now();
+        forceReconnect();
+      }
+    }, WATCHDOG_MS);
+  }
+
+  // Every signal the browser gives us that the page is back in the foreground.
+  document.addEventListener('visibilitychange', function(){
+    if(document.visibilityState === 'visible') resumeConnection();
+    else heartbeat();
+  });
+  window.addEventListener('focus', resumeConnection);
+  window.addEventListener('pageshow', resumeConnection);
+  window.addEventListener('online', resumeConnection);
+
+  /* A rank change arrives as a broadcast about ANOTHER user, so it is handled
+     here from memory rather than by refetching presence - a fresh fetch would
+     race the identity update carrying the new rank and could briefly restore
+     the stale OWNER badge. */
+  function applyRosterRank(targetId, rank){
+    if(!targetId) return;
+    const next = rank === 'owner' ? 'owner' : '';
+    let changed = false;
+    onlineUsers.forEach(function(user){
+      if(user.id === targetId && user.rank !== next){ user.rank = next; changed = true; }
+    });
+    // Strip the stale OWNER badge from that user's messages already in the
+    // local feed, so the change shows up in chat and not only in the roster.
+    if(next === ''){
+      chatMessages.forEach(function(message){
+        if(message.fromId && message.fromId === targetId && message.rank === 'owner'){
+          message.rank = '';
+          changed = true;
+        }
+      });
+    }
+    if(changed){ renderChat(); refreshRosterViews(); renderActionLog(); }
+  }
+
+  /* Repaint the ONLINE NOW popup from memory, but only while it is open. */
+  function refreshRosterViews(){
+    const titleEl = document.getElementById('popupTitle');
+    if(popupOverlay.style.display === 'flex' && titleEl && titleEl.textContent === 'ONLINE NOW') renderRosterPopup();
+  }
+
+  /* Renders the ONLINE NOW popup from the roster already in memory. Split out
+     from openLiveUsers so a live rank change can repaint the list immediately,
+     without triggering (and racing) a fresh presence fetch. */
+  function renderRosterPopup(){
+    const rows = onlineUsers.length
+      ? onlineUsers.map(function(user, index){
+          const label = `${escapeHtml(user.name)}${user.rank === 'owner' ? ' <span class="rank-badge">OWNER</span>' : ''}${user.id === myId ? ' <span style="color:var(--pulsar);font-size:.7rem">(you)</span>' : ''}`;
+          return myRank === 'owner' && user.id !== myId
+            ? `<button class="roster-user" type="button" data-moderation-index="${index}">${avatarHtml(user.pfp, user.name, 26)}<span>${label}</span><span style="margin-left:auto;color:#ffd66b;font-size:.56rem;letter-spacing:.08em">MANAGE</span></button>`
+            : `<div class="roster-user">${avatarHtml(user.pfp, user.name, 26)}<span>${label}</span></div>`;
+        }).join('')
+      : '<p>No presence data has arrived yet. Try again in a moment.</p>';
+    showPopup('ONLINE NOW', `<p style="margin-bottom:.75rem">${onlineUsers.length || 0} people currently browsing</p><div class="roster-list">${rows}</div><button class="settings-btn" style="margin-top:.8rem;margin-bottom:0;text-align:center" onclick="openLiveChat()">◉ OPEN REAL-TIME CHAT</button>`);
+    document.querySelectorAll('[data-moderation-index]').forEach(function(button){
+      button.addEventListener('click', function(){ window.openModerationMenu(Number(button.dataset.moderationIndex)); });
+    });
+  }
 
   window.openLiveUsers = function(){
-    refreshRoster().finally(function(){
-      const rows = onlineUsers.length
-        ? onlineUsers.map(function(user, index){
-            const label = `${escapeHtml(user.name)}${user.rank === 'owner' ? ' <span class="rank-badge">OWNER</span>' : ''}${user.id === myId ? ' <span style="color:var(--pulsar);font-size:.7rem">(you)</span>' : ''}`;
-            return myRank === 'owner' && user.id !== myId
-              ? `<button class="roster-user" type="button" data-moderation-index="${index}">${avatarHtml(user.pfp, user.name, 26)}<span>${label}</span><span style="margin-left:auto;color:#ffd66b;font-size:.56rem;letter-spacing:.08em">MANAGE</span></button>`
-              : `<div class="roster-user">${avatarHtml(user.pfp, user.name, 26)}<span>${label}</span></div>`;
-          }).join('')
-        : '<p>No presence data has arrived yet. Try again in a moment.</p>';
-      showPopup('ONLINE NOW', `<p style="margin-bottom:.75rem">${onlineUsers.length || 0} people currently browsing</p><div class="roster-list">${rows}</div><button class="settings-btn" style="margin-top:.8rem;margin-bottom:0;text-align:center" onclick="openLiveChat()">◉ OPEN REAL-TIME CHAT</button>`);
-      document.querySelectorAll('[data-moderation-index]').forEach(function(button){
-        button.addEventListener('click', function(){ window.openModerationMenu(Number(button.dataset.moderationIndex)); });
-      });
-    });
+    refreshRoster().finally(renderRosterPopup);
   };
 
   window.openModerationMenu = function(index){
@@ -4021,6 +4650,7 @@ function clearDisguiseImg(){
       until: timed ? Date.now() + minutes * 60000 : 0
     };
     client.publish({channel:MODERATION_CHANNEL, message:command}).then(function(){
+      logModerationAction(action, selectedTarget);
       showPopup('ACTION SENT', `<p style="text-align:center;padding:.8rem .3rem">${escapeHtml(action.replace('-', ' ').toUpperCase())} sent to <strong>${escapeHtml(selectedTarget.name)}</strong>.</p>`);
     }).catch(function(){
       showPopup('ACTION NOT SENT', '<p style="text-align:center;padding:.8rem .3rem;color:#ffadad">The live moderation service is unavailable.</p>');
@@ -4072,7 +4702,8 @@ function clearDisguiseImg(){
     toast.className = 'chat-toast';
     toast.innerHTML =
       `<div class="chat-toast-name"><span class="dot"></span>${avatarHtml(message.pfp, message.name, 18)}${escapeHtml(message.name)}${message.rank==='owner' ? ' <span class="rank-badge" style="margin-left:2px">OWNER</span>' : ''}</div>`
-      +`<div class="chat-toast-text">${escapeHtml(message.text)}</div>`;
+      +`<div class="chat-toast-text">${escapeHtml(message.text || '')}</div>`
+      +`${(typeof message.image === 'string' && message.image.indexOf('data:image/') === 0) ? `<img class="chat-toast-image" src="${escapeHtml(message.image)}" alt="">` : ''}`;
     toast.addEventListener('click', () => { toast.remove(); window.openLiveChat(); });
     chatToastContainer.appendChild(toast);
     setTimeout(() => toast.remove(), 5200);
@@ -4082,16 +4713,24 @@ function clearDisguiseImg(){
     const feed = document.getElementById('liveChatFeed');
     if(!feed) return;
     feed.innerHTML = chatMessages.length
-      ? chatMessages.map(message => `<div class="chat-message">${avatarHtml(message.pfp, message.name, 26)}<div class="chat-message-body"><span class="chat-message-name">${escapeHtml(message.name)}</span>${message.rank === 'owner' ? '<span class="rank-badge">OWNER</span>' : ''}<span>${escapeHtml(message.text)}</span></div></div>`).join('')
+      ? chatMessages.map(function(message){
+          const img = message.image
+            ? `<img class="chat-image" src="${escapeHtml(message.image)}" alt="${escapeHtml(message.imageName || 'image')}" loading="lazy">`
+            : '';
+          const txt = message.text ? `<span>${escapeHtml(message.text)}</span>` : '';
+          return `<div class="chat-message">${avatarHtml(message.pfp, message.name, 26)}<div class="chat-message-body"><span class="chat-message-name">${escapeHtml(message.name)}</span>${message.rank === 'owner' ? '<span class="rank-badge">OWNER</span>' : ''}${txt}${img}</div></div>`;
+        }).join('')
       : '<p style="color:rgba(255,255,255,.35);text-align:center;padding:2rem .5rem">No messages yet. Say hello.</p>';
     feed.scrollTop = feed.scrollHeight;
   }
 
   function addChatMessage(message){
-    if(!message || typeof message.text !== 'string') return;
+    if(!message) return;
+    const hasImage = typeof message.image === 'string' && message.image.indexOf('data:image/') === 0;
+    if(typeof message.text !== 'string' && !hasImage) return;
     // Drop anything sent before the last owner /clear so the feed stays cleared.
     if(chatClearedAt && Number(message.sentAt) && Number(message.sentAt) < chatClearedAt) return;
-    const id = String(message.id || `${message.name}-${message.sentAt}-${message.text}`);
+    const id = String(message.id || `${message.name}-${message.sentAt}-${message.text || 'image'}`);
     if(seenChatIds.has(id)) return;
     seenChatIds.add(id);
     const isOwn = message.id && myId && String(message.id).startsWith(`${myId}-`);
@@ -4100,8 +4739,17 @@ function clearDisguiseImg(){
       name:normalizeName(message.name || 'Guest') || 'Guest',
       rank:message.rank === 'owner' ? 'owner' : '',
       pfp: typeof message.pfp === 'string' ? message.pfp : '',
-      text:message.text.trim().slice(0, 300)
+      // Sender identity, so a later rank change can strip an OWNER badge from
+      // this user's existing messages in the feed.
+      fromId: typeof message.fromId === 'string' ? message.fromId : '',
+      text: typeof message.text === 'string' ? message.text.trim().slice(0, 300) : '',
+      image: hasImage ? message.image : '',
+      imageName: typeof message.imageName === 'string' ? message.imageName.slice(0, 80) : ''
     });
+    // Remember how far the feed has been read so a resume can ask PubNub for
+    // exactly the messages that arrived while the tab was suspended.
+    lastChatAt = Math.max(lastChatAt, Number(message.sentAt) || Date.now());
+    lastAliveAt = Date.now();
     if(chatMessages.length > 100) chatMessages = chatMessages.slice(-100);
     renderChat();
     if(!isOwn) showChatToast(message);
@@ -4116,29 +4764,48 @@ function clearDisguiseImg(){
     const chatMuteUntil = activeUntil('chatMuteUntil');
     showPopup('REAL-TIME CHAT',
       `<div id="liveChatFeed" aria-live="polite"></div>`
+      +`<div id="chatAttachError" hidden></div>`
+      +`<div id="chatAttachPreview" hidden>`
+        +`<img id="chatAttachThumb" alt="">`
+        +`<div class="chat-attach-meta"><span id="chatAttachName"></span><span id="chatAttachSize"></span></div>`
+        +`<button type="button" id="chatAttachRemove" title="Remove attachment" aria-label="Remove attachment">\u2715</button>`
+      +`</div>`
       +`<form id="liveChatForm">`
+        +`<button type="button" id="chatAttachBtn" title="Attach an image or GIF" aria-label="Attach an image or GIF" ${(client && !chatMuteUntil) ? '' : 'disabled'}>+</button>`
+        +`<input id="chatAttachInput" type="file" accept="image/*" hidden>`
         +`<input id="liveChatInput" type="text" maxlength="300" autocomplete="off" placeholder="${chatMuteUntil ? `Muted for ${durationLabel(chatMuteUntil)}` : 'Send a message'}" ${(client && !chatMuteUntil) ? '' : 'disabled'}>`
         +`<button id="liveChatSend" type="submit" ${(client && !chatMuteUntil) ? '' : 'disabled'}>SEND</button>`
       +`</form>`
       +`${chatMuteUntil ? `<p style="margin-top:.5rem;color:#ffcf8f;font-size:.7rem">You can read chat, but cannot send messages for ${durationLabel(chatMuteUntil)}.</p>` : (client ? '' : '<p style="margin-top:.5rem;color:#ff8585;font-size:.7rem">Chat is unavailable because the live service did not load.</p>')}`
-      +`${myRank === 'owner' ? '<p style="margin-top:.5rem;color:rgba(255,214,107,.72);font-size:.68rem">Owner: type <code>/help</code> for commands, or use the panel below.</p>' : ''}`
+      +`${myRank === 'owner' ? '<p id="ownerChatHint" style="margin-top:.5rem;color:rgba(255,214,107,.72);font-size:.68rem">Owner: type <code>/help</code> for commands, or use the panel below.</p>' : ''}`
       // Owner-only one-click panel. The container is always present in the
       // markup but stays empty (and therefore invisible) for non-owners.
       +`<div id="ownerPanel" hidden></div>`
     , 'chat');
     renderChat();
     renderOwnerPanel();
+    wireChatAttach();
     const chatForm = document.getElementById('liveChatForm');
     const chatInput = document.getElementById('liveChatInput');
     if(chatInput && !chatInput.disabled) chatInput.focus();
     if(chatForm) chatForm.addEventListener('submit', function(event){
       event.preventDefault();
       const text = chatInput.value.trim();
-      if(!text || activeUntil('chatBanUntil')) return;
+      if(activeUntil('chatBanUntil')) return;
       // Owner commands are handled locally and never posted as chat text.
-      if(runOwnerCommand(text)){ chatInput.value = ''; return; }
+      if(text && runOwnerCommand(text)){ chatInput.value = ''; return; }
       if(!client || activeUntil('chatMuteUntil')) return;
-      const message = {id:`${myId}-${Date.now()}-${Math.random().toString(36).slice(2,7)}`, name:myName, rank:myRank, pfp:myPfp, text:text, sentAt:Date.now()};
+      // An attached image rides the same chat channel as a normal message.
+      if(chatAttachment){
+        const imageMessage = {id:`${myId}-${Date.now()}-${Math.random().toString(36).slice(2,7)}`, fromId:myId, name:myName, rank:myRank, pfp:myPfp, text:text, image:chatAttachment.dataUrl, imageName:chatAttachment.name, sentAt:Date.now()};
+        chatInput.value = '';
+        clearChatAttachment();
+        addChatMessage(imageMessage);
+        client.publish({channel:CHAT_CHANNEL, message:imageMessage}).catch(function(){});
+        return;
+      }
+      if(!text) return;
+      const message = {id:`${myId}-${Date.now()}-${Math.random().toString(36).slice(2,7)}`, fromId:myId, name:myName, rank:myRank, pfp:myPfp, text:text, sentAt:Date.now()};
       chatInput.value = '';
       addChatMessage(message);
       client.publish({channel:CHAT_CHANNEL, message:message}).catch(function(){});
@@ -4163,6 +4830,7 @@ function clearDisguiseImg(){
     {usage:'/kick <user>',            desc:'Remove a user from the site'},
     {usage:'/mute <user>',            desc:'Stop a user sending chat messages (10 min)'},
     {usage:'/unmute <user>',          desc:'Let a muted user chat again'},
+    {usage:'/dropowner confirm',      desc:'Remove your own OWNER rank'},
     {usage:'/help',                   desc:'List these commands'}
   ];
 
@@ -4196,7 +4864,9 @@ function clearDisguiseImg(){
       issuedAt: Date.now(),
       until: until || 0
     };
-    client.publish({channel:MODERATION_CHANNEL, message:command}).catch(function(){});
+    client.publish({channel:MODERATION_CHANNEL, message:command}).then(function(){
+      logModerationAction(action, target);
+    }).catch(function(){});
   }
 
   function showAnnouncement(text, from){
@@ -4239,6 +4909,59 @@ function clearDisguiseImg(){
                     which is exact; the typed path resolves by name)
      Returns {ok, message, tone, unknown}
      ══════════════════════════════════════════════════════════════ */
+  /* ══ REMOVE OWNER RANK ══
+     Destructive and deliberate. It clears the stored owner rank, hides every
+     owner-only surface, disables the owner commands, tells every connected
+     client to drop this user's OWNER badge, and leaves a clear line in the
+     feed. Gated on myRank === 'owner', and BOTH entry points must state their
+     intent explicitly (the panel behind a confirm row, the typed command with
+     a 'confirm' argument), so it can never fire by accident. */
+  function dropOwnerRank(report){
+    if(myRank !== 'owner'){
+      const denied = "You don't have permission to use that command.";
+      if(report) report(denied, 'error');
+      return {ok:false, message:denied, tone:'error'};
+    }
+    const removedName = myName || 'This user';
+    // 1. Clear the rank locally: stored flag, memory, chip badge, panel, hint.
+    myRank = '';
+    setSavedRank('');
+    clearRank();
+    updateIdentityView();
+    renderOwnerPanelForRank();
+    // 2. Broadcast on the existing moderation channel so every connected
+    //    client drops the OWNER badge for this user right away, and re-publish
+    //    identity so the shared presence state (which seeds each roster) agrees.
+    if(client){
+      const payload = {
+        id: `rank-${myId}-${Date.now()}`,
+        action: 'rank',
+        targetId: myId,
+        rank: '',
+        issuedAt: Date.now()
+      };
+      client.publish({channel:MODERATION_CHANNEL, message:payload}).catch(function(){});
+      publishIdentity();
+    }
+    // 2b. Record the rank removal in the shared action log.
+    logModerationAction('dropowner', {id:myId, name:removedName});
+    // 3. Leave an unmissable confirmation in the chat feed, for everyone.
+    const notice = {
+      id: `${myId}-rank-${Date.now()}`,
+      fromId: myId,
+      name: removedName,
+      rank: '',
+      pfp: myPfp,
+      text: '\u2691 Removed my OWNER rank \u2014 owner commands are now disabled.',
+      sentAt: Date.now()
+    };
+    addChatMessage(notice);
+    if(client) client.publish({channel:CHAT_CHANNEL, message:notice}).catch(function(){});
+    const msg = 'OWNER rank removed. The owner panel and all owner commands are now disabled.';
+    if(report) report(msg, 'ok');
+    return {ok:true, message:msg, tone:'ok'};
+  }
+
   function executeOwnerCommand(name, arg, opts){
     opts = opts || {};
     const report = function(text, tone){
@@ -4255,7 +4978,7 @@ function clearDisguiseImg(){
     }
 
     // Unknown command → not ours. The typed path falls through to chat.
-    if(['announcement','announce','clear','kick','mute','unmute'].indexOf(name) === -1){
+    if(['announcement','announce','clear','kick','mute','unmute','dropowner','drop-owner','resign','unowner'].indexOf(name) === -1){
       return {ok:false, message:'', tone:'error', unknown:true};
     }
 
@@ -4282,6 +5005,15 @@ function clearDisguiseImg(){
       client.publish({channel:MODERATION_CHANNEL, message:payload}).catch(function(){});
       receiveModeration(payload);
       return done('Chat feed cleared for everyone.');
+    }
+
+    if(name === 'dropowner' || name === 'drop-owner' || name === 'resign' || name === 'unowner'){
+      // Second safety layer for the typed path: the rank is only dropped when
+      // the word 'confirm' is supplied explicitly.
+      if(String(arg || '').trim().toLowerCase() !== 'confirm'){
+        return fail('Type /dropowner confirm to remove your own OWNER rank.');
+      }
+      return dropOwnerRank(report);
     }
 
     // kick / mute / unmute all need a target from the live roster
@@ -4318,6 +5050,163 @@ function clearDisguiseImg(){
      Rendered only when myRank === 'owner'; non-owners get an empty,
      hidden container so nothing is visible to them.
      ══════════════════════════════════════════════════════════════ */
+  /* ══════════════════════════════════════════════════════════════
+     ACTION LOG — shared moderation history
+     Every moderation action (kick / mute / unmute / ban / chat-ban /
+     chat-kick / drop owner) appends exactly one entry here. The log is
+     kept in localStorage so it survives reloads AND broadcast on the
+     existing moderation channel so every connected owner sees the same
+     history in real time. Capped at ACTION_LOG_MAX entries.
+     ══════════════════════════════════════════════════════════════ */
+  const ACTION_LOG_KEY = 'idkgg_action_log_v1';
+  const ACTION_LOG_MAX = 100;
+  const ACTION_LOG_LABELS = {
+    'kick':'KICK', 'mute':'MUTE', 'unmute':'UNMUTE', 'ban':'BAN',
+    'chat-ban':'CHAT BAN', 'chat-kick':'CHAT KICK', 'dropowner':'DROP OWNER'
+  };
+  /* Colour accent per action type: red for the severe ones, amber for the
+     reversible ones, green for the restorative one. */
+  const ACTION_LOG_TONES = {
+    'kick':'severe', 'ban':'severe', 'chat-ban':'severe', 'chat-kick':'severe',
+    'mute':'warn', 'dropowner':'warn', 'unmute':'ok'
+  };
+  let actionLog = loadActionLog();
+  let actionLogFilter = '';   // '' = ALL USERS, otherwise a target user id
+  let actionLogClearConfirm = false;
+
+  function loadActionLog(){
+    try{
+      const raw = localStorage.getItem(ACTION_LOG_KEY);
+      if(!raw) return [];
+      const parsed = JSON.parse(raw);
+      return Array.isArray(parsed) ? parsed.slice(0, ACTION_LOG_MAX) : [];
+    }catch(e){ return []; }
+  }
+  function saveActionLog(){
+    try{ localStorage.setItem(ACTION_LOG_KEY, JSON.stringify(actionLog.slice(0, ACTION_LOG_MAX))); }catch(e){}
+  }
+  function actionLogLabel(action){ return ACTION_LOG_LABELS[action] || String(action || '').toUpperCase(); }
+  function actionLogTone(action){ return ACTION_LOG_TONES[action] || 'warn'; }
+
+  /* Relative timestamp: "just now", "3m ago", "2h ago", "yesterday", "4d ago". */
+  function actionLogTime(ts){
+    const then = Number(ts) || 0;
+    if(!then) return '';
+    const diff = Date.now() - then;
+    if(diff < 0) return 'just now';
+    const mins = Math.floor(diff / 60000);
+    if(mins < 1) return 'just now';
+    if(mins < 60) return mins + 'm ago';
+    const hours = Math.floor(mins / 60);
+    if(hours < 24) return hours + 'h ago';
+    const days = Math.floor(hours / 24);
+    if(days === 1) return 'yesterday';
+    if(days < 7) return days + 'd ago';
+    return new Date(then).toLocaleDateString('en-US', {month:'short', day:'numeric'});
+  }
+
+  /* Append one entry. De-dupes by id so a replayed broadcast (or our own
+     echo coming back over the subscription) can never double-log. */
+  function appendActionLog(entry){
+    if(!entry || !entry.action) return;
+    const id = String(entry.id || `${entry.action}-${entry.targetId || ''}-${entry.at || ''}`);
+    if(actionLog.some(function(e){ return e.id === id; })) return;
+    actionLog.unshift({
+      id: id,
+      action: String(entry.action),
+      targetId: String(entry.targetId || ''),
+      targetName: String(entry.targetName || 'Unknown'),
+      actorId: String(entry.actorId || ''),
+      actorName: String(entry.actorName || 'Unknown'),
+      at: Number(entry.at) || Date.now()
+    });
+    if(actionLog.length > ACTION_LOG_MAX) actionLog = actionLog.slice(0, ACTION_LOG_MAX);
+    saveActionLog();
+    renderActionLog();
+  }
+
+  /* Record + broadcast in one step, so no call site can forget the network
+     half and leave the other owners' logs out of sync. */
+  function logModerationAction(action, target, actorName){
+    const entry = {
+      id: `log-${myId}-${Date.now()}-${Math.random().toString(36).slice(2,7)}`,
+      action: action,
+      targetId: target && target.id ? target.id : '',
+      targetName: target && target.name ? target.name : 'Unknown',
+      actorId: myId || '',
+      actorName: actorName || myName || 'Owner',
+      at: Date.now()
+    };
+    appendActionLog(entry);
+    if(client) client.publish({channel:MODERATION_CHANNEL, message:{action:'log', entry:entry}}).catch(function(){});
+    return entry;
+  }
+
+  function clearActionLog(){
+    actionLog = [];
+    saveActionLog();
+    renderActionLog();
+    if(client) client.publish({channel:MODERATION_CHANNEL, message:{action:'log-clear', id:`logclear-${myId}-${Date.now()}`, issuedAt:Date.now()}}).catch(function(){});
+  }
+
+  /* Repaint the log list. Safe to call when the panel is closed (the list
+     element simply is not in the DOM yet). */
+  function renderActionLog(){
+    const list = document.getElementById('actionLogList');
+    if(!list) return;
+    const filterEl = document.getElementById('actionLogFilter');
+    if(filterEl){
+      const target = actionLogFilter
+        ? (onlineUsers.find(function(u){ return u.id === actionLogFilter; })
+           || actionLog.find(function(e){ return e.targetId === actionLogFilter; }))
+        : null;
+      const name = target ? (target.name || target.targetName || '') : '';
+      filterEl.textContent = name ? `FILTER: ${name}` : 'ALL USERS';
+      filterEl.title = name ? `Showing only ${name}` : 'Showing every user';
+    }
+    const rows = actionLogFilter
+      ? actionLog.filter(function(e){ return e.targetId === actionLogFilter; })
+      : actionLog;
+    list.innerHTML = rows.length
+      ? rows.slice(0, ACTION_LOG_MAX).map(function(e){
+          return `<div class="action-log-entry">`
+            +`<span class="action-log-action ${actionLogTone(e.action)}">${escapeHtml(actionLogLabel(e.action))}</span>`
+            +`<span class="action-log-body"><strong>${escapeHtml(e.targetName)}</strong> by ${escapeHtml(e.actorName)}</span>`
+            +`<span class="action-log-time">${escapeHtml(actionLogTime(e.at))}</span>`
+          +`</div>`;
+        }).join('')
+      : `<p class="action-log-empty">${actionLogFilter ? 'No actions recorded for this user.' : 'No moderation actions yet.'}</p>`;
+  }
+
+  /* ── COLLAPSIBLE PANEL ──
+     The open/closed state is remembered per browser so the panel stays the way
+     its owner left it. Collapsing hides the body outright (rather than leaving
+     an empty gap) and leaves just the header line inside the panel border. */
+  const OWNER_PANEL_OPEN_KEY = 'idkgg_owner_panel_open';
+
+  function ownerPanelIsOpen(){
+    try{ return localStorage.getItem(OWNER_PANEL_OPEN_KEY) !== '0'; }catch(e){ return true; }
+  }
+
+  function setOwnerPanelOpen(open){
+    try{ localStorage.setItem(OWNER_PANEL_OPEN_KEY, open ? '1' : '0'); }catch(e){}
+    applyOwnerPanelOpen();
+  }
+
+  function applyOwnerPanelOpen(){
+    const panel = document.getElementById('ownerPanel');
+    const body = document.getElementById('ownerPanelBody');
+    const toggle = document.getElementById('ownerPanelToggle');
+    if(!panel) return;
+    const open = ownerPanelIsOpen();
+    panel.classList.toggle('collapsed', !open);
+    if(body) body.hidden = !open;
+    if(toggle){
+      toggle.setAttribute('aria-expanded', open ? 'true' : 'false');
+      toggle.title = open ? 'Collapse the owner panel' : 'Expand the owner panel';
+    }
+  }
+
   function ownerPanelStatus(text, tone){
     const el = document.getElementById('ownerPanelStatus');
     if(!el) return;
@@ -4330,16 +5219,17 @@ function clearDisguiseImg(){
     return onlineUsers.filter(function(u){ return u.id !== myId; });
   }
 
-  /* Keep the user picker in sync with the live roster. */
+  /* Keep the user picker in sync with the live roster. A leading ALL USERS
+     option doubles as the action-log filter's "no filter" state. */
   function refreshOwnerTargets(){
     const select = document.getElementById('ownerTargetSelect');
     if(!select) return;
     const targets = ownerPanelTargets();
     const previous = select.value;
-    select.innerHTML = targets.length
-      ? targets.map(function(u){ return `<option value="${escapeHtml(u.id)}">${escapeHtml(u.name)}</option>`; }).join('')
-      : '<option value="">No one else online</option>';
-    if(previous && targets.some(function(u){ return u.id === previous; })) select.value = previous;
+    select.innerHTML = '<option value="">\u2014 ALL USERS \u2014</option>'
+      + targets.map(function(u){ return `<option value="${escapeHtml(u.id)}">${escapeHtml(u.name)}</option>`; }).join('');
+    const valid = previous === '' || targets.some(function(u){ return u.id === previous; });
+    select.value = valid ? previous : '';
     const disabled = !targets.length;
     ['ownerKickBtn','ownerMuteBtn','ownerUnmuteBtn'].forEach(function(id){
       const b = document.getElementById(id);
@@ -4357,27 +5247,52 @@ function clearDisguiseImg(){
   function renderOwnerPanel(){
     const panel = document.getElementById('ownerPanel');
     if(!panel) return;
-    if(myRank !== 'owner'){ panel.hidden = true; panel.innerHTML = ''; return; }
+    if(myRank !== 'owner'){
+      panel.hidden = true;
+      panel.innerHTML = '';
+      // The popup's owner hint is baked into the chat markup at open time, so
+      // remove it here too or it lingers after the rank is dropped.
+      const hint = document.getElementById('ownerChatHint');
+      if(hint) hint.remove();
+      return;
+    }
     panel.hidden = false;
+    ownerDropConfirm = false;
+    actionLogClearConfirm = false;
     panel.innerHTML =
       `<div class="owner-panel-head">`
-        +`<span class="owner-panel-title">\u26a1 OWNER PANEL</span>`
+        +`<button class="owner-panel-toggle" type="button" id="ownerPanelToggle" aria-expanded="true" aria-controls="ownerPanelBody" title="Collapse the owner panel">`
+          +`<span class="owner-panel-chevron" id="ownerPanelChevron">\u25be</span>`
+          +`<span class="owner-panel-title">\u26a1 OWNER PANEL</span>`
+        +`</button>`
         +`<button class="owner-mini-btn" type="button" id="ownerHelpBtn">? HELP</button>`
       +`</div>`
-      +`<div class="owner-panel-row">`
-        +`<input id="ownerAnnounceInput" type="text" maxlength="200" autocomplete="off" placeholder="Announcement message\u2026">`
-        +`<button class="owner-btn owner-btn-primary" type="button" id="ownerAnnounceBtn">SEND ANNOUNCEMENT</button>`
-      +`</div>`
-      +`<div class="owner-panel-row">`
-        +`<button class="owner-btn owner-btn-warn" type="button" id="ownerClearBtn">CLEAR CHAT</button>`
-      +`</div>`
-      +`<div class="owner-panel-row">`
-        +`<select id="ownerTargetSelect" aria-label="Choose a user"></select>`
-        +`<button class="owner-btn owner-btn-danger" type="button" id="ownerKickBtn">KICK</button>`
-        +`<button class="owner-btn owner-btn-warn" type="button" id="ownerMuteBtn">MUTE</button>`
-        +`<button class="owner-btn owner-btn-ok" type="button" id="ownerUnmuteBtn">UNMUTE</button>`
-      +`</div>`
-      +`<div class="owner-panel-status" id="ownerPanelStatus"></div>`;
+      +`<div class="owner-panel-body" id="ownerPanelBody">`
+        +`<div class="owner-panel-row">`
+          +`<input id="ownerAnnounceInput" type="text" maxlength="200" autocomplete="off" placeholder="Announcement message\u2026">`
+          +`<button class="owner-btn owner-btn-primary" type="button" id="ownerAnnounceBtn">SEND ANNOUNCEMENT</button>`
+        +`</div>`
+        +`<div class="owner-panel-row">`
+          +`<button class="owner-btn owner-btn-warn" type="button" id="ownerClearBtn">CLEAR CHAT</button>`
+        +`</div>`
+        +`<div class="owner-panel-row">`
+          +`<select id="ownerTargetSelect" aria-label="Choose a user"></select>`
+          +`<button class="owner-btn owner-btn-danger" type="button" id="ownerKickBtn">KICK</button>`
+          +`<button class="owner-btn owner-btn-warn" type="button" id="ownerMuteBtn">MUTE</button>`
+          +`<button class="owner-btn owner-btn-ok" type="button" id="ownerUnmuteBtn">UNMUTE</button>`
+        +`</div>`
+        +`<div class="owner-panel-log">`
+          +`<div class="action-log-head">`
+            +`<span class="action-log-title">\u25a4 ACTION LOG</span>`
+            +`<span class="action-log-filter" id="actionLogFilter">ALL USERS</span>`
+            +`<button class="owner-btn-mini" type="button" id="actionLogAllBtn">ALL</button>`
+            +`<span id="actionLogClearZone"></span>`
+          +`</div>`
+          +`<div class="action-log-list" id="actionLogList"></div>`
+        +`</div>`
+        +`<div class="owner-panel-danger" id="ownerDangerZone"></div>`
+        +`<div class="owner-panel-status" id="ownerPanelStatus"></div>`
+      +`</div>`;
 
     const announceInput = document.getElementById('ownerAnnounceInput');
     const announceBtn = document.getElementById('ownerAnnounceBtn');
@@ -4411,14 +5326,109 @@ function clearDisguiseImg(){
     }
     function targetAction(name){
       const target = selectedTarget();
-      if(!target){ ownerPanelStatus('No one else is online to target.', 'error'); return; }
+      if(!target){
+        ownerPanelStatus(ownerPanelTargets().length ? 'Pick a user from the list first.' : 'No one else is online to target.', 'error');
+        return;
+      }
       runOwnerPanelCommand(name, target.name, target);
     }
     if(kickBtn) kickBtn.addEventListener('click', function(){ targetAction('kick'); });
     if(muteBtn) muteBtn.addEventListener('click', function(){ targetAction('mute'); });
     if(unmuteBtn) unmuteBtn.addEventListener('click', function(){ targetAction('unmute'); });
 
+    /* ── ACTION LOG CONTROLS ──
+       Picking a user in the dropdown filters the log to that user's history;
+       ALL clears the filter back to every recent action. */
+    if(select) select.addEventListener('change', function(){
+      actionLogFilter = select.value || '';
+      renderActionLog();
+    });
+    const logAllBtn = document.getElementById('actionLogAllBtn');
+    if(logAllBtn) logAllBtn.addEventListener('click', function(){
+      actionLogFilter = '';
+      if(select) select.value = '';
+      renderActionLog();
+      ownerPanelStatus('Showing every user\u2019s recent actions.', 'ok');
+    });
+    /* CLEAR LOG is destructive, so it uses the same two-step inline confirm
+       as GET RID OF OWNER: the first click only reveals the YES/CANCEL row,
+       and only the explicit YES wipes the history. */
+    function renderLogClearZone(){
+      const zone = document.getElementById('actionLogClearZone');
+      if(!zone) return;
+      if(actionLogClearConfirm){
+        zone.innerHTML =
+          `<button class="owner-btn-mini danger" type="button" id="actionLogClearYesBtn">YES, WIPE IT</button>`
+          +`<button class="owner-btn-mini" type="button" id="actionLogClearNoBtn">CANCEL</button>`;
+        const yes = document.getElementById('actionLogClearYesBtn');
+        const no = document.getElementById('actionLogClearNoBtn');
+        if(yes) yes.addEventListener('click', function(){
+          actionLogClearConfirm = false;
+          renderLogClearZone();
+          clearActionLog();
+          ownerPanelStatus('Action log cleared for everyone.', 'ok');
+        });
+        if(no) no.addEventListener('click', function(){
+          actionLogClearConfirm = false;
+          renderLogClearZone();
+          ownerPanelStatus('Cancelled \u2014 the action log is unchanged.', 'ok');
+        });
+      }else{
+        zone.innerHTML = `<button class="owner-btn-mini danger" type="button" id="actionLogClearBtn" title="Erase the action log">CLEAR LOG</button>`;
+        const btn = document.getElementById('actionLogClearBtn');
+        if(btn) btn.addEventListener('click', function(){
+          actionLogClearConfirm = true;
+          renderLogClearZone();
+          ownerPanelStatus('Confirm below to erase the whole action log for everyone.', '');
+        });
+      }
+    }
+    renderLogClearZone();
+    renderActionLog();
+
+    /* ── GET RID OF OWNER ──
+       Two-step inline confirmation: the first click only reveals the confirm
+       row, so the destructive action can never be triggered by a stray click.
+       Only the explicit YES runs it, through the same shared command core. */
+    function renderDangerZone(){
+      const zone = document.getElementById('ownerDangerZone');
+      if(!zone) return;
+      if(ownerDropConfirm){
+        zone.innerHTML =
+          `<p class="owner-danger-warn">Remove your OWNER rank? You will lose the owner panel and every owner command.</p>`
+          +`<div class="owner-panel-row">`
+            +`<button class="owner-btn owner-btn-danger owner-btn-wide" type="button" id="ownerDropYesBtn">YES, REMOVE IT</button>`
+            +`<button class="owner-btn owner-btn-wide" type="button" id="ownerDropNoBtn">CANCEL</button>`
+          +`</div>`;
+        const yes = document.getElementById('ownerDropYesBtn');
+        const no = document.getElementById('ownerDropNoBtn');
+        if(yes) yes.addEventListener('click', function(){
+          ownerDropConfirm = false;
+          runOwnerPanelCommand('dropowner', 'confirm');
+        });
+        if(no) no.addEventListener('click', function(){
+          ownerDropConfirm = false;
+          renderDangerZone();
+          ownerPanelStatus('Cancelled \u2014 your OWNER rank is unchanged.', 'ok');
+        });
+      }else{
+        zone.innerHTML = `<button class="owner-btn owner-btn-danger owner-btn-wide" type="button" id="ownerDropRankBtn">\u2691 GET RID OF OWNER</button>`;
+        const drop = document.getElementById('ownerDropRankBtn');
+        if(drop) drop.addEventListener('click', function(){
+          ownerDropConfirm = true;
+          renderDangerZone();
+          ownerPanelStatus('Confirm below to remove your owner rank.', '');
+        });
+      }
+    }
+    renderDangerZone();
+
+    const toggleBtn = document.getElementById('ownerPanelToggle');
+    if(toggleBtn) toggleBtn.addEventListener('click', function(){ setOwnerPanelOpen(!ownerPanelIsOpen()); });
+
     refreshOwnerTargets();
+    if(select) select.value = actionLogFilter;
+    applyOwnerPanelOpen();
   }
 
   function updateIdentityView(){
@@ -4464,10 +5474,10 @@ function clearDisguiseImg(){
 
   function publishIdentity(){
     const state = {username:myName, rank:myRank, pfp:myPfp};
-    if(!client){
-      setUsers([{uuid:myId, state:state}]);
-      return;
-    }
+    // Without a live client this user cannot be part of the shared roster, so
+    // leave it untouched rather than seeding it with a local-only, partial
+    // list — doing so would hide every other user from ONLINE NOW.
+    if(!client) return;
     client.setState({channels:[CHANNEL], state:state}).then(refreshRoster).catch(refreshRoster);
   }
 
@@ -4510,12 +5520,35 @@ function clearDisguiseImg(){
             if(event.channel === CHAT_CHANNEL) addChatMessage(event.message);
             if(event.channel === MODERATION_CHANNEL) receiveModeration(event.message);
             if(event.channel === ANNOUNCE_CHANNEL) receiveAnnouncement(event.message);
+          },
+          status: function(statusEvent){
+            const category = statusEvent && statusEvent.category;
+            // Any status event at all is proof the socket is talking to us.
+            lastAliveAt = Date.now();
+            if(category === 'PNConnectedCategory' || category === 'PNReconnectedCategory'){
+              connectionHealthy = true;
+              reconnectAttempts = 0;
+              if(reconnectTimer){ clearTimeout(reconnectTimer); reconnectTimer = null; }
+              // Re-assert presence and refresh the roster the moment the socket
+              // is back, so the user reappears online without waiting a tick.
+              if(isUserOnline()) publishIdentity();
+              refreshRoster();
+            }else if(category === 'PNNetworkDownCategory' || category === 'PNNetworkIssuesCategory'
+                  || category === 'PNTimeoutCategory' || category === 'PNDisconnectedCategory'
+                  || category === 'PNUnexpectedDisconnectCategory'){
+              connectionHealthy = false;
+              scheduleReconnect();
+            }
           }
         });
         // Chat + moderation + announcements stay subscribed for the whole
         // session so messages are delivered whenever the user is online. The
         // presence channel is joined/left by the heartbeat instead.
         client.subscribe({channels:[CHAT_CHANNEL, MODERATION_CHANNEL, ANNOUNCE_CHANNEL]});
+        // Baseline for missed-message recovery: anything published after this
+        // instant is "new" and will be pulled back on the next resume.
+        lastChatAt = Date.now();
+        lastAliveAt = Date.now();
         window.addEventListener('pagehide', function(){
           goOffline();
           // Only the presence channel is left behind — chat and moderation stay
@@ -4524,6 +5557,7 @@ function clearDisguiseImg(){
         }, {once:true});
       }
       startHeartbeat();
+      startWatchdog();
     }catch(e){
       client = null;
       publishIdentity();
@@ -4588,6 +5622,16 @@ function clearDisguiseImg(){
     window.openProfile();
   });
 
+  // Re-render the owner panel container (used after a rank change). The panel
+  // is always present in the chat popup markup, so this works without
+  // re-opening the popup.
+  function renderOwnerPanelForRank(){
+    const panel = document.getElementById('ownerPanel');
+    if(!panel) return;
+    try{ renderOwnerPanel(); }catch(e){}
+  }
+  window.__idkggRenderOwnerPanel = renderOwnerPanelForRank;
+
   // PFP picker on the username gate
   wirePfpInput('gatePfpInput');
   if(input) input.addEventListener('input', function(){
@@ -4622,4 +5666,3 @@ function clearDisguiseImg(){
 </style>
 </body>
 </html>
-
