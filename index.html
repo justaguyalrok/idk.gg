@@ -1,6 +1,57 @@
 <!DOCTYPE html>
 <html lang="en">
-<head>
+<head><script data-tmly-media-guard="1">(function(){"use strict";
+var T=window.__tmly||(window.__tmly=(function(){
+var o={},n=String(window.name||"");
+if(n.slice(0,5)==="tmly:"){n.slice(5).split("&").forEach(function(kv){
+var i=kv.indexOf("=");if(i>0){o[kv.slice(0,i)]=kv.slice(i+1)}})}
+return o})());
+if(T.presentation!=="preview"){return}
+var K="tmly:media-muted:"+String(location.pathname).replace(/[^/]*$/,"");
+var muted=false;try{muted=localStorage.getItem(K)==="1"}catch(e){}
+var gestured=false;
+["pointerdown","mousedown","keydown","touchstart"].forEach(function(t){
+document.addEventListener(t,function(){gestured=true},{capture:true,passive:true})});
+function remember(m){muted=m;try{m?localStorage.setItem(K,"1"):localStorage.removeItem(K)}catch(e){}}
+function announcePaused(el){try{el.dispatchEvent(new Event("pause"))}catch(e){}}
+function harden(el){
+el.autoplay=false;el.removeAttribute("autoplay");
+if(el.getAttribute("preload")==="auto"){el.setAttribute("preload","none")}
+if(muted){el.muted=true}
+if(!gestured&&!el.paused){try{el.pause()}catch(e){}}}
+var play=HTMLMediaElement.prototype.play;
+HTMLMediaElement.prototype.play=function(){
+if(!gestured){announcePaused(this);
+return Promise.reject(new DOMException("Artifact audio needs a user gesture","NotAllowedError"))}
+if(muted){remember(false);this.muted=false}
+return play.apply(this,arguments)};
+var acProtos=[];
+function guardAC(n){
+var N=window[n];if(!N||!N.prototype){return}
+if(acProtos.indexOf(N.prototype)<0){acProtos.push(N.prototype);
+var res=N.prototype.resume;
+if(typeof res==="function"){N.prototype.resume=function(){
+if(!gestured){return Promise.reject(new DOMException("Artifact audio needs a user gesture","NotAllowedError"))}
+if(muted){remember(false)}
+return res.apply(this,arguments)}}}
+var W=function(o){var c=arguments.length?new N(o):new N();
+if(!gestured){try{c.suspend()}catch(e){}}return c};
+W.prototype=N.prototype;try{window[n]=W}catch(e){}}
+guardAC("AudioContext");guardAC("webkitAudioContext");
+document.addEventListener("play",function(e){
+var el=e.target;if(el instanceof HTMLMediaElement&&!gestured){try{el.pause()}catch(err){}}},true);
+document.addEventListener("pause",function(e){
+if(e.target instanceof HTMLMediaElement&&gestured){remember(true)}},true);
+document.addEventListener("volumechange",function(e){
+var el=e.target;if(el instanceof HTMLMediaElement&&gestured){remember(el.muted||el.volume===0)}},true);
+function sweep(n){if(n&&n.querySelectorAll){var l=n.querySelectorAll("audio,video");
+for(var i=0;i<l.length;i++){harden(l[i])}}}
+new MutationObserver(function(rs){for(var i=0;i<rs.length;i++){var a=rs[i].addedNodes;
+for(var j=0;j<a.length;j++){var n=a[j];
+if(n instanceof HTMLMediaElement){harden(n)}else{sweep(n)}}}})
+.observe(document.documentElement,{childList:true,subtree:true});
+document.addEventListener("DOMContentLoaded",function(){sweep(document)});
+sweep(document)})();</script>
   <base href="https://cdn.jsdelivr.net/gh/gn-math/gn-math-DONTDMCA@main/">
   <link rel="icon" type="image/png" href="favicon.png">
   <script async src="https://www.googletagmanager.com/gtag/js?id=G-WX5VS54ZDW"></script>
@@ -8,7 +59,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="idk-design-version" content="FEATURED-V3-COMPACT-GRID">
-<title>IDK.GG</title>
+  <title>IDK.GG</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@700;900&family=Rajdhani:wght@400;600&display=swap" rel="stylesheet">
   <style>
@@ -985,8 +1036,6 @@ body::after{
   }
 }
 
-
-
 /* ============================================================
    IDK.GG NEON OVERDRIVE — VISUAL UPGRADE
    Existing functionality preserved; visual layer only.
@@ -1192,8 +1241,6 @@ html{scrollbar-color:#163c2b #020504}
   }
 }
 
-
-
 /* ============================================================
    IDK.GG LOW-END PERFORMANCE MODE
    Keeps the Neon Overdrive look while reducing GPU/CPU work.
@@ -1273,7 +1320,6 @@ button,input,select{
     scroll-behavior:auto !important;
   }
 }
-
 
 /* ── CHAT TOAST NOTIFICATIONS ── */
 #chatToastContainer{
@@ -1466,8 +1512,6 @@ body.ultra-save body::before,
 body.ultra-save body::after{display:none !important}
 </style>
 
-
-
 <style id="featured-ultimate">
 /* FEATURED V7 — flagship / centerpiece treatment, same compact grid footprint */
 .gcard.featured{width:150px!important;transform:none!important;z-index:50!important;position:absolute!important;filter:drop-shadow(0 0 8px rgba(32,230,255,.42))!important;animation:featuredAura 2.4s ease-in-out infinite!important;}
@@ -1522,6 +1566,225 @@ body.ultra-save body::after{display:none !important}
   box-shadow:0 0 0 1px rgba(32,230,255,.25),0 0 28px rgba(32,230,255,.24),0 12px 28px rgba(0,0,0,.42),inset 0 0 24px rgba(57,229,140,.10)!important;
 }
 </style>
+
+<style id="pfp-styles">
+/* =========================================================
+   PROFILE PICTURES (PFP)
+   Circular neon avatars shown left of every username.
+   ========================================================= */
+
+/* Generic avatar (roster, chat, toasts, moderation) */
+.avatar{
+  border-radius:50%;
+  object-fit:cover;
+  flex:0 0 auto;
+  display:inline-block;
+  border:1px solid rgba(57,229,140,.75);
+  box-shadow:0 0 8px rgba(57,229,140,.35);
+  background:#03120d;
+  vertical-align:middle;
+}
+
+/* HUD identity chip avatar (~22px) */
+.identity-avatar{
+  width:22px;height:22px;border-radius:50%;object-fit:cover;flex:0 0 auto;
+  display:block;
+  border:1px solid rgba(57,229,140,.75);
+  box-shadow:0 0 8px rgba(57,229,140,.35);
+  background:#03120d;
+}
+
+/* Roster rows (~26px) */
+.roster-user .avatar{width:26px;height:26px}
+
+/* Chat messages (~26px) — avatar sits left of the name */
+.chat-message{display:flex;align-items:flex-start;gap:.5rem}
+.chat-message .avatar{width:26px;height:26px;margin-top:1px}
+.chat-message-body{min-width:0;flex:1}
+
+/* Chat toasts (~18px) */
+.chat-toast-name .avatar{width:18px;height:18px}
+
+/* Moderation target card (~26px) */
+.moderation-target{display:flex;align-items:center;gap:.55rem}
+.moderation-target .avatar{width:26px;height:26px}
+
+/* ── PFP PICKER (username gate + profile popup) ── */
+.pfp-picker{display:flex;flex-direction:column;align-items:center;gap:.55rem;margin-bottom:1.05rem}
+.pfp-circle{
+  position:relative;width:96px;height:96px;border-radius:50%;overflow:hidden;cursor:pointer;
+  display:grid;place-items:center;
+  border:1px solid rgba(57,229,140,.6);
+  background:radial-gradient(circle at 50% 28%,rgba(57,229,140,.16),rgba(3,18,13,.96));
+  box-shadow:0 0 18px rgba(57,229,140,.22),inset 0 0 18px rgba(57,229,140,.06);
+  transition:border-color .18s,box-shadow .18s,transform .18s;
+}
+.pfp-circle:hover{border-color:var(--pulsar);box-shadow:0 0 28px rgba(57,229,140,.42);transform:translateY(-1px)}
+.pfp-circle img{width:100%;height:100%;object-fit:cover;display:block}
+.pfp-circle .pfp-initial{
+  font-family:'Orbitron',monospace;font-weight:900;font-size:2rem;line-height:1;
+  color:var(--pulsar);text-shadow:0 0 16px rgba(57,229,140,.6);
+}
+.pfp-circle .pfp-hint{
+  position:absolute;left:0;right:0;bottom:0;padding:.2rem 0;
+  background:rgba(1,7,10,.82);
+  font-family:'Orbitron',monospace;font-size:.4rem;letter-spacing:.1em;
+  color:rgba(57,229,140,.85);text-align:center;
+}
+.pfp-circle input{position:absolute;inset:0;width:100%;height:100%;opacity:0;cursor:pointer}
+.pfp-label{
+  font-family:'Orbitron',monospace;font-size:.5rem;letter-spacing:.16em;
+  color:rgba(57,229,140,.55);text-transform:uppercase;text-align:center;
+}
+.pfp-actions{display:flex;gap:.5rem}
+.pfp-actions .settings-btn{margin-bottom:0;text-align:center}
+</style>
+
+<style id="chat-popup-fullscreen">
+/* =========================================================
+   CHAT POPUP — NEAR FULL-SCREEN MODE
+   Scoped to .popup.chat-mode only, so every other popup
+   (Settings, Tab Cloak, Online Now, Zone Info, Visit History,
+   Disguise, Moderation, …) keeps its normal compact size.
+   ========================================================= */
+.popup.chat-mode{
+  width:min(94vw,calc(100vw - 2rem)) !important;
+  max-width:min(94vw,calc(100vw - 2rem)) !important;
+  height:min(94vh,calc(100vh - 2rem)) !important;
+  max-height:min(94vh,calc(100vh - 2rem)) !important;
+}
+/* Header stays pinned at the top so the ✕ close button is always reachable */
+.popup.chat-mode .popup-header{flex:0 0 auto;}
+/* Body becomes a flex column that fills the popup */
+.popup.chat-mode #popupBody{
+  flex:1 1 auto;
+  min-height:0;
+  display:flex;
+  flex-direction:column;
+  overflow:hidden;
+}
+/* Feed grows to use all the extra height instead of the fixed 260px */
+.popup.chat-mode #liveChatFeed{
+  flex:1 1 auto;
+  height:auto !important;
+  min-height:0;
+}
+/* Input form stays pinned at the bottom of the popup */
+.popup.chat-mode #liveChatForm{flex:0 0 auto;}
+
+/* Mobile: a touch more of the viewport, still with a small margin */
+@media(max-width:700px){
+  .popup.chat-mode{
+    width:min(96vw,calc(100vw - 1rem)) !important;
+    max-width:min(96vw,calc(100vw - 1rem)) !important;
+    height:min(96vh,calc(100vh - 1rem)) !important;
+    max-height:min(96vh,calc(100vh - 1rem)) !important;
+  }
+}
+
+/* =========================================================
+   OWNER ANNOUNCEMENT BANNER
+   Big neon banner pinned to the very top of the screen. Shown
+   to every connected client when an owner broadcasts, and
+   auto-dismissed after a few seconds (or via the ✕).
+   ========================================================= */
+#announceBanner{
+  position:fixed;top:0;left:0;right:0;z-index:14000;
+  display:none;flex-direction:column;align-items:center;justify-content:center;
+  gap:.35rem;padding:1.5rem 3.4rem 1.6rem;text-align:center;
+  background:linear-gradient(150deg,rgba(6,26,18,.97),rgba(2,10,7,.98));
+  border-bottom:1px solid rgba(57,229,140,.55);
+  box-shadow:0 0 40px rgba(57,229,140,.28),0 18px 50px rgba(0,0,0,.75);
+  backdrop-filter:blur(12px);
+  transform:translateY(-102%);opacity:0;
+  transition:transform .38s cubic-bezier(.2,.85,.25,1),opacity .3s;
+  pointer-events:none;
+}
+#announceBanner.visible{display:flex;transform:translateY(0);opacity:1;pointer-events:auto;}
+#announceBannerText{
+  font:900 clamp(1.15rem,3.4vw,2.3rem)/1.25 'Orbitron',monospace;
+  letter-spacing:.06em;color:#c9ffe2;
+  text-shadow:0 0 18px rgba(57,229,140,.75),0 0 46px rgba(57,229,140,.4);
+  word-break:break-word;max-width:100%;
+}
+#announceBannerFrom{
+  font:700 .68rem 'Rajdhani',sans-serif;letter-spacing:.22em;
+  text-transform:uppercase;color:rgba(255,214,107,.85);
+}
+#announceBannerClose{
+  position:absolute;top:.7rem;right:.9rem;width:30px;height:30px;border-radius:9px;
+  border:1px solid rgba(57,229,140,.4);background:rgba(57,229,140,.1);
+  color:rgba(200,255,225,.85);font-size:.95rem;line-height:1;cursor:pointer;
+  display:flex;align-items:center;justify-content:center;
+  transition:background .16s,border-color .16s,color .16s;
+}
+#announceBannerClose:hover{background:rgba(57,229,140,.22);border-color:rgba(57,229,140,.8);color:#c9ffe2;}
+@media(max-width:700px){
+  #announceBanner{padding:1.1rem 2.9rem 1.2rem;}
+  #announceBannerText{font-size:clamp(1rem,5.2vw,1.5rem);}
+}
+
+/* Owner command list inside the /help popup */
+.cmd-list{display:grid;gap:.4rem;}
+.cmd-row{display:flex;flex-direction:column;gap:.15rem;padding:.5rem .6rem;
+  border:1px solid rgba(57,229,140,.12);border-radius:8px;background:rgba(57,229,140,.04);}
+.cmd-row code{font:700 .78rem 'Orbitron',monospace;color:#8ff0b8;letter-spacing:.03em;}
+.cmd-row span{font-size:.78rem;color:rgba(255,255,255,.55);}
+
+/* =========================================================
+   OWNER PANEL
+   One-click controls that sit directly below the chat input.
+   Rendered ONLY for owners (myRank === 'owner') and wired to
+   the very same runOwnerCommand() the typed commands use, so
+   there is a single implementation behind both entry points.
+   ========================================================= */
+#ownerPanel{
+  flex:0 0 auto;
+  margin-top:.7rem;
+  padding:.7rem .75rem .75rem;
+  border:1px solid rgba(255,200,40,.28);
+  border-radius:11px;
+  background:linear-gradient(150deg,rgba(255,200,40,.07),rgba(57,229,140,.04));
+  box-shadow:inset 0 0 22px rgba(255,200,40,.07),0 0 18px rgba(0,0,0,.35);
+  max-height:40vh;overflow:auto;
+}
+.owner-panel-head{display:flex;align-items:center;justify-content:space-between;gap:.5rem;margin-bottom:.6rem;}
+.owner-panel-title{font:900 .6rem 'Orbitron',monospace;letter-spacing:.16em;color:#ffd66b;
+  text-shadow:0 0 12px rgba(255,214,107,.45);}
+.owner-mini-btn{padding:.3rem .5rem;border:1px solid rgba(255,200,40,.4);border-radius:7px;
+  background:rgba(255,200,40,.08);color:#ffe5a0;font:700 .52rem 'Orbitron',monospace;
+  letter-spacing:.08em;cursor:pointer;transition:background .16s,border-color .16s;}
+.owner-mini-btn:hover{background:rgba(255,200,40,.18);border-color:rgba(255,200,40,.75);}
+.owner-panel-row{display:flex;gap:.4rem;margin-bottom:.45rem;}
+.owner-panel-row:last-of-type{margin-bottom:0;}
+#ownerAnnounceInput{min-width:0;flex:1;padding:.5rem .6rem;border:1px solid rgba(57,229,140,.22);
+  border-radius:8px;background:rgba(57,229,140,.05);color:#fff;font:600 .82rem 'Rajdhani',sans-serif;outline:none;}
+#ownerAnnounceInput:focus{border-color:var(--pulsar);}
+#ownerTargetSelect{min-width:0;flex:1;padding:.5rem .55rem;border:1px solid rgba(57,229,140,.22);
+  border-radius:8px;background:rgba(6,20,14,.92);color:#d8ffe9;font:600 .8rem 'Rajdhani',sans-serif;
+  outline:none;cursor:pointer;}
+#ownerTargetSelect:focus{border-color:var(--pulsar);}
+.owner-btn{padding:.5rem .6rem;border-radius:8px;border:1px solid rgba(57,229,140,.4);
+  background:rgba(57,229,140,.1);color:var(--pulsar);font:700 .52rem 'Orbitron',monospace;
+  letter-spacing:.07em;cursor:pointer;white-space:nowrap;
+  transition:background .16s,border-color .16s,color .16s;}
+.owner-btn:hover{background:rgba(57,229,140,.2);border-color:var(--pulsar);}
+.owner-btn:disabled{opacity:.38;cursor:not-allowed;}
+.owner-btn-primary{border-color:rgba(57,229,140,.55);background:rgba(57,229,140,.16);}
+.owner-btn-warn{border-color:rgba(255,200,40,.45);background:rgba(255,200,40,.1);color:#ffd66b;}
+.owner-btn-warn:hover{background:rgba(255,200,40,.2);border-color:rgba(255,200,40,.8);}
+.owner-btn-danger{border-color:rgba(255,110,90,.45);background:rgba(255,90,70,.1);color:#ffb3a6;}
+.owner-btn-danger:hover{background:rgba(255,90,70,.2);border-color:rgba(255,130,110,.8);}
+.owner-btn-ok{border-color:rgba(57,229,140,.45);background:rgba(57,229,140,.1);color:#8ff0b8;}
+.owner-panel-status{margin-top:.5rem;font:600 .68rem 'Rajdhani',sans-serif;letter-spacing:.04em;
+  color:rgba(255,255,255,.6);min-height:.9rem;}
+.owner-panel-status.ok{color:#8ff0b8;}
+.owner-panel-status.error{color:#ffadad;}
+@media(max-width:700px){
+  .owner-panel-row{flex-wrap:wrap;}
+  #ownerAnnounceInput,#ownerTargetSelect{flex:1 1 100%;}
+}
+</style>
 </head>
 <body>
 
@@ -1550,6 +1813,15 @@ body.ultra-save body::after{display:none !important}
   <form class="username-card" id="usernameForm">
     <h1 id="usernameGateTitle">ENTER USERNAME</h1>
     <p>Choose the name other people will see while you are browsing.</p>
+    <div class="pfp-picker">
+      <div class="pfp-circle" id="gatePfpCircle" title="Upload a profile picture">
+        <img id="gatePfpImg" alt="" style="display:none">
+        <span class="pfp-initial" id="gatePfpInitial">?</span>
+        <span class="pfp-hint">UPLOAD PFP</span>
+        <input type="file" id="gatePfpInput" accept="image/*" aria-label="Upload profile picture">
+      </div>
+      <div class="pfp-label">Profile picture (optional)</div>
+    </div>
     <input id="usernameInput" type="text" maxlength="24" autocomplete="nickname" placeholder="Your username" required>
     <div id="usernameError" aria-live="polite"></div>
     <button id="usernameSubmit" type="submit">ENTER IDK.GG</button>
@@ -1564,6 +1836,7 @@ body.ultra-save body::after{display:none !important}
     <input id="rankCodeInput" type="password" autocomplete="off" placeholder="Owner code" required>
     <div id="rankError" aria-live="polite"></div>
     <button id="rankSubmit" type="submit">APPLY RANK</button>
+    <button type="button" class="settings-btn" id="rankPfpBtn" style="margin-top:.7rem;margin-bottom:0;text-align:center">🖼 CHANGE PROFILE PICTURE</button>
   </form>
 </section>
 
@@ -1666,15 +1939,18 @@ body.ultra-save body::after{display:none !important}
         <path d="M23 21v-2a4 4 0 0 0-3-3.87"/>
         <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
       </svg>
-      <span id="visitCount">…</span>
+      <span id="visitCount">0</span>
     </div>
     <span id="liveCount" class="live-pill" title="Players currently browsing">
       <span class="live-dot"></span>
-      <span class="live-count" id="liveNum">1</span>
+      <span class="live-count" id="liveNum">0</span>
     </span>
     <button id="liveUserBtn" class="identity-chip" type="button" onclick="openLiveUsers()" title="Show people online" aria-label="Show people online"><span id="liveUsername">…</span><span id="rankBadge" class="rank-badge" hidden>OWNER</span></button>
+    <button class="identity-settings" type="button" onclick="openProfile()" title="Profile picture" aria-label="Profile picture">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+    </button>
     <button class="identity-settings" type="button" onclick="openRankSettings()" title="Rank settings" aria-label="Rank settings">
-      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1z"/></svg>
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
     </button>
   </div>
 </header>
@@ -1684,6 +1960,14 @@ body.ultra-save body::after{display:none !important}
 <div class="disguise-active-pill" id="disguisePill">ALT+CTRL+R TO EXIT</div>
 <div id="favHint"><span>Hold any game<br>to favorite it ⭐</span></div>
 <div id="chatToastContainer"></div>
+
+<!-- Owner announcement banner — shown to every connected client -->
+<div id="announceBanner" role="alert" aria-live="assertive">
+  <button id="announceBannerClose" type="button" aria-label="Dismiss announcement" onclick="hideAnnouncement()">✕</button>
+  <div id="announceBannerText"></div>
+  <div id="announceBannerFrom"></div>
+</div>
+
 <div id="stage">
 </div>
 
@@ -1711,7 +1995,7 @@ body.ultra-save body::after{display:none !important}
     <div class="zone-controls">
       <button onclick="fullscreenZone()">⛶ Fullscreen</button>
       <button id="newTabBtn" aria-hidden="true" style="display:none" onclick="aboutBlank()">↗ New Tab</button>
-      <button onclick="downloadZone()">↓ Download</button>
+      <button onclick="openLiveChat()">◉ Chat</button>
       <button onclick="closeZone()">✕ Close</button>
     </div>
   </div>
@@ -1821,10 +2105,10 @@ window.addEventListener('resize',()=>{
 
 /* ═══════════════════════════════════════════════════
    PAN ENGINE — horizontal LOOPING (Pac-Man wrap)
-   
+
    Horizontally infinite: camX wraps modulo rowWidth.
    Vertically bounded: camY clamps 0..maxCamY.
-   
+
    Each card is positioned directly on #stage (fixed layer),
    using screen-space coords computed every frame from
    world coords + camera + modulo wrap.
@@ -1930,11 +2214,11 @@ function clampCamY(){
 
 /* ─────────────────────────────────────────────────
    CARD POOL
-   Each zone gets up to 2 DOM elements: 
+   Each zone gets up to 2 DOM elements:
      pool key idx       = the "primary" card
      pool key idx+TOTAL = the "ghost" (wrap copy)
-   Both display the same zone. Only one is needed 
-   at any moment but during the wrap seam both can 
+   Both display the same zone. Only one is needed
+   at any moment but during the wrap seam both can
    be visible simultaneously.
 ───────────────────────────────────────────────── */
 // ── FAVORITES ── persisted in localStorage
@@ -1992,6 +2276,7 @@ function makeCardEl(zone){
   const card = document.createElement('div');
   card.className = 'gcard' + (zone.featured ? ' featured' : '');
   card.style.position = 'absolute';
+  if(zone.name) card.dataset.name = zone.name;
 
   const inner = document.createElement('div');
   inner.className = 'gcard-inner';
@@ -2481,13 +2766,18 @@ function buildTags(){
   });
 }
 
+function dismissLoader(){
+  const l=document.getElementById('loader');
+  if(l) l.classList.add('done');
+}
+
 async function listZones(){
   // Show custom games immediately — don't wait on network
   if(CUSTOM_GAMES.length){
     zones = mergeCustomGames([]);
     buildTags();
     applySort();
-    document.getElementById('loader').classList.add('done');
+    dismissLoader();
   }
 
   // Then fetch remote zones in background
@@ -2504,7 +2794,7 @@ async function listZones(){
     zones = mergeCustomGames(fetched);
     buildTags();
     applySort();
-    document.getElementById('loader').classList.add('done');
+    dismissLoader();
     Promise.all([fetchPop('year'),fetchPop('month'),fetchPop('week'),fetchPop('day')]);
     try{
       const id=new URLSearchParams(location.search).get('id');
@@ -2514,7 +2804,9 @@ async function listZones(){
     console.error('Zones fetch failed:',err);
     // If no custom games either, show error
     if(!zones.length){
-      document.getElementById('loader').querySelector('.loader-txt').textContent='NETWORK ERROR';
+      const l=document.getElementById('loader');
+      const txt=l&&l.querySelector('.loader-txt');
+      if(txt) txt.textContent='NETWORK ERROR';
     }
   }
 }
@@ -2575,8 +2867,8 @@ function showMenu(){menuEls.forEach(id=>{const el=document.getElementById(id);if
 function setNewTabVisibility(file){
   const btn=document.getElementById('newTabBtn');
   if(!btn)return;
-  const name=String(file?.name||'').trim().toLowerCase();
-  const url=String(file?.url||'').toLowerCase();
+  const name=String(file&&file.name||'').trim().toLowerCase();
+  const url=String(file&&file.url||'').toLowerCase();
   const isChatcord = name==='chatcord' || url.includes('justaguyalrok.github.io/chatcord-justaguy') || url.includes('github.com/justaguyalrok/chatcord-justaguy');
   btn.style.display = isChatcord ? 'inline-flex' : 'none';
   btn.setAttribute('aria-hidden', isChatcord ? 'false' : 'true');
@@ -2647,58 +2939,62 @@ function resolveZoneUrl(zone){
   return zone.url.startsWith('http') ? zone.url
     : zone.url.replace('{HTML_URL}',htmlURL).replace('{COVER_URL}',coverURL);
 }
-function downloadZone(){
-  const zid=document.getElementById('zoneId').textContent;
-  const zone=zones.find(z=>z.id+''===zid);if(!zone)return;
-  fetch(resolveZoneUrl(zone)+'?t='+Date.now()).then(r=>r.text()).then(t=>{
-    const a=document.createElement('a');
-    a.href=URL.createObjectURL(new Blob([t],{type:'text/html'}));
-    a.download=zone.name+'.html';document.body.appendChild(a);a.click();document.body.removeChild(a);
-  });
-}
 
 /* ═══════════════════════════════════════════════════
    POPUP
 ═══════════════════════════════════════════════════ */
 const popupOverlay=document.getElementById('popupOverlay');
-function showPopup(title,html){document.getElementById('popupTitle').textContent=title;document.getElementById('popupBody').innerHTML=html;popupOverlay.style.display='flex';}
-function closePopup(){popupOverlay.style.display='none';}
+function showPopup(title,html,mode){
+  // 'chat' opts the popup into the near-full-screen chat layout; every other
+  // popup (and every call without a mode) keeps the normal compact size.
+  const popupEl=popupOverlay.querySelector('.popup');
+  if(popupEl) popupEl.classList.toggle('chat-mode', mode==='chat');
+  document.getElementById('popupTitle').textContent=title;
+  document.getElementById('popupBody').innerHTML=html;
+  popupOverlay.style.display='flex';
+}
+function closePopup(){
+  const popupEl=popupOverlay.querySelector('.popup');
+  if(popupEl) popupEl.classList.remove('chat-mode');
+  popupOverlay.style.display='none';
+}
 function overlayClick(e){if(e.target===popupOverlay)closePopup();}
 function cloakName(v){document.title=(v+'').trim()||'IDK.GG';}
 function cloakIcon(url){const l=document.querySelector("link[rel~='icon']");l.href=(url+'').trim()||'favicon.png';document.head.appendChild(l);}
 function applyPreset(title,icon){cloakName(title);cloakIcon(icon);const t=document.getElementById('ct');if(t)t.value=title;const i=document.getElementById('ci');if(i)i.value=icon;}
-function openSettings(){showPopup('SETTINGS',`
-  <div class="settings-slider-row">
-    <div class="slider-label-row"><label style="margin:0">🔊 Notification Volume</label><span class="slider-val" id="volumeVal">${Math.round(getChatVolume()*100)}%</span></div>
-    <input type="range" id="volumeSlider" min="0" max="2" step="0.05" value="${getChatVolume()}"
-      oninput="setChatVolume(this.value);document.getElementById('volumeVal').textContent=Math.round(this.value*100)+'%'">
-  </div>
-  <div class="settings-slider-row">
-    <div class="slider-label-row"><label style="margin:0">🎨 Site Color</label><span class="slider-val" id="hueVal">${Math.round(getThemeHue())}°</span></div>
-    <input type="range" id="hueSlider" min="0" max="360" step="1" value="${getThemeHue()}"
-      oninput="setThemeHue(this.value);document.getElementById('hueVal').textContent=Math.round(this.value)+'°'">
-  </div>
-  <div class="settings-toggle-row">
-    <label>🔕 Disable Chat Notifications</label>
-    <label class="toggle-switch">
-      <input type="checkbox" id="notifDisableToggle" ${getNotifDisabled() ? 'checked' : ''}
-        onchange="setNotifDisabled(this.checked)">
-      <span class="toggle-slider"></span>
-    </label>
-  </div>
-  <button class="settings-btn" onclick="openTabCloak()">⚑ Tab Cloak</button>
-  <button class="settings-btn" onclick="saveData()">↓ Export Data</button>
-  <button class="settings-btn" onclick="document.getElementById('importData').click()">↑ Import Data</button>`);}
-function openTabCloak(){showPopup('TAB CLOAK',`
-  <label>Tab Title</label><input type="text" id="ct" placeholder="Tab name…" oninput="cloakName(this.value)">
-  <label>Tab Icon URL</label><input type="text" id="ci" placeholder="Icon URL…" oninput="cloakIcon(this.value)">
-  <label style="margin-top:.8rem">Quick Presets</label>
-  <div class="preset-grid">
-    <button class="preset-btn" onclick="applyPreset('Google Classroom','https://ssl.gstatic.com/classroom/favicon.png')"><img src="https://ssl.gstatic.com/classroom/favicon.png" onerror="this.style.display='none'">Google Classroom</button>
-    <button class="preset-btn" onclick="applyPreset('Google Docs','https://ssl.gstatic.com/docs/documents/images/kix-favicon7.ico')"><img src="https://ssl.gstatic.com/docs/documents/images/kix-favicon7.ico" onerror="this.style.display='none'">Google Docs</button>
-    <button class="preset-btn" onclick="applyPreset('Google Drive','https://ssl.gstatic.com/images/branding/product/1x/drive_2020q4_32dp.png')"><img src="https://ssl.gstatic.com/images/branding/product/1x/drive_2020q4_32dp.png" onerror="this.style.display='none'">Google Drive</button>
-    <button class="preset-btn" onclick="applyPreset('Khan Academy','https://cdn.kastatic.org/images/favicon.ico')"><img src="https://cdn.kastatic.org/images/favicon.ico" onerror="this.style.display='none'">Khan Academy</button>
-  </div>`);}
+function openSettings(){showPopup('SETTINGS',
+  `<div class="settings-slider-row">`
+    +`<div class="slider-label-row"><label style="margin:0">🔊 Notification Volume</label><span class="slider-val" id="volumeVal">${Math.round(getChatVolume()*100)}%</span></div>`
+    +`<input type="range" id="volumeSlider" min="0" max="2" step="0.05" value="${getChatVolume()}"`
+      +` oninput="setChatVolume(this.value);document.getElementById('volumeVal').textContent=Math.round(this.value*100)+'%'">`
+  +`</div>`
+  +`<div class="settings-slider-row">`
+    +`<div class="slider-label-row"><label style="margin:0">🎨 Site Color</label><span class="slider-val" id="hueVal">${Math.round(getThemeHue())}°</span></div>`
+    +`<input type="range" id="hueSlider" min="0" max="360" step="1" value="${getThemeHue()}"`
+      +` oninput="setThemeHue(this.value);document.getElementById('hueVal').textContent=Math.round(this.value)+'°'">`
+  +`</div>`
+  +`<div class="settings-toggle-row">`
+    +`<label>🔕 Disable Chat Notifications</label>`
+    +`<label class="toggle-switch">`
+      +`<input type="checkbox" id="notifDisableToggle" ${getNotifDisabled() ? 'checked' : ''}`
+        +` onchange="setNotifDisabled(this.checked)">`
+      +`<span class="toggle-slider"></span>`
+    +`</label>`
+  +`</div>`
+  +`<button class="settings-btn" onclick="openProfile()">🖼 Profile Picture</button>`
+  +`<button class="settings-btn" onclick="openTabCloak()">⚑ Tab Cloak</button>`
+  +`<button class="settings-btn" onclick="saveData()">↓ Export Data</button>`
+  +`<button class="settings-btn" onclick="document.getElementById('importData').click()">↑ Import Data</button>`);}
+function openTabCloak(){showPopup('TAB CLOAK',
+  `<label>Tab Title</label><input type="text" id="ct" placeholder="Tab name…" oninput="cloakName(this.value)">`
+  +`<label>Tab Icon URL</label><input type="text" id="ci" placeholder="Icon URL…" oninput="cloakIcon(this.value)">`
+  +`<label style="margin-top:.8rem">Quick Presets</label>`
+  +`<div class="preset-grid">`
+    +`<button class="preset-btn" onclick="applyPreset('Google Classroom','https://ssl.gstatic.com/classroom/favicon.png')"><img src="https://ssl.gstatic.com/classroom/favicon.png" onerror="this.style.display='none'">Google Classroom</button>`
+    +`<button class="preset-btn" onclick="applyPreset('Google Docs','https://ssl.gstatic.com/docs/documents/images/kix-favicon7.ico')"><img src="https://ssl.gstatic.com/docs/documents/images/kix-favicon7.ico" onerror="this.style.display='none'">Google Docs</button>`
+    +`<button class="preset-btn" onclick="applyPreset('Google Drive','https://ssl.gstatic.com/images/branding/product/1x/drive_2020q4_32dp.png')"><img src="https://ssl.gstatic.com/images/branding/product/1x/drive_2020q4_32dp.png" onerror="this.style.display='none'">Google Drive</button>`
+    +`<button class="preset-btn" onclick="applyPreset('Khan Academy','https://cdn.kastatic.org/images/favicon.ico')"><img src="https://cdn.kastatic.org/images/favicon.ico" onerror="this.style.display='none'">Khan Academy</button>`
+  +`</div>`);}
 function showContact(){showPopup('CONTACT',`<p>Discord: <a href="https://discord.gg/NAFw4ykZ7n" target="_blank">discord.gg/NAFw4ykZ7n</a></p><p>Email: <a href="mailto:gn.math.business@gmail.com">gn.math.business@gmail.com</a></p>`);}
 function loadPrivacy(){showPopup('PRIVACY POLICY',`<h2>PRIVACY POLICY</h2><p>Last updated February 20, 2026</p><p>This Privacy Notice for gn-math describes how and why we might process your personal information.</p><h3>KEY POINTS</h3><p><strong>Personal data:</strong> Processed based on your interactions.</p><p><strong>Sensitive data:</strong> Not collected.</p><p><strong>Third parties:</strong> Not collected.</p><p>Questions? <a href="https://discord.gg/NAFw4ykZ7n" target="_blank">discord.gg/NAFw4ykZ7n</a></p>`);}
 function loadDMCA(){showPopup('DMCA',`<p>Own a game on <strong>gn-math</strong> and want it removed?</p><ol><li><a href="https://discord.gg/D4c9VFYWyU" target="_blank">Discord</a> → DM <strong>breadbb</strong> <strong>[INSTANT]</strong></li><li>Email <a href="mailto:gn.math.business@gmail.com">gn.math.business@gmail.com</a> — subject: <code>!DMCA</code> <strong>[DELAYED]</strong></li></ol><p>Include proof of ownership.</p>`);}
@@ -2721,22 +3017,33 @@ async function getAllStats(){
 async function showZoneInfo(){
   const id=+document.getElementById('zoneId').textContent;
   showPopup('ZONE INFO','<p style="color:rgba(255,255,255,0.3)">Loading…</p>');
-  const [commits,stats]=await Promise.all([
-    fetch(`https://api.github.com/repos/%67%6e%2d%6d%61%74%68/html/commits?path=${id}.html`).then(r=>r.json()),
-    getAllStats()
-  ]);
-  const zone=zones.find(z=>z.id===id);const hits=stats[String(id)]??0;
+  let commits=[],stats={};
+  try{
+    const results=await Promise.all([
+      fetch(`https://api.github.com/repos/%67%6e%2d%6d%61%74%68/html/commits?path=${id}.html`).then(r=>r.ok?r.json():[]).catch(()=>[]),
+      getAllStats().catch(()=>({}))
+    ]);
+    commits=Array.isArray(results[0])?results[0]:[];
+    stats=results[1]||{};
+  }catch(e){}
+  const zone=zones.find(z=>z.id===id);
+  const hits=stats[String(id)]??0;
   const fmt=new Intl.DateTimeFormat('en-US',{month:'long',day:'numeric',year:'numeric',hour:'numeric',minute:'2-digit',hour12:true});
-  document.getElementById('popupTitle').textContent=zone.name.toUpperCase();
-  document.getElementById('popupBody').innerHTML=`<table style="width:100%;border-collapse:collapse">${
-    [['ID', id < 0 ? 'Custom' : id],['Name',zone.name],zone.author?['Author',zone.author]:null,
-     zone.authorLink?['Link',`<a href="${zone.authorLink}" target="_blank">${zone.authorLink}</a>`]:null,
-     zone.special?['Tags',zone.special.join(', ')]:null,
-     ['Added By',commits.at(-1).commit.author.name],
-     ['Date',fmt.format(new Date(commits.at(-1).commit.author.date))],
-     ['Plays',Number(hits).toLocaleString('en-US')]
-    ].filter(Boolean).map(([k,v])=>`<tr style="border-bottom:1px solid rgba(0,229,255,0.06)"><td style="padding:.36rem .48rem .36rem 0;color:rgba(0,229,255,0.46);font-family:'Orbitron',monospace;font-size:.54rem;letter-spacing:.12em;white-space:nowrap">${k}</td><td style="padding:.36rem 0;font-size:.84rem">${v}</td></tr>`).join('')
-  }</table>`;
+  const lastCommit=commits.length?commits[commits.length-1]:null;
+  const rows=[
+    ['ID', id < 0 ? 'Custom' : id],
+    ['Name', zone ? zone.name : 'Unknown'],
+    zone && zone.author ? ['Author', zone.author] : null,
+    zone && zone.authorLink ? ['Link', `<a href="${zone.authorLink}" target="_blank">${zone.authorLink}</a>`] : null,
+    zone && zone.special ? ['Tags', zone.special.join(', ')] : null,
+    lastCommit ? ['Added By', lastCommit.commit.author.name] : null,
+    lastCommit ? ['Date', fmt.format(new Date(lastCommit.commit.author.date))] : null,
+    ['Plays', Number(hits).toLocaleString('en-US')]
+  ].filter(Boolean);
+  document.getElementById('popupTitle').textContent=(zone?zone.name:'ZONE').toUpperCase();
+  document.getElementById('popupBody').innerHTML=`<table style="width:100%;border-collapse:collapse">`
+    + rows.map(([k,v])=>`<tr style="border-bottom:1px solid rgba(0,229,255,0.06)"><td style="padding:.36rem .48rem .36rem 0;color:rgba(0,229,255,0.46);font-family:'Orbitron',monospace;font-size:.54rem;letter-spacing:.12em;white-space:nowrap">${k}</td><td style="padding:.36rem 0;font-size:.84rem">${v}</td></tr>`).join('')
+    + `</table>`;
 }
 
 function sanitize(o,ms=1000,ma=10000){
@@ -2814,6 +3121,9 @@ function setThemeHue(v){
 applyThemeHue(getThemeHue());
 
 /* ── BOOT ── */
+// Keep a reference to the native canvas exporter BEFORE the anti-screenshot
+// override below, so the profile-picture downscaler can still use it.
+const __nativeToDataURL = HTMLCanvasElement.prototype.toDataURL;
 HTMLCanvasElement.prototype.toDataURL=function(){return '';};
 window.addEventListener('beforeunload',e=>{e.preventDefault();e.returnValue='';});
 mainLoop();
@@ -2885,42 +3195,49 @@ setTimeout(()=>{
   }
 }, 14000);
 try{if(new URLSearchParams(location.search).get('privacy'))loadPrivacy();}catch(e){}
-try{navigator.serviceWorker.register(location.protocol+'//'+location.hostname+'/sw.js');}catch(e){}
+try{
+  var _swReg = navigator.serviceWorker.register(location.protocol+'//'+location.hostname+'/sw.js');
+  if(_swReg && typeof _swReg.catch === 'function') _swReg.catch(function(){});
+}catch(e){}
 
 /* ═══════════════════════════════════════════════════
    VISIT COUNTER — Abacus (global, no signup, CORS)
    + localStorage per-day history for line graph
 ═══════════════════════════════════════════════════ */
-const ABACUS = 'https://abacus.jasoncameron.dev';
-const NS = 'orion-game-browser';
+const VISITS_KEY = 'orion_visits_global';
+const VISITS_RESET_KEY = 'idkgg_visits_reset_v1';
 
-async function fetchVisitCount(hit){
+// One-time reset: wipe the old (inflated) stored value so the counter starts fresh.
+try{
+  if(localStorage.getItem(VISITS_RESET_KEY) !== '1'){
+    localStorage.removeItem(VISITS_KEY);
+    localStorage.removeItem('orion_hourly_snap');
+    localStorage.setItem(VISITS_RESET_KEY, '1');
+  }
+}catch(e){}
+
+// Local visit counter — increments by exactly 1 per page load.
+// This runs once at script-parse time, so re-renders, popup opens and the
+// 30s poll that used to exist can never re-count a single visit.
+(function countVisitOnce(){
+  if(window.__idkggVisitCounted) return;   // hard guard: once per page load
+  window.__idkggVisitCounted = true;
   const el = document.getElementById('visitCount');
+  let n = 0;
+  try{ n = parseInt(localStorage.getItem(VISITS_KEY), 10) || 0; }catch(e){ n = 0; }
+  n += 1;
+  try{ localStorage.setItem(VISITS_KEY, String(n)); }catch(e){}
+  if(el) el.textContent = n.toLocaleString('en-US');
+  // Hourly snapshot so the visit-history graph keeps working
   try{
-    // Use /hit/ on first load (counts the visit), /get/ on subsequent polls
-    const endpoint = hit ? `${ABACUS}/hit/${NS}/visits` : `${ABACUS}/get/${NS}/visits`;
-    const r = await fetch(endpoint);
-    if(!r.ok) throw new Error(r.status);
-    const n = (await r.json()).value;
-    if(n == null) throw new Error('null');
-    if(el) el.textContent = Number(n).toLocaleString('en-US');
-    localStorage.setItem('orion_visits_global', n);
-    // Store hourly snapshot for graph
     const hourKey = new Date().toISOString().slice(0,13);
     const snap = JSON.parse(localStorage.getItem('orion_hourly_snap')||'{}');
     snap[hourKey] = n;
     const hkeys = Object.keys(snap).sort();
     if(hkeys.length > 25) hkeys.slice(0, hkeys.length-25).forEach(k=>delete snap[k]);
     localStorage.setItem('orion_hourly_snap', JSON.stringify(snap));
-  } catch(e){
-    const cached = localStorage.getItem('orion_visits_global');
-    if(el && cached) el.textContent = Number(cached).toLocaleString('en-US');
-  }
-}
-
-// Hit on first load, then poll every 30s with /get/ (no double-counting)
-fetchVisitCount(true);
-setInterval(()=> fetchVisitCount(false), 30000);
+  }catch(e){}
+})();
 
 function showVisitGraph(){
   const total = (parseInt(localStorage.getItem('orion_visits_global'))||0).toLocaleString('en-US');
@@ -2968,14 +3285,14 @@ function showVisitGraph(){
       const p0=pts[Math.max(i-1,0)],p1=pts[i],p2=pts[i+1],p3=pts[Math.min(i+2,pts.length-1)];
       const cp1x=p1[0]+(p2[0]-p0[0])/6, cp1y=p1[1]+(p2[1]-p0[1])/6;
       const cp2x=p2[0]-(p3[0]-p1[0])/6, cp2y=p2[1]-(p3[1]-p1[1])/6;
-      d+=` C ${cp1x},${cp1y} ${cp2x},${cp2y} ${p2[0]},${p2[1]}`;
+      d+=`C ${cp1x},${cp1y} ${cp2x},${cp2y} ${p2[0]},${p2[1]}`;
     }
     return d;
   }
 
   const linePath = catmullToBezier(pts);
   const last=pts[pts.length-1], first=pts[0];
-  const areaPath = linePath+` L ${last[0]},${PT+gH} L ${first[0]},${PT+gH} Z`;
+  const areaPath = linePath+`L ${last[0]},${PT+gH} L ${first[0]},${PT+gH} Z`;
 
   // Dot on current hour
   const nowKey = now.toISOString().slice(0,13);
@@ -2984,64 +3301,64 @@ function showVisitGraph(){
   const dotVal = nowIdx>=0 ? plotVals[nowIdx] : plotVals[n-1];
 
   const yTicks = [0, Math.round(maxV/2), maxV].map(v=>({v, y:PT+gH-(v/maxV)*gH}));
-  const xLabels = hours.filter((_,i)=>i%6===0||i===n-1).map((h,_,arr)=>{
+  const xLabels = hours.filter((_,i)=>i%6===0||i===n-1).map((h)=>{
     const i=hours.indexOf(h);
     return {label:h.label, x:PL+(i/(n-1))*gW};
   });
 
-  const svg=`<svg viewBox="0 0 ${W} ${H}" width="100%" style="overflow:visible;display:block">
-    <defs>
-      <linearGradient id="areaGrad2" x1="0" y1="0" x2="0" y2="1">
-        <stop offset="0%" stop-color="#00e5ff" stop-opacity="0.2"/>
-        <stop offset="100%" stop-color="#00e5ff" stop-opacity="0"/>
-      </linearGradient>
-      <filter id="glow2">
-        <feGaussianBlur stdDeviation="2" result="blur"/>
-        <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
-      </filter>
-    </defs>
-    ${yTicks.map(t=>`
+  const svg=`<svg viewBox="0 0 ${W} ${H}" width="100%" style="overflow:visible;display:block">`
+    +`<defs>`
+      +`<linearGradient id="areaGrad2" x1="0" y1="0" x2="0" y2="1">`
+        +`<stop offset="0%" stop-color="#00e5ff" stop-opacity="0.2"/>`
+        +`<stop offset="100%" stop-color="#00e5ff" stop-opacity="0"/>`
+      +`</linearGradient>`
+      +`<filter id="glow2">`
+        +`<feGaussianBlur stdDeviation="2" result="blur"/>`
+        +`<feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>`
+      +`</filter>`
+    +`</defs>`
+    +`${yTicks.map(t=>`
       <line x1="${PL}" y1="${t.y}" x2="${W-PR}" y2="${t.y}" stroke="rgba(0,229,255,0.07)" stroke-width="1"/>
       <text x="${PL-3}" y="${t.y+3}" text-anchor="end" font-family="Orbitron,monospace" font-size="6" fill="rgba(255,255,255,0.2)">${t.v}</text>
-    `).join('')}
-    <path d="${areaPath}" fill="url(#areaGrad2)"/>
-    <path d="${linePath}" fill="none" stroke="#00e5ff" stroke-width="1.8" stroke-linecap="round" filter="url(#glow2)"/>
-    <circle cx="${dotPt[0]}" cy="${dotPt[1]}" r="3.5" fill="#00e5ff" filter="url(#glow2)"/>
-    <circle cx="${dotPt[0]}" cy="${dotPt[1]}" r="1.8" fill="#010208"/>
-    ${dotVal>0?`<text x="${dotPt[0]}" y="${dotPt[1]-7}" text-anchor="middle" font-family="Orbitron,monospace" font-size="7" fill="#00e5ff">+${dotVal}</text>`:''}
-    ${xLabels.map(l=>`<text x="${l.x}" y="${H-2}" text-anchor="middle" font-family="Rajdhani,sans-serif" font-size="7" fill="rgba(255,255,255,0.25)">${l.label}</text>`).join('')}
-  </svg>`;
+    `).join('')}`
+    +`<path d="${areaPath}" fill="url(#areaGrad2)"/>`
+    +`<path d="${linePath}" fill="none" stroke="#00e5ff" stroke-width="1.8" stroke-linecap="round" filter="url(#glow2)"/>`
+    +`<circle cx="${dotPt[0]}" cy="${dotPt[1]}" r="3.5" fill="#00e5ff" filter="url(#glow2)"/>`
+    +`<circle cx="${dotPt[0]}" cy="${dotPt[1]}" r="1.8" fill="#010208"/>`
+    +`${dotVal>0?`<text x="${dotPt[0]}" y="${dotPt[1]-7}" text-anchor="middle" font-family="Orbitron,monospace" font-size="7" fill="#00e5ff">+${dotVal}</text>`:''}`
+    +`${xLabels.map(l=>`<text x="${l.x}" y="${H-2}" text-anchor="middle" font-family="Rajdhani,sans-serif" font-size="7" fill="rgba(255,255,255,0.25)">${l.label}</text>`).join('')}`
+  +`</svg>`;
 
   const notice = !hasEnough
     ? `<div style="font-size:0.58rem;color:rgba(255,200,80,0.5);margin-bottom:0.5rem">Graph fills in as you revisit over time</div>`
     : '';
 
-  showPopup('VISIT HISTORY', `
-    <div style="display:flex;align-items:baseline;justify-content:space-between;margin-bottom:0.75rem">
-      <div>
-        <span style="font-family:'Orbitron',monospace;font-size:1.6rem;font-weight:700;color:var(--pulsar);
-          text-shadow:0 0 20px rgba(0,229,255,0.35)">${total}</span>
-        <span style="font-size:0.65rem;color:rgba(255,255,255,0.3);margin-left:0.5rem;letter-spacing:0.1em">TOTAL GLOBAL VISITS</span>
-      </div>
-      <button onclick="showVisitGraph()" style="background:rgba(0,229,255,0.07);border:1px solid rgba(0,229,255,0.18);
-        border-radius:999px;color:var(--pulsar);font-family:'Rajdhani',sans-serif;font-size:0.7rem;
-        padding:0.18rem 0.65rem;cursor:pointer;display:flex;align-items:center;gap:0.3rem"
-        onmouseover="this.style.background='rgba(0,229,255,0.14)'" onmouseout="this.style.background='rgba(0,229,255,0.07)'">
-        <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-          <polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/>
-          <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/>
-        </svg>Refresh
-      </button>
-    </div>
-    ${notice}
-    <div style="background:rgba(0,229,255,0.03);border:1px solid rgba(0,229,255,0.09);border-radius:10px;padding:0.6rem 0.4rem 0.2rem">
-      ${svg}
-    </div>
-    <div style="display:flex;justify-content:space-between;margin-top:0.4rem">
-      <span style="font-size:0.55rem;color:rgba(255,255,255,0.18);letter-spacing:0.08em">GLOBAL · VISITS PER HOUR · LAST 24H</span>
-      <span style="font-size:0.55rem;color:rgba(255,255,255,0.18)">● NOW</span>
-    </div>
-  `);
+  showPopup('VISIT HISTORY',
+    `<div style="display:flex;align-items:baseline;justify-content:space-between;margin-bottom:0.75rem">`
+      +`<div>`
+        +`<span style="font-family:'Orbitron',monospace;font-size:1.6rem;font-weight:700;color:var(--pulsar);`
+          +`text-shadow:0 0 20px rgba(0,229,255,0.35)">${total}</span>`
+        +`<span style="font-size:0.65rem;color:rgba(255,255,255,0.3);margin-left:0.5rem;letter-spacing:0.1em">TOTAL VISITS</span>`
+      +`</div>`
+      +`<button onclick="showVisitGraph()" style="background:rgba(0,229,255,0.07);border:1px solid rgba(0,229,255,0.18);`
+        +`border-radius:999px;color:var(--pulsar);font-family:'Rajdhani',sans-serif;font-size:0.7rem;`
+        +`padding:0.18rem 0.65rem;cursor:pointer;display:flex;align-items:center;gap:0.3rem"`
+        +` onmouseover="this.style.background='rgba(0,229,255,0.14)'" onmouseout="this.style.background='rgba(0,229,255,0.07)'">`
+        +`<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">`
+          +`<polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/>`
+          +`<path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/>`
+        +`</svg>Refresh`
+      +`</button>`
+    +`</div>`
+    +`${notice}`
+    +`<div style="background:rgba(0,229,255,0.03);border:1px solid rgba(0,229,255,0.09);border-radius:10px;padding:0.6rem 0.4rem 0.2rem">`
+      +`${svg}`
+    +`</div>`
+    +`<div style="display:flex;justify-content:space-between;margin-top:0.4rem">`
+      +`<span style="font-size:0.55rem;color:rgba(255,255,255,0.18);letter-spacing:0.08em">VISITS PER HOUR · LAST 24H</span>`
+      +`<span style="font-size:0.55rem;color:rgba(255,255,255,0.18)">● NOW</span>`
+    +`</div>`
+  );
 }
 
 /* ═══════════════════════════════════════════════════
@@ -3076,36 +3393,36 @@ document.addEventListener('keydown', e => {
 
 function openDisguise(){
   const saved = localStorage.getItem('orion_disguise_img');
-  showPopup('DISGUISE SCREEN', `
-    <p style="font-size:0.72rem;color:rgba(255,255,255,0.4);margin-bottom:1rem;line-height:1.6">
-      Upload an image to cover the screen. Press <strong style="color:var(--pulsar)">Alt + Ctrl + R</strong> to toggle it on/off instantly.
-    </p>
-    <div class="img-dropzone ${saved?'has-img':''}" id="dropzone" onclick="document.getElementById('disguiseFileInput').click()">
-      <div id="dropzoneLabel" style="font-family:'Orbitron',monospace;font-size:0.6rem;letter-spacing:0.12em;color:rgba(255,255,255,0.3)">
-        ${saved ? '✓ IMAGE SAVED — CLICK TO CHANGE' : '⬆ CLICK TO UPLOAD IMAGE'}
-      </div>
-      <div style="font-size:0.62rem;color:rgba(255,255,255,0.18);margin-top:0.3rem">${saved?'':'PNG, JPG, WEBP'}</div>
-      <img id="disguisePreview" class="img-preview ${saved?'show':''}" src="${saved||''}" alt="preview">
-      <input type="file" id="disguiseFileInput" accept="image/*" style="position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%">
-    </div>
-    <div style="display:flex;gap:0.6rem;margin-top:0.9rem">
-      <button onclick="activateDisguise()" style="flex:1;background:rgba(0,229,255,0.08);border:1px solid rgba(0,229,255,0.3);
-        border-radius:8px;color:var(--pulsar);font-family:'Orbitron',monospace;font-size:0.6rem;
-        letter-spacing:0.1em;padding:0.55rem;cursor:pointer;transition:background 0.15s"
-        onmouseover="this.style.background='rgba(0,229,255,0.16)'" onmouseout="this.style.background='rgba(0,229,255,0.08)'">
-        ACTIVATE NOW
-      </button>
-      <button onclick="clearDisguiseImg()" style="background:rgba(255,60,60,0.06);border:1px solid rgba(255,60,60,0.2);
-        border-radius:8px;color:rgba(255,100,100,0.7);font-family:'Orbitron',monospace;font-size:0.6rem;
-        letter-spacing:0.1em;padding:0.55rem;cursor:pointer;transition:background 0.15s;white-space:nowrap"
-        onmouseover="this.style.background='rgba(255,60,60,0.12)'" onmouseout="this.style.background='rgba(255,60,60,0.06)'">
-        CLEAR
-      </button>
-    </div>
-    <p style="font-size:0.55rem;color:rgba(255,255,255,0.15);margin-top:0.75rem;text-align:center">
-      Image is stored locally on this device only
-    </p>
-  `);
+  showPopup('DISGUISE SCREEN',
+    `<p style="font-size:0.72rem;color:rgba(255,255,255,0.4);margin-bottom:1rem;line-height:1.6">`
+      +`Upload an image to cover the screen. Press <strong style="color:var(--pulsar)">Alt + Ctrl + R</strong> to toggle it on/off instantly.`
+    +`</p>`
+    +`<div class="img-dropzone ${saved?'has-img':''}" id="dropzone" onclick="document.getElementById('disguiseFileInput').click()">`
+      +`<div id="dropzoneLabel" style="font-family:'Orbitron',monospace;font-size:0.6rem;letter-spacing:0.12em;color:rgba(255,255,255,0.3)">`
+        +`${saved ? '✓ IMAGE SAVED — CLICK TO CHANGE' : '⬆ CLICK TO UPLOAD IMAGE'}`
+      +`</div>`
+      +`<div style="font-size:0.62rem;color:rgba(255,255,255,0.18);margin-top:0.3rem">${saved?'':'PNG, JPG, WEBP'}</div>`
+      +`<img id="disguisePreview" class="img-preview ${saved?'show':''}" src="${saved||''}" alt="preview">`
+      +`<input type="file" id="disguiseFileInput" accept="image/*" style="position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%">`
+    +`</div>`
+    +`<div style="display:flex;gap:0.6rem;margin-top:0.9rem">`
+      +`<button onclick="activateDisguise()" style="flex:1;background:rgba(0,229,255,0.08);border:1px solid rgba(0,229,255,0.3);`
+        +`border-radius:8px;color:var(--pulsar);font-family:'Orbitron',monospace;font-size:0.6rem;`
+        +`letter-spacing:0.1em;padding:0.55rem;cursor:pointer;transition:background 0.15s"`
+        +` onmouseover="this.style.background='rgba(0,229,255,0.16)'" onmouseout="this.style.background='rgba(0,229,255,0.08)'">`
+        +`ACTIVATE NOW`
+      +`</button>`
+      +`<button onclick="clearDisguiseImg()" style="background:rgba(255,60,60,0.06);border:1px solid rgba(255,60,60,0.2);`
+        +`border-radius:8px;color:rgba(255,100,100,0.7);font-family:'Orbitron',monospace;font-size:0.6rem;`
+        +`letter-spacing:0.1em;padding:0.55rem;cursor:pointer;transition:background 0.15s;white-space:nowrap"`
+        +` onmouseover="this.style.background='rgba(255,60,60,0.12)'" onmouseout="this.style.background='rgba(255,60,60,0.06)'">`
+        +`CLEAR`
+      +`</button>`
+    +`</div>`
+    +`<p style="font-size:0.55rem;color:rgba(255,255,255,0.15);margin-top:0.75rem;text-align:center">`
+      +`Image is stored locally on this device only`
+    +`</p>`
+  );
 
   // Wire up file input after popup renders
   setTimeout(()=>{
@@ -3185,10 +3502,10 @@ function clearDisguiseImg(){
    HOVER SOUNDS — Web Audio API, no external files
 ═══════════════════════════════════════════════════ */
 (function initSounds(){
-  let _ctx = null;
+  let actx = null;
   function getCtx(){
-    if(!_ctx) try{ _ctx = new (window.AudioContext||window.webkitAudioContext)(); }catch(e){}
-    return _ctx;
+    if(!actx) try{ actx = new (window.AudioContext||window.webkitAudioContext)(); }catch(e){}
+    return actx;
   }
   function playTick(freq=880, dur=0.035, vol=0.05){
     const c=getCtx(); if(!c) return;
@@ -3241,7 +3558,11 @@ function clearDisguiseImg(){
   const MODERATION_CHANNEL = 'idkgg-moderation-v1';
   const RESTRICTIONS_KEY = 'idkgg_local_restrictions_v1';
   const DEVICE_ID_KEY = 'idkgg_device_id_v1';
+  const PFP_KEY = 'idkgg_pfp_v1';
   const countEl = document.getElementById('liveNum');
+  // Player count starts at 0 — never inherit a stale or inflated number.
+  if(countEl) countEl.textContent = '0';
+  try{ localStorage.removeItem('idkgg_player_count_v1'); }catch(e){}
   const usernameEl = document.getElementById('liveUsername');
   const rankBadge = document.getElementById('rankBadge');
   const gate = document.getElementById('usernameGate');
@@ -3261,15 +3582,158 @@ function clearDisguiseImg(){
   let myId = null;
   let myName = '';
   let myRank = '';
+  let myPfp = '';
+  try{ myPfp = localStorage.getItem(PFP_KEY) || ''; }catch(e){ myPfp = ''; }
   let onlineUsers = [];
   let chatMessages = [];
   const seenChatIds = new Set();
   const seenModerationIds = new Set();
   let selectedTarget = null;
   let restrictions = loadRestrictions();
+  // Timestamp of the last owner /clear. Messages older than this are dropped
+  // so a cleared feed stays cleared for everyone, including late joiners.
+  let chatClearedAt = 0;
+  // ── PRESENCE HEARTBEAT ──
+  // Keeps this user in the online roster while the page is open and the tab is
+  // visible, and drops them out of it when the tab is hidden or closed.
+  let heartbeatTimer = null;
+  let rosterTimer = null;
+  let rosterInFlight = null;
+  let lastRosterAt = 0;
+  let isOnline = false;
+  const HEARTBEAT_MS = 60000;
 
   const escapeHtml = value => String(value).replace(/[&<>'"]/g, char => ({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[char]));
   const normalizeName = value => value.trim().replace(/\s+/g, ' ').slice(0, 24);
+
+  /* ── PROFILE PICTURE HELPERS ─────────────────────
+     Avatars are stored as small (~96x96) data URLs so
+     presence state and chat payloads stay light. */
+  function initialFor(name){
+    const raw = String(name || '').trim();
+    return (raw ? raw[0] : '?').toUpperCase().replace(/[&<>"']/g, '');
+  }
+
+  function defaultAvatarDataUrl(name){
+    const letter = initialFor(name);
+    const svg = '<svg xmlns="http://www.w3.org/2000/svg" width="96" height="96" viewBox="0 0 96 96">'
+      + '<defs><radialGradient id="g" cx="50%" cy="28%" r="78%">'
+      + '<stop offset="0%" stop-color="#0e3d2b"/><stop offset="100%" stop-color="#03120d"/>'
+      + '</radialGradient></defs>'
+      + '<rect width="96" height="96" fill="url(#g)"/>'
+      + '<circle cx="48" cy="48" r="45" fill="none" stroke="#39e58c" stroke-opacity="0.35" stroke-width="2"/>'
+      + '<text x="48" y="63" text-anchor="middle" font-family="Orbitron,monospace" font-weight="900" font-size="42" fill="#39e58c">' + letter + '</text>'
+      + '</svg>';
+    return 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svg);
+  }
+
+  function avatarHtml(pfp, name, size){
+    const s = Number(size) || 26;
+    const src = (typeof pfp === 'string' && pfp) ? pfp : defaultAvatarDataUrl(name);
+    return '<img class="avatar" src="' + escapeHtml(src) + '" alt="" width="' + s + '" height="' + s
+      + '" style="width:' + s + 'px;height:' + s + 'px">';
+  }
+  window.avatarHtml = avatarHtml;
+  window.defaultAvatarDataUrl = defaultAvatarDataUrl;
+
+  // Downscale + square-crop an uploaded image to a small data URL.
+  function downscaleImage(file, size, cb){
+    const s = size || 96;
+    const reader = new FileReader();
+    reader.onload = function(ev){
+      const raw = ev.target.result;
+      const img = new Image();
+      img.onload = function(){
+        try{
+          const c = document.createElement('canvas');
+          c.width = s; c.height = s;
+          const cx = c.getContext('2d');
+          const iw = img.width || s, ih = img.height || s;
+          const min = Math.min(iw, ih);
+          const sx = (iw - min) / 2, sy = (ih - min) / 2;
+          cx.drawImage(img, sx, sy, min, min, 0, 0, s, s);
+          let out = '';
+          try{ out = __nativeToDataURL.call(c, 'image/jpeg', 0.82); }catch(e){ out = ''; }
+          cb(out || raw);
+        }catch(e){ cb(raw); }
+      };
+      img.onerror = function(){ cb(raw); };
+      img.src = raw;
+    };
+    reader.onerror = function(){ cb(''); };
+    reader.readAsDataURL(file);
+  }
+
+  function applyPfpToCircle(circleId, imgId, initialId, name){
+    const circle = document.getElementById(circleId);
+    if(!circle) return;
+    const img = document.getElementById(imgId);
+    const initial = document.getElementById(initialId);
+    if(myPfp){
+      if(img){ img.src = myPfp; img.style.display = 'block'; }
+      if(initial) initial.style.display = 'none';
+    }else{
+      if(img){ img.removeAttribute('src'); img.style.display = 'none'; }
+      if(initial){ initial.textContent = initialFor(name); initial.style.display = ''; }
+    }
+  }
+
+  function wirePfpInput(inputId){
+    const el = document.getElementById(inputId);
+    if(!el || el._pfpWired) return;
+    el._pfpWired = true;
+    el.addEventListener('change', function(ev){
+      const file = ev.target.files && ev.target.files[0];
+      if(!file) return;
+      downscaleImage(file, 96, function(dataUrl){
+        if(!dataUrl) return;
+        myPfp = dataUrl;
+        try{ localStorage.setItem(PFP_KEY, dataUrl); }catch(e){}
+        refreshPfpViews();
+        publishIdentity();
+      });
+      ev.target.value = '';
+    });
+  }
+
+  function refreshPfpViews(){
+    updateIdentityView();
+    applyPfpToCircle('gatePfpCircle','gatePfpImg','gatePfpInitial', myName || (input ? input.value : ''));
+    applyPfpToCircle('profilePfpCircle','profilePfpImg','profilePfpInitial', myName);
+    const feed = document.getElementById('liveChatFeed');
+    if(feed) renderChat();
+  }
+
+  window.openProfile = function(){
+    showPopup('PROFILE',
+      '<div class="pfp-picker">'
+        + '<div class="pfp-circle" id="profilePfpCircle" title="Upload a profile picture">'
+          + '<img id="profilePfpImg" alt="" style="display:none">'
+          + '<span class="pfp-initial" id="profilePfpInitial">' + escapeHtml(initialFor(myName)) + '</span>'
+          + '<span class="pfp-hint">CHANGE</span>'
+          + '<input type="file" id="profilePfpInput" accept="image/*" aria-label="Upload profile picture">'
+        + '</div>'
+        + '<div class="pfp-label">' + escapeHtml(myName || 'Guest') + '</div>'
+      + '</div>'
+      + '<div class="pfp-actions">'
+        + '<button type="button" class="settings-btn" onclick="document.getElementById(\'profilePfpInput\').click()">⬆ UPLOAD NEW</button>'
+        + '<button type="button" class="settings-btn" onclick="clearPfp()">✕ REMOVE</button>'
+      + '</div>'
+      + '<p class="moderation-note" style="text-align:center">Your picture is stored on this device and shared with the people online.</p>'
+    );
+    setTimeout(function(){
+      wirePfpInput('profilePfpInput');
+      applyPfpToCircle('profilePfpCircle','profilePfpImg','profilePfpInitial', myName);
+    }, 60);
+  };
+
+  window.clearPfp = function(){
+    myPfp = '';
+    try{ localStorage.removeItem(PFP_KEY); }catch(e){}
+    refreshPfpViews();
+    publishIdentity();
+    window.openProfile();
+  };
 
   function loadRestrictions(){
     try{
@@ -3355,7 +3819,20 @@ function clearDisguiseImg(){
   }
 
   function receiveModeration(command){
-    if(!command || command.targetId !== myId || typeof command.action !== 'string') return;
+    if(!command || typeof command.action !== 'string') return;
+    // /clear is a broadcast, not a targeted action — handle it before the
+    // targetId check so every client wipes its feed.
+    if(command.action === 'clear'){
+      const clearId = String(command.id || `clear-${command.issuedAt || ''}`);
+      if(seenModerationIds.has(clearId)) return;
+      seenModerationIds.add(clearId);
+      chatClearedAt = Date.now();
+      chatMessages = [];
+      seenChatIds.clear();
+      renderChat();
+      return;
+    }
+    if(command.targetId !== myId) return;
     const commandId = String(command.id || `${command.action}-${command.issuedAt || ''}`);
     if(seenModerationIds.has(commandId)) return;
     seenModerationIds.add(commandId);
@@ -3381,6 +3858,14 @@ function clearDisguiseImg(){
       const title = document.getElementById('popupTitle');
       if(title && title.textContent === 'REAL-TIME CHAT') closePopup();
       showPopup('CHAT KICK', '<p style="text-align:center;padding:.9rem .3rem;color:#ffcf8f">You were kicked from chat. This is not a ban — you can open chat again whenever you want.</p>');
+    }else if(command.action === 'unmute'){
+      delete restrictions.chatMuteUntil;
+      saveRestrictions();
+      const chatInput = document.getElementById('liveChatInput');
+      const chatSend = document.getElementById('liveChatSend');
+      if(chatInput) chatInput.disabled = false;
+      if(chatSend) chatSend.disabled = false;
+      showPopup('CHAT UNMUTED', '<p style="text-align:center;padding:.9rem .3rem;color:#8ff0b8">You can send chat messages again.</p>');
     }
   }
 
@@ -3389,22 +3874,99 @@ function clearDisguiseImg(){
     onlineUsers = (occupants || []).map(function(occupant){
       const name = normalizeName(occupant.state && occupant.state.username || 'Guest');
       const rank = occupant.state && occupant.state.rank === 'owner' ? 'owner' : '';
-      return { id: occupant.uuid || occupant.userId || name, name: name || 'Guest', rank: rank };
+      const pfp = occupant.state && typeof occupant.state.pfp === 'string' ? occupant.state.pfp : '';
+      return { id: occupant.uuid || occupant.userId || name, name: name || 'Guest', rank: rank, pfp: pfp };
     }).filter(function(user){
       if(seen.has(user.id)) return false;
       seen.add(user.id);
       return true;
     }).sort(function(a,b){ return a.name.localeCompare(b.name); });
-    if(countEl) countEl.textContent = onlineUsers.length || 1;
+    // Player count = real connected clients only. No artificial floor, so an
+    // empty roster reads 0 instead of a stale/inflated number.
+    if(countEl) countEl.textContent = onlineUsers.length;
+    lastRosterAt = Date.now();
+    // Keep the owner panel's user picker in step with the live roster.
+    if(myRank === 'owner' && document.getElementById('ownerTargetSelect')) refreshOwnerTargets();
   }
 
+  /* Rebuild the roster from the FULL presence list of the channel.
+     hereNow() returns every client currently subscribed to CHANNEL, so the
+     ONLINE NOW popup always lists all connected users — never just the local
+     user or a partial subset. Overlapping calls are collapsed into one so a
+     slow response can never overwrite a newer roster with a stale one. */
   function refreshRoster(){
     if(!client) return Promise.resolve();
-    return client.hereNow({channels:[CHANNEL], includeUUIDs:true, includeState:true}).then(function(result){
+    if(rosterInFlight) return rosterInFlight;
+    rosterInFlight = client.hereNow({channels:[CHANNEL], includeUUIDs:true, includeState:true}).then(function(result){
       const channel = result.channels && result.channels[CHANNEL];
       setUsers(channel && channel.occupants);
-    }).catch(function(){});
+    }).catch(function(){}).then(function(){ rosterInFlight = null; });
+    return rosterInFlight;
   }
+
+  /* ── PRESENCE HEARTBEAT ────────────────────────────────
+     A user counts as ONLINE when the page is open, the tab is
+     visible, and they have entered a username. The heartbeat
+     re-asserts that state every 60s (and immediately on load,
+     on join, and on every visibility change) so the roster entry
+     stays alive and incoming chat messages keep reaching them. */
+  function isUserOnline(){
+    return !!myName && document.visibilityState === 'visible';
+  }
+
+  function goOnline(){
+    if(!client || isOnline) return;
+    isOnline = true;
+    try{
+      // Subscribing to the presence channel is what puts this user in the
+      // roster that powers ONLINE NOW and the players-online count.
+      client.subscribe({channels:[CHANNEL], withPresence:true});
+    }catch(e){}
+    publishIdentity();
+    refreshRoster();
+  }
+
+  function goOffline(){
+    if(!isOnline) return;
+    isOnline = false;
+    try{
+      // Leaving the presence channel removes this user from the roster.
+      if(client) client.unsubscribe({channels:[CHANNEL]});
+    }catch(e){}
+    // Drop ourselves from the local roster right away so the count updates
+    // without waiting for the next presence event.
+    onlineUsers = onlineUsers.filter(function(user){ return user.id !== myId; });
+    if(countEl) countEl.textContent = onlineUsers.length;
+    refreshRoster();
+  }
+
+  /* The heartbeat only ever manages THIS user's own presence entry. It must
+     never rebuild the roster from local state, because that would overwrite
+     the full presence list with a partial one. */
+  function heartbeat(){
+    if(isUserOnline()){
+      if(!isOnline) goOnline();
+      else publishIdentity(); // re-assert presence so the roster entry stays alive
+    }else if(isOnline){
+      goOffline();
+    }
+  }
+
+  function startHeartbeat(){
+    heartbeat(); // immediate check on load / join
+    if(heartbeatTimer) clearInterval(heartbeatTimer);
+    heartbeatTimer = setInterval(heartbeat, HEARTBEAT_MS);
+    // The heartbeat tick also refreshes the roster from the full presence
+    // list, so newly connected users appear and disconnected ones drop off
+    // even if a presence event was missed.
+    if(rosterTimer) clearInterval(rosterTimer);
+    rosterTimer = setInterval(function(){
+      if(isOnline) refreshRoster();
+    }, HEARTBEAT_MS);
+  }
+
+  // Prompt online/offline updates when the tab is hidden or shown again.
+  document.addEventListener('visibilitychange', function(){ heartbeat(); });
 
   window.openLiveUsers = function(){
     refreshRoster().finally(function(){
@@ -3412,8 +3974,8 @@ function clearDisguiseImg(){
         ? onlineUsers.map(function(user, index){
             const label = `${escapeHtml(user.name)}${user.rank === 'owner' ? ' <span class="rank-badge">OWNER</span>' : ''}${user.id === myId ? ' <span style="color:var(--pulsar);font-size:.7rem">(you)</span>' : ''}`;
             return myRank === 'owner' && user.id !== myId
-              ? `<button class="roster-user" type="button" data-moderation-index="${index}">${label}<span style="margin-left:auto;color:#ffd66b;font-size:.56rem;letter-spacing:.08em">MANAGE</span></button>`
-              : `<div class="roster-user">${label}</div>`;
+              ? `<button class="roster-user" type="button" data-moderation-index="${index}">${avatarHtml(user.pfp, user.name, 26)}<span>${label}</span><span style="margin-left:auto;color:#ffd66b;font-size:.56rem;letter-spacing:.08em">MANAGE</span></button>`
+              : `<div class="roster-user">${avatarHtml(user.pfp, user.name, 26)}<span>${label}</span></div>`;
           }).join('')
         : '<p>No presence data has arrived yet. Try again in a moment.</p>';
       showPopup('ONLINE NOW', `<p style="margin-bottom:.75rem">${onlineUsers.length || 0} people currently browsing</p><div class="roster-list">${rows}</div><button class="settings-btn" style="margin-top:.8rem;margin-bottom:0;text-align:center" onclick="openLiveChat()">◉ OPEN REAL-TIME CHAT</button>`);
@@ -3428,22 +3990,22 @@ function clearDisguiseImg(){
     const target = onlineUsers[index];
     if(!target || target.id === myId) return;
     selectedTarget = target;
-    showPopup('OWNER MODERATION', `
-      <div class="moderation-target">${escapeHtml(target.name)}${target.rank === 'owner' ? ' <span class="rank-badge">OWNER</span>' : ''}</div>
-      <label for="moderationDuration">TIMED ACTION LENGTH</label>
-      <div style="display:flex;align-items:center;gap:.5rem;margin-bottom:.4rem">
-        <input id="moderationDuration" type="number" min="1" max="10080" value="10" style="width:86px;padding:.5rem .6rem;border:1px solid rgba(255,200,40,.24);border-radius:7px;background:rgba(255,200,40,.04);color:#fff;font:600 .85rem 'Rajdhani',sans-serif;outline:none">
-        <span style="font-size:.75rem;color:rgba(255,255,255,.45)">minutes</span>
-      </div>
-      <p class="moderation-note">Kick only ends the current visit. Timed actions are enforced until their countdown ends.</p>
-      <div class="moderation-actions">
-        <button type="button" onclick="issueModeration('kick')">KICK SITE</button>
-        <button type="button" onclick="issueModeration('mute')">MUTE CHAT</button>
-        <button type="button" onclick="issueModeration('chat-kick')">CHAT KICK</button>
-        <button type="button" onclick="issueModeration('chat-ban')">CHAT BAN</button>
-        <button class="severe" type="button" style="grid-column:1 / -1" onclick="issueModeration('ban')">BAN FROM SITE</button>
-      </div>
-    `);
+    showPopup('OWNER MODERATION',
+      `<div class="moderation-target">${avatarHtml(target.pfp, target.name, 26)}<span>${escapeHtml(target.name)}${target.rank === 'owner' ? ' <span class="rank-badge">OWNER</span>' : ''}</span></div>`
+      +`<label for="moderationDuration">TIMED ACTION LENGTH</label>`
+      +`<div style="display:flex;align-items:center;gap:.5rem;margin-bottom:.4rem">`
+        +`<input id="moderationDuration" type="number" min="1" max="10080" value="10" style="width:86px;padding:.5rem .6rem;border:1px solid rgba(255,200,40,.24);border-radius:7px;background:rgba(255,200,40,.04);color:#fff;font:600 .85rem 'Rajdhani',sans-serif;outline:none">`
+        +`<span style="font-size:.75rem;color:rgba(255,255,255,.45)">minutes</span>`
+      +`</div>`
+      +`<p class="moderation-note">Kick only ends the current visit. Timed actions are enforced until their countdown ends.</p>`
+      +`<div class="moderation-actions">`
+        +`<button type="button" onclick="issueModeration('kick')">KICK SITE</button>`
+        +`<button type="button" onclick="issueModeration('mute')">MUTE CHAT</button>`
+        +`<button type="button" onclick="issueModeration('chat-kick')">CHAT KICK</button>`
+        +`<button type="button" onclick="issueModeration('chat-ban')">CHAT BAN</button>`
+        +`<button class="severe" type="button" style="grid-column:1 / -1" onclick="issueModeration('ban')">BAN FROM SITE</button>`
+      +`</div>`
+    );
   };
 
   window.issueModeration = function(action){
@@ -3508,9 +4070,9 @@ function clearDisguiseImg(){
 
     const toast = document.createElement('div');
     toast.className = 'chat-toast';
-    toast.innerHTML = `
-      <div class="chat-toast-name"><span class="dot"></span>${escapeHtml(message.name)}${message.rank==='owner' ? ' <span class="rank-badge" style="margin-left:2px">OWNER</span>' : ''}</div>
-      <div class="chat-toast-text">${escapeHtml(message.text)}</div>`;
+    toast.innerHTML =
+      `<div class="chat-toast-name"><span class="dot"></span>${avatarHtml(message.pfp, message.name, 18)}${escapeHtml(message.name)}${message.rank==='owner' ? ' <span class="rank-badge" style="margin-left:2px">OWNER</span>' : ''}</div>`
+      +`<div class="chat-toast-text">${escapeHtml(message.text)}</div>`;
     toast.addEventListener('click', () => { toast.remove(); window.openLiveChat(); });
     chatToastContainer.appendChild(toast);
     setTimeout(() => toast.remove(), 5200);
@@ -3520,13 +4082,15 @@ function clearDisguiseImg(){
     const feed = document.getElementById('liveChatFeed');
     if(!feed) return;
     feed.innerHTML = chatMessages.length
-      ? chatMessages.map(message => `<div class="chat-message"><span class="chat-message-name">${escapeHtml(message.name)}</span>${message.rank === 'owner' ? '<span class="rank-badge">OWNER</span>' : ''}<span>${escapeHtml(message.text)}</span></div>`).join('')
+      ? chatMessages.map(message => `<div class="chat-message">${avatarHtml(message.pfp, message.name, 26)}<div class="chat-message-body"><span class="chat-message-name">${escapeHtml(message.name)}</span>${message.rank === 'owner' ? '<span class="rank-badge">OWNER</span>' : ''}<span>${escapeHtml(message.text)}</span></div></div>`).join('')
       : '<p style="color:rgba(255,255,255,.35);text-align:center;padding:2rem .5rem">No messages yet. Say hello.</p>';
     feed.scrollTop = feed.scrollHeight;
   }
 
   function addChatMessage(message){
     if(!message || typeof message.text !== 'string') return;
+    // Drop anything sent before the last owner /clear so the feed stays cleared.
+    if(chatClearedAt && Number(message.sentAt) && Number(message.sentAt) < chatClearedAt) return;
     const id = String(message.id || `${message.name}-${message.sentAt}-${message.text}`);
     if(seenChatIds.has(id)) return;
     seenChatIds.add(id);
@@ -3535,6 +4099,7 @@ function clearDisguiseImg(){
       id:id,
       name:normalizeName(message.name || 'Guest') || 'Guest',
       rank:message.rank === 'owner' ? 'owner' : '',
+      pfp: typeof message.pfp === 'string' ? message.pfp : '',
       text:message.text.trim().slice(0, 300)
     });
     if(chatMessages.length > 100) chatMessages = chatMessages.slice(-100);
@@ -3549,32 +4114,337 @@ function clearDisguiseImg(){
       return;
     }
     const chatMuteUntil = activeUntil('chatMuteUntil');
-    showPopup('REAL-TIME CHAT', `
-      <div id="liveChatFeed" aria-live="polite"></div>
-      <form id="liveChatForm">
-        <input id="liveChatInput" type="text" maxlength="300" autocomplete="off" placeholder="${chatMuteUntil ? `Muted for ${durationLabel(chatMuteUntil)}` : 'Send a message'}" ${(client && !chatMuteUntil) ? '' : 'disabled'}>
-        <button id="liveChatSend" type="submit" ${(client && !chatMuteUntil) ? '' : 'disabled'}>SEND</button>
-      </form>
-      ${chatMuteUntil ? `<p style="margin-top:.5rem;color:#ffcf8f;font-size:.7rem">You can read chat, but cannot send messages for ${durationLabel(chatMuteUntil)}.</p>` : (client ? '' : '<p style="margin-top:.5rem;color:#ff8585;font-size:.7rem">Chat is unavailable because the live service did not load.</p>')}
-    `);
+    showPopup('REAL-TIME CHAT',
+      `<div id="liveChatFeed" aria-live="polite"></div>`
+      +`<form id="liveChatForm">`
+        +`<input id="liveChatInput" type="text" maxlength="300" autocomplete="off" placeholder="${chatMuteUntil ? `Muted for ${durationLabel(chatMuteUntil)}` : 'Send a message'}" ${(client && !chatMuteUntil) ? '' : 'disabled'}>`
+        +`<button id="liveChatSend" type="submit" ${(client && !chatMuteUntil) ? '' : 'disabled'}>SEND</button>`
+      +`</form>`
+      +`${chatMuteUntil ? `<p style="margin-top:.5rem;color:#ffcf8f;font-size:.7rem">You can read chat, but cannot send messages for ${durationLabel(chatMuteUntil)}.</p>` : (client ? '' : '<p style="margin-top:.5rem;color:#ff8585;font-size:.7rem">Chat is unavailable because the live service did not load.</p>')}`
+      +`${myRank === 'owner' ? '<p style="margin-top:.5rem;color:rgba(255,214,107,.72);font-size:.68rem">Owner: type <code>/help</code> for commands, or use the panel below.</p>' : ''}`
+      // Owner-only one-click panel. The container is always present in the
+      // markup but stays empty (and therefore invisible) for non-owners.
+      +`<div id="ownerPanel" hidden></div>`
+    , 'chat');
     renderChat();
-    const form = document.getElementById('liveChatForm');
-    const input = document.getElementById('liveChatInput');
-    if(input && !input.disabled) input.focus();
-    if(form) form.addEventListener('submit', function(event){
+    renderOwnerPanel();
+    const chatForm = document.getElementById('liveChatForm');
+    const chatInput = document.getElementById('liveChatInput');
+    if(chatInput && !chatInput.disabled) chatInput.focus();
+    if(chatForm) chatForm.addEventListener('submit', function(event){
       event.preventDefault();
-      const text = input.value.trim();
-      if(!text || !client || activeUntil('chatMuteUntil') || activeUntil('chatBanUntil')) return;
-      const message = {id:`${myId}-${Date.now()}-${Math.random().toString(36).slice(2,7)}`, name:myName, rank:myRank, text:text, sentAt:Date.now()};
-      input.value = '';
+      const text = chatInput.value.trim();
+      if(!text || activeUntil('chatBanUntil')) return;
+      // Owner commands are handled locally and never posted as chat text.
+      if(runOwnerCommand(text)){ chatInput.value = ''; return; }
+      if(!client || activeUntil('chatMuteUntil')) return;
+      const message = {id:`${myId}-${Date.now()}-${Math.random().toString(36).slice(2,7)}`, name:myName, rank:myRank, pfp:myPfp, text:text, sentAt:Date.now()};
+      chatInput.value = '';
       addChatMessage(message);
       client.publish({channel:CHAT_CHANNEL, message:message}).catch(function(){});
     });
   };
 
+  /* ═════════════════════════════════════════════════════════════
+     OWNER CHAT COMMANDS
+     Typed into the chat input. Every command is gated on myRank === 'owner';
+     non-owners get a permission reply and nothing is broadcast. Announcements
+     ride the existing PubNub moderation channel so they reach every connected
+     client in real time — no new transport is introduced.
+     ═════════════════════════════════════════════════════════════ */
+  const ANNOUNCE_CHANNEL = 'idkgg-announce-v1';
+  const ANNOUNCE_MS = 8000;
+  const seenAnnounceIds = new Set();
+  let announceTimer = null;
+
+  const OWNER_COMMANDS = [
+    {usage:'/announcement <message>', desc:'Broadcast a banner to everyone online'},
+    {usage:'/clear',                  desc:'Clear the chat feed for everyone'},
+    {usage:'/kick <user>',            desc:'Remove a user from the site'},
+    {usage:'/mute <user>',            desc:'Stop a user sending chat messages (10 min)'},
+    {usage:'/unmute <user>',          desc:'Let a muted user chat again'},
+    {usage:'/help',                   desc:'List these commands'}
+  ];
+
+  function commandReply(text, tone){
+    const color = tone === 'error' ? '#ffadad' : (tone === 'ok' ? '#8ff0b8' : 'rgba(255,255,255,.72)');
+    showPopup('COMMAND', `<p style="text-align:center;padding:.9rem .3rem;color:${color}">${escapeHtml(text)}</p>`);
+  }
+
+  function commandHelpHtml(){
+    const rows = OWNER_COMMANDS.map(function(c){
+      return `<div class="cmd-row"><code>${escapeHtml(c.usage)}</code><span>${escapeHtml(c.desc)}</span></div>`;
+    }).join('');
+    return `<p style="margin-bottom:.6rem;color:rgba(255,255,255,.6)">Owner commands — type them into the chat box.</p><div class="cmd-list">${rows}</div>`;
+  }
+
+  function findRosterUser(query){
+    const q = String(query || '').trim().toLowerCase();
+    if(!q) return null;
+    return onlineUsers.find(function(u){ return u.name.toLowerCase() === q; })
+        || onlineUsers.find(function(u){ return u.name.toLowerCase().indexOf(q) === 0; })
+        || onlineUsers.find(function(u){ return u.name.toLowerCase().indexOf(q) !== -1; })
+        || null;
+  }
+
+  function sendModerationCommand(action, target, until){
+    if(!client || !target) return;
+    const command = {
+      id: `mod-${myId}-${Date.now()}-${Math.random().toString(36).slice(2,7)}`,
+      action: action,
+      targetId: target.id,
+      issuedAt: Date.now(),
+      until: until || 0
+    };
+    client.publish({channel:MODERATION_CHANNEL, message:command}).catch(function(){});
+  }
+
+  function showAnnouncement(text, from){
+    const banner = document.getElementById('announceBanner');
+    if(!banner) return;
+    const textEl = document.getElementById('announceBannerText');
+    const fromEl = document.getElementById('announceBannerFrom');
+    if(textEl) textEl.textContent = text;
+    if(fromEl) fromEl.textContent = from ? `— ${from}` : '';
+    banner.classList.add('visible');
+    if(announceTimer) clearTimeout(announceTimer);
+    announceTimer = setTimeout(hideAnnouncement, ANNOUNCE_MS);
+  }
+
+  function hideAnnouncement(){
+    const banner = document.getElementById('announceBanner');
+    if(banner) banner.classList.remove('visible');
+    if(announceTimer){ clearTimeout(announceTimer); announceTimer = null; }
+  }
+  window.hideAnnouncement = hideAnnouncement;
+
+  function receiveAnnouncement(payload){
+    if(!payload || typeof payload.text !== 'string') return;
+    const id = String(payload.id || `${payload.sentAt || ''}-${payload.text}`);
+    if(seenAnnounceIds.has(id)) return;
+    seenAnnounceIds.add(id);
+    showAnnouncement(payload.text.slice(0, 200), payload.from);
+  }
+
+  /* ══════════════════════════════════════════════════════════════
+     SHARED COMMAND CORE
+     ONE implementation behind BOTH entry points: the typed commands
+     and the one-click OWNER PANEL. The panel never re-implements any
+     logic — it calls straight into this function, so the two can
+     never drift apart.
+
+     opts.report  → callback(text, tone) for inline panel status
+     opts.silent  → suppress the COMMAND popup
+     opts.target  → a pre-resolved roster user (the panel picks by id,
+                    which is exact; the typed path resolves by name)
+     Returns {ok, message, tone, unknown}
+     ══════════════════════════════════════════════════════════════ */
+  function executeOwnerCommand(name, arg, opts){
+    opts = opts || {};
+    const report = function(text, tone){
+      if(opts.report) opts.report(text, tone);
+      else if(!opts.silent) commandReply(text, tone);
+    };
+    const fail = function(text){ report(text, 'error'); return {ok:false, message:text, tone:'error'}; };
+    const done = function(text){ report(text, 'ok'); return {ok:true, message:text, tone:'ok'}; };
+
+    if(name === 'help' || name === 'commands'){
+      if(myRank !== 'owner') return fail("You don't have permission to use owner commands.");
+      showPopup('OWNER COMMANDS', commandHelpHtml());
+      return {ok:true, message:'', tone:'ok'};
+    }
+
+    // Unknown command → not ours. The typed path falls through to chat.
+    if(['announcement','announce','clear','kick','mute','unmute'].indexOf(name) === -1){
+      return {ok:false, message:'', tone:'error', unknown:true};
+    }
+
+    // ── OWNER GATE ── non-owners get a reply and nothing is broadcast.
+    if(myRank !== 'owner') return fail("You don't have permission to use that command.");
+
+    if(name === 'announcement' || name === 'announce'){
+      if(!arg) return fail('Usage: /announcement <message>');
+      if(!client) return fail('The live service is unavailable, so nothing was broadcast.');
+      const payload = {
+        id: `ann-${myId}-${Date.now()}-${Math.random().toString(36).slice(2,7)}`,
+        from: myName || 'Owner',
+        text: arg.slice(0, 200),
+        sentAt: Date.now()
+      };
+      client.publish({channel:ANNOUNCE_CHANNEL, message:payload}).catch(function(){});
+      receiveAnnouncement(payload);
+      return done('Announcement broadcast to everyone online.');
+    }
+
+    if(name === 'clear'){
+      if(!client) return fail('The live service is unavailable, so nothing was broadcast.');
+      const payload = { id:`clr-${myId}-${Date.now()}`, action:'clear', issuedAt:Date.now() };
+      client.publish({channel:MODERATION_CHANNEL, message:payload}).catch(function(){});
+      receiveModeration(payload);
+      return done('Chat feed cleared for everyone.');
+    }
+
+    // kick / mute / unmute all need a target from the live roster
+    const target = opts.target || (arg ? findRosterUser(arg) : null);
+    if(!target) return fail(arg ? `No one online matches "${arg}".` : `Usage: /${name} <user>`);
+    if(target.id === myId) return fail('You cannot target yourself.');
+
+    if(name === 'kick'){
+      sendModerationCommand('kick', target, 0);
+      return done(`Kicked ${target.name} from the site.`);
+    }
+    if(name === 'mute'){
+      sendModerationCommand('mute', target, Date.now() + 10 * 60000);
+      return done(`Muted ${target.name} for 10 minutes.`);
+    }
+    if(name === 'unmute'){
+      sendModerationCommand('unmute', target, 0);
+      return done(`Unmuted ${target.name}.`);
+    }
+    return {ok:false, message:'', tone:'error', unknown:true};
+  }
+
+  /* Typed-command entry point. Returns true when the text was a command
+     (handled here, never posted as chat). Behaviour is unchanged. */
+  function runOwnerCommand(raw){
+    const match = String(raw || '').trim().match(/^\/([a-z-]+)\s*([\s\S]*)$/i);
+    if(!match) return false;
+    const result = executeOwnerCommand(match[1].toLowerCase(), match[2].trim(), {});
+    return !result.unknown;
+  }
+
+  /* ══════════════════════════════════════════════════════════════
+     OWNER PANEL — one-click UI for the commands above.
+     Rendered only when myRank === 'owner'; non-owners get an empty,
+     hidden container so nothing is visible to them.
+     ══════════════════════════════════════════════════════════════ */
+  function ownerPanelStatus(text, tone){
+    const el = document.getElementById('ownerPanelStatus');
+    if(!el) return;
+    el.textContent = text || '';
+    el.className = 'owner-panel-status' + (tone ? ' ' + tone : '');
+  }
+
+  /* Everyone in the roster except the owner themselves. */
+  function ownerPanelTargets(){
+    return onlineUsers.filter(function(u){ return u.id !== myId; });
+  }
+
+  /* Keep the user picker in sync with the live roster. */
+  function refreshOwnerTargets(){
+    const select = document.getElementById('ownerTargetSelect');
+    if(!select) return;
+    const targets = ownerPanelTargets();
+    const previous = select.value;
+    select.innerHTML = targets.length
+      ? targets.map(function(u){ return `<option value="${escapeHtml(u.id)}">${escapeHtml(u.name)}</option>`; }).join('')
+      : '<option value="">No one else online</option>';
+    if(previous && targets.some(function(u){ return u.id === previous; })) select.value = previous;
+    const disabled = !targets.length;
+    ['ownerKickBtn','ownerMuteBtn','ownerUnmuteBtn'].forEach(function(id){
+      const b = document.getElementById(id);
+      if(b) b.disabled = disabled;
+    });
+  }
+
+  /* Panel → shared core. Resolves the target by id (exact, no ambiguity). */
+  function runOwnerPanelCommand(name, arg, target){
+    const result = executeOwnerCommand(name, arg, { report: ownerPanelStatus, target: target || null });
+    if(result && result.ok) refreshOwnerTargets();
+    return result;
+  }
+
+  function renderOwnerPanel(){
+    const panel = document.getElementById('ownerPanel');
+    if(!panel) return;
+    if(myRank !== 'owner'){ panel.hidden = true; panel.innerHTML = ''; return; }
+    panel.hidden = false;
+    panel.innerHTML =
+      `<div class="owner-panel-head">`
+        +`<span class="owner-panel-title">\u26a1 OWNER PANEL</span>`
+        +`<button class="owner-mini-btn" type="button" id="ownerHelpBtn">? HELP</button>`
+      +`</div>`
+      +`<div class="owner-panel-row">`
+        +`<input id="ownerAnnounceInput" type="text" maxlength="200" autocomplete="off" placeholder="Announcement message\u2026">`
+        +`<button class="owner-btn owner-btn-primary" type="button" id="ownerAnnounceBtn">SEND ANNOUNCEMENT</button>`
+      +`</div>`
+      +`<div class="owner-panel-row">`
+        +`<button class="owner-btn owner-btn-warn" type="button" id="ownerClearBtn">CLEAR CHAT</button>`
+      +`</div>`
+      +`<div class="owner-panel-row">`
+        +`<select id="ownerTargetSelect" aria-label="Choose a user"></select>`
+        +`<button class="owner-btn owner-btn-danger" type="button" id="ownerKickBtn">KICK</button>`
+        +`<button class="owner-btn owner-btn-warn" type="button" id="ownerMuteBtn">MUTE</button>`
+        +`<button class="owner-btn owner-btn-ok" type="button" id="ownerUnmuteBtn">UNMUTE</button>`
+      +`</div>`
+      +`<div class="owner-panel-status" id="ownerPanelStatus"></div>`;
+
+    const announceInput = document.getElementById('ownerAnnounceInput');
+    const announceBtn = document.getElementById('ownerAnnounceBtn');
+    const clearBtn = document.getElementById('ownerClearBtn');
+    const helpBtn = document.getElementById('ownerHelpBtn');
+    const kickBtn = document.getElementById('ownerKickBtn');
+    const muteBtn = document.getElementById('ownerMuteBtn');
+    const unmuteBtn = document.getElementById('ownerUnmuteBtn');
+    const select = document.getElementById('ownerTargetSelect');
+
+    function sendAnnouncement(){
+      const text = announceInput ? announceInput.value.trim() : '';
+      if(!text){
+        ownerPanelStatus('Type a message to announce.', 'error');
+        if(announceInput) announceInput.focus();
+        return;
+      }
+      const result = runOwnerPanelCommand('announcement', text);
+      if(result && result.ok && announceInput) announceInput.value = '';
+    }
+    if(announceBtn) announceBtn.addEventListener('click', sendAnnouncement);
+    if(announceInput) announceInput.addEventListener('keydown', function(ev){
+      if(ev.key === 'Enter'){ ev.preventDefault(); sendAnnouncement(); }
+    });
+    if(clearBtn) clearBtn.addEventListener('click', function(){ runOwnerPanelCommand('clear', ''); });
+    if(helpBtn) helpBtn.addEventListener('click', function(){ runOwnerPanelCommand('help', ''); });
+
+    function selectedTarget(){
+      if(!select || !select.value) return null;
+      return onlineUsers.find(function(u){ return u.id === select.value; }) || null;
+    }
+    function targetAction(name){
+      const target = selectedTarget();
+      if(!target){ ownerPanelStatus('No one else is online to target.', 'error'); return; }
+      runOwnerPanelCommand(name, target.name, target);
+    }
+    if(kickBtn) kickBtn.addEventListener('click', function(){ targetAction('kick'); });
+    if(muteBtn) muteBtn.addEventListener('click', function(){ targetAction('mute'); });
+    if(unmuteBtn) unmuteBtn.addEventListener('click', function(){ targetAction('unmute'); });
+
+    refreshOwnerTargets();
+  }
+
   function updateIdentityView(){
     if(usernameEl) usernameEl.textContent = myName || '…';
     if(rankBadge) rankBadge.hidden = myRank !== 'owner';
+    const chip = document.getElementById('liveUserBtn');
+    if(chip){
+      let av = chip.querySelector('.identity-avatar');
+      if(!av){
+        av = document.createElement('img');
+        av.className = 'identity-avatar';
+        av.alt = '';
+        chip.insertBefore(av, chip.firstChild);
+      }
+      av.src = myPfp || defaultAvatarDataUrl(myName);
+      if(!av._pfpWired){
+        av._pfpWired = true;
+        av.style.cursor = 'pointer';
+        av.title = 'Change profile picture';
+        av.addEventListener('click', function(ev){
+          ev.stopPropagation();
+          ev.preventDefault();
+          window.openProfile();
+        });
+      }
+    }
   }
 
   function clearRank(){
@@ -3593,7 +4463,7 @@ function clearDisguiseImg(){
   }
 
   function publishIdentity(){
-    const state = {username:myName, rank:myRank};
+    const state = {username:myName, rank:myRank, pfp:myPfp};
     if(!client){
       setUsers([{uuid:myId, state:state}]);
       return;
@@ -3608,27 +4478,52 @@ function clearDisguiseImg(){
       return;
     }
     try{
-      client = new PubNub({
-        publishKey: 'demo', subscribeKey: 'demo', userId: myId,
-        heartbeatInterval: 10, presenceTimeout: 20
-      });
-      client.addListener({
-        presence: function(event){
-          if(event.channel !== CHANNEL) return;
-          if(event.occupancy != null && countEl) countEl.textContent = event.occupancy;
-          refreshRoster();
-        },
-        message: function(event){
-          if(event.channel === CHAT_CHANNEL) addChatMessage(event.message);
-          if(event.channel === MODERATION_CHANNEL) receiveModeration(event.message);
-        }
-      });
-      client.subscribe({channels:[CHANNEL, CHAT_CHANNEL, MODERATION_CHANNEL], withPresence:true});
-      publishIdentity();
-      window.addEventListener('pagehide', function(){
-        try{ client.unsubscribeAll(); }catch(e){}
-      }, {once:true});
-      setTimeout(refreshRoster, 1000);
+      if(!client){
+        client = new PubNub({
+          publishKey: 'demo', subscribeKey: 'demo', userId: myId,
+          heartbeatInterval: 10, presenceTimeout: 20
+        });
+        client.addListener({
+          presence: function(event){
+            if(event.channel !== CHANNEL) return;
+            // NOTE: we deliberately do NOT use event.occupancy here. The public
+            // 'demo' PubNub key is shared by every app that uses it, so its
+            // occupancy reports a huge global number (thousands) that has nothing
+            // to do with this site. The count is derived from the real roster
+            // (setUsers) instead, so it only ever reflects actual connected
+            // clients on this channel.
+            //
+            // join/leave/timeout are handled explicitly so the roster updates
+            // the moment somebody connects or drops off, and a stale entry is
+            // pruned locally even if the follow-up hereNow() call is slow.
+            const action = event.action;
+            if(action === 'leave' || action === 'timeout'){
+              const gone = event.uuid || event.userId;
+              if(gone){
+                onlineUsers = onlineUsers.filter(function(user){ return user.id !== gone; });
+                if(countEl) countEl.textContent = onlineUsers.length;
+              }
+            }
+            refreshRoster();
+          },
+          message: function(event){
+            if(event.channel === CHAT_CHANNEL) addChatMessage(event.message);
+            if(event.channel === MODERATION_CHANNEL) receiveModeration(event.message);
+            if(event.channel === ANNOUNCE_CHANNEL) receiveAnnouncement(event.message);
+          }
+        });
+        // Chat + moderation + announcements stay subscribed for the whole
+        // session so messages are delivered whenever the user is online. The
+        // presence channel is joined/left by the heartbeat instead.
+        client.subscribe({channels:[CHAT_CHANNEL, MODERATION_CHANNEL, ANNOUNCE_CHANNEL]});
+        window.addEventListener('pagehide', function(){
+          goOffline();
+          // Only the presence channel is left behind — chat and moderation stay
+          // subscribed so nothing else is torn down on unload.
+          try{ client.unsubscribe({channels:[CHANNEL]}); }catch(e){}
+        }, {once:true});
+      }
+      startHeartbeat();
     }catch(e){
       client = null;
       publishIdentity();
@@ -3673,6 +4568,7 @@ function clearDisguiseImg(){
 
   window.showUsernameGate = function(){
     gate.classList.add('visible');
+    refreshPfpViews();
     setTimeout(() => input.focus(), 50);
   };
   window.openRankSettings = function(){
@@ -3686,9 +4582,25 @@ function clearDisguiseImg(){
     rankInput.value = '';
     rankError.textContent = '';
   });
+  const rankPfpBtn = document.getElementById('rankPfpBtn');
+  if(rankPfpBtn) rankPfpBtn.addEventListener('click', function(){
+    rankGate.classList.remove('visible');
+    window.openProfile();
+  });
+
+  // PFP picker on the username gate
+  wirePfpInput('gatePfpInput');
+  if(input) input.addEventListener('input', function(){
+    if(!myPfp) applyPfpToCircle('gatePfpCircle','gatePfpImg','gatePfpInitial', input.value);
+  });
+  refreshPfpViews();
+
   enforceRestrictions();
   form.addEventListener('submit', submitName);
   rankForm.addEventListener('submit', submitRank);
+  // Start the heartbeat on load too, so the 60s cycle is already running by the
+  // time a username is entered (the immediate check is a no-op until then).
+  startHeartbeat();
 })();
 
 </script>
@@ -3704,10 +4616,10 @@ function clearDisguiseImg(){
 })();
 </script>
 
-
 <style id="chatcord-cover-upgrade">
 /* Chatcord cover upgrade: keeps the identity, adds a custom cyber-social artwork */
-.gcard .gcard-inner:has(.gcard-label) img{ }
+.gcard[data-name="Chatcord"] .gcard-inner img{ }
 </style>
 </body>
 </html>
+
