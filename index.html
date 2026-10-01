@@ -501,6 +501,12 @@ sweep(document)})();</script>
       border-radius:999px;color:#ffd66b;background:rgba(255,200,40,.1);font:700 .48rem 'Orbitron',monospace;
       letter-spacing:.08em;vertical-align:middle;}
     #rankBadge[hidden]{display:none!important;}
+    /* MOD badge: same shape as the OWNER badge but a cool cyan accent, so the
+       two ranks are instantly distinguishable wherever a rank is shown. */
+    .rank-badge.mod{border-color:rgba(90,200,255,.6);color:#9fe4ff;background:rgba(90,200,255,.12);
+      text-shadow:0 0 10px rgba(90,200,255,.4);}
+    .rank-code-hint{margin-top:.55rem;font:600 .68rem 'Rajdhani',sans-serif;line-height:1.35;
+      color:rgba(159,228,255,.72);}
     .roster-list{display:grid;gap:.45rem;max-height:45vh;overflow:auto;padding-right:.2rem;}
     .roster-user{display:flex;align-items:center;gap:.55rem;padding:.52rem .62rem;border:1px solid rgba(57,229,140,.1);
       border-radius:7px;background:rgba(57,229,140,.035);color:rgba(255,255,255,.8);}
@@ -513,6 +519,30 @@ sweep(document)})();</script>
     .chat-message{padding:.48rem .6rem;border-radius:8px;background:rgba(57,229,140,.04);
       border:1px solid rgba(57,229,140,.09);font-size:.82rem;line-height:1.35;word-break:break-word;}
     .chat-message-name{color:var(--pulsar);font-weight:600;margin-right:.35rem;}
+    /* ── CHAT MESSAGE DELETION ──
+       The ✕ sits at the top-right of the message row and is revealed on hover
+       (or on keyboard focus). It is only rendered at all for mods and owners,
+       so a regular user never sees it. */
+    .chat-message{position:relative;}
+    .chat-message.has-delete{padding-right:2rem;}
+    .chat-delete-btn{position:absolute;top:.3rem;right:.3rem;width:19px;height:19px;padding:0;
+      display:none;align-items:center;justify-content:center;border-radius:5px;cursor:pointer;
+      border:1px solid rgba(255,110,90,.5);background:rgba(255,60,60,.14);color:#ffadad;
+      font:900 .6rem/1 'Orbitron',monospace;transition:background .15s,border-color .15s,box-shadow .15s;}
+    .chat-message:hover .chat-delete-btn,
+    .chat-delete-btn:focus-visible{display:flex;}
+    .chat-delete-btn:hover{background:rgba(255,60,60,.3);border-color:#ff8585;color:#fff;
+      box-shadow:0 0 12px rgba(255,80,80,.45);}
+    /* Transient system line (e.g. the deletion confirmation) inside the feed. */
+    .chat-system{margin:.1rem 0 .2rem;padding:.42rem .55rem;border-radius:7px;text-align:center;
+      border:1px dashed rgba(255,200,40,.3);background:rgba(255,200,40,.05);
+      color:rgba(255,214,107,.85);font:600 .7rem 'Rajdhani',sans-serif;letter-spacing:.02em;}
+    /* Quoted preview of the message about to be deleted. */
+    .chat-quote{margin-top:.5rem;padding:.5rem .6rem;border-radius:7px;max-height:5.5rem;overflow:auto;
+      border:1px solid rgba(57,229,140,.16);background:rgba(57,229,140,.04);
+      color:rgba(255,255,255,.62);font:600 .76rem 'Rajdhani',sans-serif;word-break:break-word;}
+    .chat-toast-delete .chat-toast-name{color:#ffcf8f;font-weight:700;}
+    .chat-toast-delete{border-color:rgba(255,200,40,.35);}
     #liveChatForm{display:flex;gap:.45rem;}
     #liveChatInput{min-width:0;flex:1;padding:.56rem .68rem;border:1px solid rgba(57,229,140,.2);
       border-radius:8px;background:rgba(57,229,140,.04);color:#fff;font:600 .86rem 'Rajdhani',sans-serif;outline:none;}
@@ -1916,8 +1946,9 @@ body.ultra-save body::after{display:none !important}
   <form class="username-card" id="rankForm">
     <button type="button" class="rank-close-btn" id="rankCloseBtn" aria-label="Close">✕</button>
     <h1 id="rankGateTitle">RANK SETTINGS</h1>
-    <p>Enter an owner code to add a public rank to your username.</p>
-    <input id="rankCodeInput" type="password" autocomplete="off" placeholder="Owner code" required>
+    <p>Enter an owner code or a mod code to add a public rank to your username.</p>
+    <input id="rankCodeInput" type="password" autocomplete="off" placeholder="Owner or mod code" required>
+    <p class="rank-code-hint">Mods unlock limited chat moderation (chat kick + chat mute) with the mod code.</p>
     <div id="rankError" aria-live="polite"></div>
     <button id="rankSubmit" type="submit">APPLY RANK</button>
     <button type="button" class="settings-btn" id="rankPfpBtn" style="margin-top:.7rem;margin-bottom:0;text-align:center">🖼 CHANGE PROFILE PICTURE</button>
@@ -4367,17 +4398,27 @@ function clearDisguiseImg(){
       renderActionLog();
       return;
     }
+    // A mod-code change is a broadcast about the shared code, so it is handled
+    // here too, before the targetId gate. Every client then validates against
+    // the same code.
+    if(command.action === 'modcode'){
+      const codeId = String(command.id || `modcode-${command.issuedAt || ''}`);
+      if(seenModerationIds.has(codeId)) return;
+      seenModerationIds.add(codeId);
+      if(typeof command.code === 'string' && command.code) setModCode(command.code);
+      return;
+    }
     if(command.targetId !== myId) return;
     const commandId = String(command.id || `${command.action}-${command.issuedAt || ''}`);
     if(seenModerationIds.has(commandId)) return;
     seenModerationIds.add(commandId);
     const until = Number(command.until) || 0;
-    if(['mute','ban','chat-ban'].includes(command.action) && until <= Date.now()) return;
+    if(['mute','ban','chat-ban','chat-mute'].includes(command.action) && until <= Date.now()) return;
 
     if(command.action === 'kick'){
       blocker.dataset.reason = 'kick';
       showSiteBlock('SITE KICK', 'You were removed from this session. This is a kick, not a ban — you may rejoin whenever you are ready.', true);
-    }else if(command.action === 'mute'){
+    }else if(command.action === 'mute' || command.action === 'chat-mute'){
       rememberRestriction('chatMuteUntil', until);
       showPopup('CHAT MUTED', `<p style="text-align:center;padding:.9rem .3rem;color:#ffcf8f">You have been muted for <strong>${durationLabel(until)}</strong>. You can still read chat, but cannot send messages.</p>`);
       enforceRestrictions();
@@ -4410,7 +4451,8 @@ function clearDisguiseImg(){
     const seen = new Set();
     onlineUsers = (occupants || []).map(function(occupant){
       const name = normalizeName(occupant.state && occupant.state.username || 'Guest');
-      const rank = occupant.state && occupant.state.rank === 'owner' ? 'owner' : '';
+      const rawRank = occupant.state && occupant.state.rank;
+      const rank = (rawRank === 'owner' || rawRank === 'mod') ? rawRank : '';
       const pfp = occupant.state && typeof occupant.state.pfp === 'string' ? occupant.state.pfp : '';
       return { id: occupant.uuid || occupant.userId || name, name: name || 'Guest', rank: rank, pfp: pfp };
     }).filter(function(user){
@@ -4423,7 +4465,7 @@ function clearDisguiseImg(){
     if(countEl) countEl.textContent = onlineUsers.length;
     lastRosterAt = Date.now();
     // Keep the owner panel's user picker in step with the live roster.
-    if(myRank === 'owner' && document.getElementById('ownerTargetSelect')) refreshOwnerTargets();
+    if(hasModPowers() && document.getElementById('ownerTargetSelect')) refreshOwnerTargets();
   }
 
   /* Rebuild the roster from the FULL presence list of the channel.
@@ -4609,7 +4651,7 @@ function clearDisguiseImg(){
      the stale OWNER badge. */
   function applyRosterRank(targetId, rank){
     if(!targetId) return;
-    const next = rank === 'owner' ? 'owner' : '';
+    const next = (rank === 'owner' || rank === 'mod') ? rank : '';
     let changed = false;
     onlineUsers.forEach(function(user){
       if(user.id === targetId && user.rank !== next){ user.rank = next; changed = true; }
@@ -4618,7 +4660,7 @@ function clearDisguiseImg(){
     // local feed, so the change shows up in chat and not only in the roster.
     if(next === ''){
       chatMessages.forEach(function(message){
-        if(message.fromId && message.fromId === targetId && message.rank === 'owner'){
+        if(message.fromId && message.fromId === targetId && message.rank){
           message.rank = '';
           changed = true;
         }
@@ -4639,8 +4681,8 @@ function clearDisguiseImg(){
   function renderRosterPopup(){
     const rows = onlineUsers.length
       ? onlineUsers.map(function(user, index){
-          const label = `${escapeHtml(user.name)}${user.rank === 'owner' ? ' <span class="rank-badge">OWNER</span>' : ''}${user.id === myId ? ' <span style="color:var(--pulsar);font-size:.7rem">(you)</span>' : ''}`;
-          return myRank === 'owner' && user.id !== myId
+          const label = `${escapeHtml(user.name)}${rankBadgeHtml(user.rank)}${user.id === myId ? ' <span style="color:var(--pulsar);font-size:.7rem">(you)</span>' : ''}`;
+          return hasModPowers() && user.id !== myId && user.rank !== 'owner'
             ? `<button class="roster-user" type="button" data-moderation-index="${index}">${avatarHtml(user.pfp, user.name, 26)}<span>${label}</span><span style="margin-left:auto;color:#ffd66b;font-size:.56rem;letter-spacing:.08em">MANAGE</span></button>`
             : `<div class="roster-user">${avatarHtml(user.pfp, user.name, 26)}<span>${label}</span></div>`;
         }).join('')
@@ -4656,33 +4698,69 @@ function clearDisguiseImg(){
   };
 
   window.openModerationMenu = function(index){
-    if(myRank !== 'owner') return;
+    if(!hasModPowers()) return;
     const target = onlineUsers[index];
     if(!target || target.id === myId) return;
+    // No moderation command may be aimed at an owner rank — not by a mod, and
+    // not by another owner either.
+    if(target.rank === 'owner'){
+      showPopup('ACTION REFUSED', '<p style="text-align:center;padding:.9rem .3rem;color:#ffadad">You can\u2019t use that on an owner.</p>');
+      return;
+    }
     selectedTarget = target;
-    showPopup('OWNER MODERATION',
-      `<div class="moderation-target">${avatarHtml(target.pfp, target.name, 26)}<span>${escapeHtml(target.name)}${target.rank === 'owner' ? ' <span class="rank-badge">OWNER</span>' : ''}</span></div>`
-      +`<label for="moderationDuration">TIMED ACTION LENGTH</label>`
-      +`<div style="display:flex;align-items:center;gap:.5rem;margin-bottom:.4rem">`
-        +`<input id="moderationDuration" type="number" min="1" max="10080" value="10" style="width:86px;padding:.5rem .6rem;border:1px solid rgba(255,200,40,.24);border-radius:7px;background:rgba(255,200,40,.04);color:#fff;font:600 .85rem 'Rajdhani',sans-serif;outline:none">`
-        +`<span style="font-size:.75rem;color:rgba(255,255,255,.45)">minutes</span>`
-      +`</div>`
-      +`<p class="moderation-note">Kick only ends the current visit. Timed actions are enforced until their countdown ends.</p>`
-      +`<div class="moderation-actions">`
-        +`<button type="button" onclick="issueModeration('kick')">KICK SITE</button>`
+    const owner = isOwnerRank();
+    // Mods see ONLY the two controls they are allowed to use; every owner-only
+    // control is left out of the markup entirely rather than merely disabled.
+    const durationBlock = owner
+      ? `<label for="moderationDuration">TIMED ACTION LENGTH</label>`
+        +`<div style="display:flex;align-items:center;gap:.5rem;margin-bottom:.4rem">`
+          +`<input id="moderationDuration" type="number" min="1" max="10080" value="10" style="width:86px;padding:.5rem .6rem;border:1px solid rgba(255,200,40,.24);border-radius:7px;background:rgba(255,200,40,.04);color:#fff;font:600 .85rem 'Rajdhani',sans-serif;outline:none">`
+          +`<span style="font-size:.75rem;color:rgba(255,255,255,.45)">minutes</span>`
+        +`</div>`
+      : `<p class="moderation-note">Mod powers: chat kick and chat mute only. Mutes are capped at 3 minutes and kicks have a 10-minute cooldown.</p>`;
+    const actions = owner
+      ? `<button type="button" onclick="issueModeration('kick')">KICK SITE</button>`
         +`<button type="button" onclick="issueModeration('mute')">MUTE CHAT</button>`
         +`<button type="button" onclick="issueModeration('chat-kick')">CHAT KICK</button>`
         +`<button type="button" onclick="issueModeration('chat-ban')">CHAT BAN</button>`
         +`<button class="severe" type="button" style="grid-column:1 / -1" onclick="issueModeration('ban')">BAN FROM SITE</button>`
-      +`</div>`
+      : `<button type="button" onclick="issueModeration('chat-kick')">CHAT KICK</button>`
+        +`<button type="button" onclick="issueModeration('chat-mute')">CHAT MUTE (3 MIN MAX)</button>`;
+    showPopup(owner ? 'OWNER MODERATION' : 'MOD MODERATION',
+      `<div class="moderation-target">${avatarHtml(target.pfp, target.name, 26)}<span>${escapeHtml(target.name)}${rankBadgeHtml(target.rank)}</span></div>`
+      +durationBlock
+      +`<p class="moderation-note">Kick only ends the current visit. Timed actions are enforced until their countdown ends.</p>`
+      +`<div class="moderation-actions">${actions}</div>`
     );
   };
 
   window.issueModeration = function(action){
-    if(myRank !== 'owner' || !selectedTarget || selectedTarget.id === myId || !client) return;
-    const timed = ['mute', 'ban', 'chat-ban'].includes(action);
+    if(!hasModPowers() || !selectedTarget || selectedTarget.id === myId || !client) return;
+    const owner = isOwnerRank();
+    // Mods are limited to chat kick and chat mute. Anything else is refused
+    // outright, so a mod can never reach an owner-only power.
+    if(!owner && action !== 'chat-kick' && action !== 'chat-mute'){
+      showPopup('ACTION REFUSED', '<p style="text-align:center;padding:.9rem .3rem;color:#ffadad">Mods can only use chat kick and chat mute.</p>');
+      return;
+    }
+    if(selectedTarget.rank === 'owner'){
+      showPopup('ACTION REFUSED', '<p style="text-align:center;padding:.9rem .3rem;color:#ffadad">You can\u2019t use that on an owner.</p>');
+      return;
+    }
+    const timed = ['mute', 'chat-mute', 'ban', 'chat-ban'].includes(action);
     const durationInput = document.getElementById('moderationDuration');
-    const minutes = Math.max(1, Math.min(10080, Number.parseInt(durationInput && durationInput.value, 10) || 10));
+    let minutes = Math.max(1, Math.min(10080, Number.parseInt(durationInput && durationInput.value, 10) || 10));
+    let clamped = false;
+    if(!owner && action === 'chat-mute' && minutes > 3){ minutes = 3; clamped = true; }
+    // A mod may only kick once every 10 minutes; the cooldown is persisted so a
+    // reload cannot clear it. Owners are not subject to it.
+    if(!owner && action === 'chat-kick'){
+      const left = modKickRemaining();
+      if(left > 0){
+        showPopup('KICK COOLDOWN', `<p style="text-align:center;padding:.9rem .3rem;color:#ffcf8f">You can kick again in <strong>${cooldownLabel(left)}</strong>.</p>`);
+        return;
+      }
+    }
     const command = {
       id: `mod-${myId}-${Date.now()}-${Math.random().toString(36).slice(2,7)}`,
       action: action,
@@ -4691,8 +4769,10 @@ function clearDisguiseImg(){
       until: timed ? Date.now() + minutes * 60000 : 0
     };
     client.publish({channel:MODERATION_CHANNEL, message:command}).then(function(){
+      if(!owner && action === 'chat-kick') markModKick();
       logModerationAction(action, selectedTarget);
-      showPopup('ACTION SENT', `<p style="text-align:center;padding:.8rem .3rem">${escapeHtml(action.replace('-', ' ').toUpperCase())} sent to <strong>${escapeHtml(selectedTarget.name)}</strong>.</p>`);
+      const note = clamped ? ' Mod mutes are capped at 3 minutes, so it was clamped.' : '';
+      showPopup('ACTION SENT', `<p style="text-align:center;padding:.8rem .3rem">${escapeHtml(action.replace('-', ' ').toUpperCase())} sent to <strong>${escapeHtml(selectedTarget.name)}</strong>.${note}</p>`);
     }).catch(function(){
       showPopup('ACTION NOT SENT', '<p style="text-align:center;padding:.8rem .3rem;color:#ffadad">The live moderation service is unavailable.</p>');
     });
@@ -4742,7 +4822,7 @@ function clearDisguiseImg(){
     const toast = document.createElement('div');
     toast.className = 'chat-toast';
     toast.innerHTML =
-      `<div class="chat-toast-name"><span class="dot"></span>${avatarHtml(message.pfp, message.name, 18)}${escapeHtml(message.name)}${message.rank==='owner' ? ' <span class="rank-badge" style="margin-left:2px">OWNER</span>' : ''}</div>`
+      `<div class="chat-toast-name"><span class="dot"></span>${avatarHtml(message.pfp, message.name, 18)}${escapeHtml(message.name)}${rankBadgeHtml(message.rank, 'margin-left:2px')}</div>`
       +`<div class="chat-toast-text">${escapeHtml(message.text || '')}</div>`
       +`${(typeof message.image === 'string' && message.image.indexOf('data:image/') === 0) ? `<img class="chat-toast-image" src="${escapeHtml(message.image)}" alt="">` : ''}`;
     toast.addEventListener('click', () => { toast.remove(); window.openLiveChat(); });
@@ -4759,26 +4839,254 @@ function clearDisguiseImg(){
             ? `<img class="chat-image" src="${escapeHtml(message.image)}" alt="${escapeHtml(message.imageName || 'image')}" loading="lazy">`
             : '';
           const txt = message.text ? `<span>${escapeHtml(message.text)}</span>` : '';
-          return `<div class="chat-message">${avatarHtml(message.pfp, message.name, 26)}<div class="chat-message-body"><span class="chat-message-name">${escapeHtml(message.name)}</span>${message.rank === 'owner' ? '<span class="rank-badge">OWNER</span>' : ''}${txt}${img}</div></div>`;
+          return `<div class="chat-message">${avatarHtml(message.pfp, message.name, 26)}<div class="chat-message-body"><span class="chat-message-name">${escapeHtml(message.name)}</span>${rankBadgeHtml(message.rank)}${txt}${img}</div></div>`;
         }).join('')
       : '<p style="color:rgba(255,255,255,.35);text-align:center;padding:2rem .5rem">No messages yet. Say hello.</p>';
     feed.scrollTop = feed.scrollHeight;
   }
 
+  /* ══════════════════════════════════════════════════════════════
+     CHAT MESSAGE DELETION — shared, persistent, real-time
+     A mod or an owner can remove a single chat message. The deletion is
+     broadcast on the existing chat channel as a `chat-delete` entry carrying
+     the message id, and the set of deleted ids is kept in localStorage so a
+     reload — or a visitor who joins later and pulls the message back out of
+     the channel's retained history — never resurrects it. Ids are remembered
+     even when they arrive BEFORE the message they refer to, so an out-of-order
+     deletion still wins when that message finally lands.
+     ══════════════════════════════════════════════════════════════ */
+  const CHAT_DELETE_KEY = 'idkgg_chat_deleted_v1';
+  const CHAT_DELETE_MAX = 200;   // capped so the tombstone list can never grow unbounded
+  let deletedMessageIds = loadDeletedMessages();
+  // Transient status line shown inside the feed (e.g. after a deletion).
+  let chatSystemNotice = '';
+  // The typed aliases that share deleteChatMessage() with the hover button.
+  const CHAT_DELETE_COMMANDS = ['delmsg', 'delete'];
+
+  function loadDeletedMessages(){
+    try{
+      const raw = localStorage.getItem(CHAT_DELETE_KEY);
+      const parsed = raw ? JSON.parse(raw) : [];
+      return Array.isArray(parsed)
+        ? parsed.filter(function(v){ return typeof v === 'string' && v; }).slice(-CHAT_DELETE_MAX)
+        : [];
+    }catch(e){ return []; }
+  }
+  function saveDeletedMessages(){
+    try{
+      localStorage.setItem(CHAT_DELETE_KEY, JSON.stringify(deletedMessageIds.slice(-CHAT_DELETE_MAX)));
+    }catch(e){}
+  }
+  /* Remember an id as deleted. Idempotent, so a replayed broadcast is a no-op.
+     Returns false when the id was already known. */
+  function rememberDeletedMessage(id){
+    const key = String(id || '');
+    if(!key) return false;
+    if(deletedMessageIds.indexOf(key) !== -1) return false;
+    deletedMessageIds.push(key);
+    if(deletedMessageIds.length > CHAT_DELETE_MAX) deletedMessageIds = deletedMessageIds.slice(-CHAT_DELETE_MAX);
+    saveDeletedMessages();
+    return true;
+  }
+  function isMessageDeleted(id){ return deletedMessageIds.indexOf(String(id || '')) !== -1; }
+
+  /* Drop a message from the local feed (when we actually hold it) and repaint. */
+  function applyMessageDelete(id){
+    const key = String(id || '');
+    if(!key) return false;
+    const before = chatMessages.length;
+    chatMessages = chatMessages.filter(function(message){ return message.id !== key; });
+    if(chatMessages.length !== before) renderChat();
+    return true;
+  }
+
+  /* Set (or clear) the transient status line inside the feed. Stored rather
+     than written straight into the DOM, because the popup may be closed and
+     re-opened around it — renderChat() re-emits it on every repaint. */
+  function setChatSystemLine(text){
+    chatSystemNotice = text || '';
+    renderChat();
+    if(!chatSystemNotice) return;
+    setTimeout(function(){
+      if(chatSystemNotice === text){ chatSystemNotice = ''; renderChat(); }
+    }, 7000);
+  }
+
+  /* Brief confirmation toast. Deliberately NOT suppressed while the chat popup
+     is open — this one confirms the user's own action, so it must be seen. */
+  function showDeleteToast(text){
+    if(!text || !chatToastContainer) return;
+    const toast = document.createElement('div');
+    toast.className = 'chat-toast chat-toast-delete';
+    toast.innerHTML = `<div class="chat-toast-name"><span class="dot"></span><span>${escapeHtml(text)}</span></div>`;
+    chatToastContainer.appendChild(toast);
+    setTimeout(function(){ toast.remove(); }, 4400);
+  }
+
+  function renderChat(){
+    const feed = document.getElementById('liveChatFeed');
+    if(!feed) return;
+    const deletable = hasModPowers();
+    const listHtml = chatMessages.length
+      ? chatMessages.map(function(message){
+          const img = message.image
+            ? `<img class="chat-image" src="${escapeHtml(message.image)}" alt="${escapeHtml(message.imageName || 'image')}" loading="lazy">`
+            : '';
+          const txt = message.text ? `<span>${escapeHtml(message.text)}</span>` : '';
+          // The ✕ is only emitted for mods and owners, and never on an owner's
+          // message — keeping the "no commands on owners" rule consistent.
+          const canDelete = deletable && message.rank !== 'owner';
+          const del = canDelete
+            ? `<button class="chat-delete-btn" type="button" data-msg-id="${escapeHtml(message.id)}" title="Delete this message" aria-label="Delete this message">✕</button>`
+            : '';
+          return `<div class="chat-message${canDelete ? ' has-delete' : ''}">${avatarHtml(message.pfp, message.name, 26)}<div class="chat-message-body"><span class="chat-message-name">${escapeHtml(message.name)}</span>${rankBadgeHtml(message.rank)}${txt}${img}</div>${del}</div>`;
+        }).join('')
+      : '<p style="color:rgba(255,255,255,.35);text-align:center;padding:2rem .5rem">No messages yet. Say hello.</p>';
+    feed.innerHTML = listHtml
+      + (chatSystemNotice ? `<p class="chat-system">${escapeHtml(chatSystemNotice)}</p>` : '');
+    feed.scrollTop = feed.scrollHeight;
+  }
+
+  /* Hover ✕ on each message. One delegated listener on the feed, so it keeps
+     working across every renderChat() repaint. The handler re-checks the rank,
+     so the control cannot be used by anyone who is not a mod or an owner. */
+  function wireChatDelete(){
+    const feed = document.getElementById('liveChatFeed');
+    if(!feed) return;
+    feed.addEventListener('click', function(event){
+      const btn = event.target && event.target.closest ? event.target.closest('.chat-delete-btn') : null;
+      if(!btn) return;
+      event.preventDefault();
+      event.stopPropagation();
+      if(!hasModPowers()) return;
+      requestChatDelete(btn.dataset.msgId || '');
+    });
+  }
+
+  /* Confirmation gate for the ✕ path: nothing is deleted until the explicit
+     YES, so a stray click can never remove someone's message. */
+  function requestChatDelete(messageId){
+    const message = chatMessages.find(function(m){ return m.id === messageId; });
+    if(!message){ showDeleteToast('That message is no longer in the feed.'); return; }
+    if(message.rank === 'owner'){ showDeleteToast("You can't delete an owner's message."); return; }
+    const preview = message.image
+      ? '[image / GIF message]'
+      : escapeHtml(String(message.text || '').slice(0, 160) || '[empty message]');
+    showPopup('DELETE MESSAGE?',
+      `<p style="text-align:center;padding:.2rem .3rem .1rem;color:rgba(255,255,255,.72)">Delete this message from <strong>${escapeHtml(message.name)}</strong> for everyone? This cannot be undone.</p>`
+      +`<div class="chat-quote">${preview}</div>`
+      +`<div class="moderation-actions" style="margin-top:.7rem">`
+        +`<button class="severe" type="button" id="chatDeleteYesBtn" style="grid-column:1 / -1">YES, DELETE IT</button>`
+        +`<button type="button" id="chatDeleteNoBtn" style="grid-column:1 / -1">CANCEL</button>`
+      +`</div>`);
+    const yes = document.getElementById('chatDeleteYesBtn');
+    const no = document.getElementById('chatDeleteNoBtn');
+    if(yes) yes.addEventListener('click', function(){
+      deleteChatMessage(messageId, function(text){ showDeleteToast(text); });
+      // Re-open the chat so the feed is visible again, without the message.
+      if(typeof window.openLiveChat === 'function') window.openLiveChat();
+    });
+    if(no) no.addEventListener('click', function(){
+      if(typeof window.openLiveChat === 'function') window.openLiveChat();
+    });
+  }
+
+  /* The one place a chat message is actually deleted, shared by the ✕ button
+     and the /delmsg command. Tombstones locally first (so the feed updates even
+     if the publish is slow), broadcasts on the chat channel, records the
+     deletion in the shared action log with the actor, and confirms. */
+  function deleteChatMessage(messageId, report){
+    const id = String(messageId || '');
+    const message = chatMessages.find(function(m){ return m.id === id; });
+    if(!message){
+      const gone = 'That message is no longer in the feed.';
+      if(report) report(gone);
+      showDeleteToast(gone);
+      return {ok:false, message:gone, tone:'error'};
+    }
+    // Nobody may delete an owner's message — not a mod, and not another owner
+    // either, which keeps this consistent with "no commands on owners".
+    if(message.rank === 'owner'){
+      const denied = "You can't delete an owner's message.";
+      if(report) report(denied);
+      showDeleteToast(denied);
+      return {ok:false, message:denied, tone:'error'};
+    }
+    // The author is captured before the message leaves the feed.
+    const author = { id: message.fromId || '', name: message.name || 'Unknown' };
+    rememberDeletedMessage(id);
+    applyMessageDelete(id);
+    if(client){
+      client.publish({channel:CHAT_CHANNEL, message:{
+        action:'chat-delete', messageId:id, issuedAt:Date.now()
+      }}).catch(function(){});
+    }
+    // The action log credits the actor (mod or owner) against the message's
+    // author, so owners can always see who deleted whose message.
+    logModerationAction('chat-delete', author);
+    const note = `Deleted a message from ${author.name}.`;
+    setChatSystemLine(note);
+    showDeleteToast(note);
+    if(report) report(note);
+    return {ok:true, message:note, tone:'ok'};
+  }
+
+  /* Pull the ids of messages deleted while we were away. Deletions live on the
+     chat channel beside the messages themselves, so one history read covers
+     both, and a client that joins later tombstones every deleted id before it
+     can re-display that message from history. */
+  function seedDeletedFromHistory(){
+    if(!client || typeof client.fetchMessages !== 'function') return;
+    // NOTE: no `end` here. PubNub's `end` is a timetoken, not a millisecond
+    // timestamp — passing Date.now() is read as a timetoken far in the past.
+    client.fetchMessages({channels:[CHAT_CHANNEL], count:100})
+      .then(function(result){
+        const list = (result && result.channels && result.channels[CHAT_CHANNEL]) || [];
+        const deletes = [];
+        list.forEach(function(entry){
+          const m = (entry && entry.message) ? entry.message : entry;
+          if(m && m.action === 'chat-delete' && m.messageId) deletes.push(String(m.messageId));
+        });
+        if(!deletes.length) return;
+        // Tombstone every deleted id BEFORE any message is displayed, so a
+        // message that was deleted before this client connected never appears.
+        deletes.forEach(rememberDeletedMessage);
+        deletes.forEach(applyMessageDelete);
+        if(deletedMessageIds.length) renderChat();
+      }).catch(function(){});
+  }
+
   function addChatMessage(message){
     if(!message) return;
+    // A deletion rides the chat channel alongside the messages themselves, so
+    // it is applied here and stops — it is not a message to display.
+    if(message.action === 'chat-delete'){
+      lastAliveAt = Date.now();
+      const delId = String(message.messageId || '');
+      if(delId){
+        rememberDeletedMessage(delId);
+        const before = chatMessages.length;
+        applyMessageDelete(delId);
+        // If we were showing that message in the feed, tell the user it went.
+        if(chatMessages.length !== before) setChatSystemLine('A message was deleted by a mod or an owner.');
+      }
+      return;
+    }
     const hasImage = typeof message.image === 'string' && message.image.indexOf('data:image/') === 0;
     if(typeof message.text !== 'string' && !hasImage) return;
     // Drop anything sent before the last owner /clear so the feed stays cleared.
     if(chatClearedAt && Number(message.sentAt) && Number(message.sentAt) < chatClearedAt) return;
     const id = String(message.id || `${message.name}-${message.sentAt}-${message.text || 'image'}`);
     if(seenChatIds.has(id)) return;
+    // A message removed by a mod or an owner must never come back — not from a
+    // retained-history replay, and not for a client that joins later.
+    if(isMessageDeleted(id)) return;
     seenChatIds.add(id);
     const isOwn = message.id && myId && String(message.id).startsWith(`${myId}-`);
     chatMessages.push({
       id:id,
       name:normalizeName(message.name || 'Guest') || 'Guest',
-      rank:message.rank === 'owner' ? 'owner' : '',
+      rank:(message.rank === 'owner' || message.rank === 'mod') ? message.rank : '',
       pfp: typeof message.pfp === 'string' ? message.pfp : '',
       // Sender identity, so a later rank change can strip an OWNER badge from
       // this user's existing messages in the feed.
@@ -4818,7 +5126,7 @@ function clearDisguiseImg(){
         +`<button id="liveChatSend" type="submit" ${(client && !chatMuteUntil) ? '' : 'disabled'}>SEND</button>`
       +`</form>`
       +`${chatMuteUntil ? `<p style="margin-top:.5rem;color:#ffcf8f;font-size:.7rem">You can read chat, but cannot send messages for ${durationLabel(chatMuteUntil)}.</p>` : (client ? '' : '<p style="margin-top:.5rem;color:#ff8585;font-size:.7rem">Chat is unavailable because the live service did not load.</p>')}`
-      +`${myRank === 'owner' ? '<p id="ownerChatHint" style="margin-top:.5rem;color:rgba(255,214,107,.72);font-size:.68rem">Owner: type <code>/help</code> for commands, or use the panel below.</p>' : ''}`
+      +`${isOwnerRank() ? '<p id="ownerChatHint" style="margin-top:.5rem;color:rgba(255,214,107,.72);font-size:.68rem">Owner: type <code>/help</code> for commands, or use the panel below. Hover a message and click ✕ to delete it.</p>' : (isModRank() ? '<p id="ownerChatHint" style="margin-top:.5rem;color:rgba(159,228,255,.72);font-size:.68rem">Mod: type <code>/help</code> for your commands, or use the panel below. Hover a message and click ✕ to delete it.</p>' : '')}`
       // Owner-only one-click panel. The container is always present in the
       // markup but stays empty (and therefore invisible) for non-owners.
       +`<div id="ownerPanel" hidden></div>`
@@ -4826,6 +5134,7 @@ function clearDisguiseImg(){
     renderChat();
     renderOwnerPanel();
     wireChatAttach();
+    wireChatDelete();
     const chatForm = document.getElementById('liveChatForm');
     const chatInput = document.getElementById('liveChatInput');
     if(chatInput && !chatInput.disabled) chatInput.focus();
@@ -4871,9 +5180,23 @@ function clearDisguiseImg(){
     {usage:'/kick <user>',            desc:'Remove a user from the site'},
     {usage:'/mute <user>',            desc:'Stop a user sending chat messages (10 min)'},
     {usage:'/unmute <user>',          desc:'Let a muted user chat again'},
+    {usage:'/chat-kick <user>',       desc:'Kick a user out of chat only'},
+    {usage:'/chat-mute <user>',       desc:'Mute a user in chat only'},
+    {usage:'/delmsg <id>',          desc:'Delete a chat message for everyone'},
+    {usage:'/setmodcode <newcode>',   desc:'Change the shared mod access code'},
     {usage:'/dropowner confirm',      desc:'Remove your own OWNER rank'},
     {usage:'/help',                   desc:'List these commands'}
   ];
+
+  /* What a mod may use. Deliberately tiny: chat kick and chat mute, nothing
+     else. Kept as data so the help list and the gate can never disagree. */
+  const MOD_COMMANDS = [
+    {usage:'/chat-kick <user>', desc:'Kick a user out of chat (10-minute cooldown)'},
+    {usage:'/chat-mute <user>', desc:'Mute a user in chat (3 minutes max)'},
+    {usage:'/delmsg <id>',      desc:'Delete a chat message for everyone'},
+    {usage:'/help',             desc:'List these commands'}
+  ];
+  const MOD_ALLOWED_COMMANDS = ['chat-kick', 'chat-mute', 'delmsg', 'delete'];
 
   function commandReply(text, tone){
     const color = tone === 'error' ? '#ffadad' : (tone === 'ok' ? '#8ff0b8' : 'rgba(255,255,255,.72)');
@@ -4881,10 +5204,15 @@ function clearDisguiseImg(){
   }
 
   function commandHelpHtml(){
-    const rows = OWNER_COMMANDS.map(function(c){
+    const mod = isModRank();
+    const list = mod ? MOD_COMMANDS : OWNER_COMMANDS;
+    const rows = list.map(function(c){
       return `<div class="cmd-row"><code>${escapeHtml(c.usage)}</code><span>${escapeHtml(c.desc)}</span></div>`;
     }).join('');
-    return `<p style="margin-bottom:.6rem;color:rgba(255,255,255,.6)">Owner commands — type them into the chat box.</p><div class="cmd-list">${rows}</div>`;
+    const intro = mod
+      ? 'Mod commands — type them into the chat box. Mods can only chat kick and chat mute.'
+      : 'Owner commands — type them into the chat box.';
+    return `<p style="margin-bottom:.6rem;color:rgba(255,255,255,.6)">${intro}</p><div class="cmd-list">${rows}</div>`;
   }
 
   function findRosterUser(query){
@@ -5013,18 +5341,38 @@ function clearDisguiseImg(){
     const done = function(text){ report(text, 'ok'); return {ok:true, message:text, tone:'ok'}; };
 
     if(name === 'help' || name === 'commands'){
-      if(myRank !== 'owner') return fail("You don't have permission to use owner commands.");
-      showPopup('OWNER COMMANDS', commandHelpHtml());
+      if(!hasModPowers()) return fail("You don't have permission to use owner commands.");
+      showPopup(isModRank() ? 'MOD COMMANDS' : 'OWNER COMMANDS', commandHelpHtml());
       return {ok:true, message:'', tone:'ok'};
     }
 
     // Unknown command → not ours. The typed path falls through to chat.
-    if(['announcement','announce','clear','kick','mute','unmute','dropowner','drop-owner','resign','unowner'].indexOf(name) === -1){
+    if(['announcement','announce','clear','kick','mute','unmute','dropowner','drop-owner','resign','unowner','chat-kick','chat-mute','setmodcode','delmsg','delete'].indexOf(name) === -1){
       return {ok:false, message:'', tone:'error', unknown:true};
     }
 
-    // ── OWNER GATE ── non-owners get a reply and nothing is broadcast.
-    if(myRank !== 'owner') return fail("You don't have permission to use that command.");
+    // ── RANK GATE ── owners get everything; mods get exactly the two
+    // commands in MOD_ALLOWED_COMMANDS; everyone else gets a reply and nothing
+    // is broadcast.
+    const modAllowed = isModRank() && MOD_ALLOWED_COMMANDS.indexOf(name) !== -1;
+    if(!isOwnerRank() && !modAllowed){
+      return fail("You don't have permission to use that command.");
+    }
+
+    if(name === 'setmodcode'){
+      const code = String(arg || '').trim();
+      if(!code) return fail('Usage: /setmodcode <newcode>');
+      if(code.length > 40) return fail('That mod code is too long — 40 characters maximum.');
+      setModCode(code);
+      // Share it on the existing moderation channel so every client validates
+      // against the same code, not just this browser.
+      if(client){
+        client.publish({channel:MODERATION_CHANNEL, message:{
+          id:`modcode-${myId}-${Date.now()}`, action:'modcode', code:code, issuedAt:Date.now()
+        }}).catch(function(){});
+      }
+      return done(`Mod access code changed to "${code}". It is now shared with every client.`);
+    }
 
     if(name === 'announcement' || name === 'announce'){
       if(!arg) return fail('Usage: /announcement <message>');
@@ -5057,10 +5405,25 @@ function clearDisguiseImg(){
       return dropOwnerRank(report);
     }
 
-    // kick / mute / unmute all need a target from the live roster
+    /* ── DELETE A CHAT MESSAGE ──
+       Shares one implementation with the hover ✕: the rank gate above already
+       let a mod through for exactly this command, and deleteChatMessage()
+       enforces the "cannot delete an owner's message" rule for everyone. */
+    if(CHAT_DELETE_COMMANDS.indexOf(name) !== -1){
+      const messageId = String(arg || '').trim();
+      if(!messageId) return fail('Usage: /delmsg <id>');
+      const outcome = deleteChatMessage(messageId, null);
+      if(outcome && outcome.ok) return done(outcome.message);
+      return fail(outcome && outcome.message ? outcome.message : 'That message could not be deleted.');
+    }
+
+    // kick / mute / unmute / chat-kick / chat-mute all need a target from the live roster
     const target = opts.target || (arg ? findRosterUser(arg) : null);
     if(!target) return fail(arg ? `No one online matches "${arg}".` : `Usage: /${name} <user>`);
     if(target.id === myId) return fail('You cannot target yourself.');
+    // No moderation command may be aimed at an owner rank — not by a mod, and
+    // not by another owner either.
+    if(target.rank === 'owner') return fail("You can't use that on an owner.");
 
     if(name === 'kick'){
       sendModerationCommand('kick', target, 0);
@@ -5073,6 +5436,24 @@ function clearDisguiseImg(){
     if(name === 'unmute'){
       sendModerationCommand('unmute', target, 0);
       return done(`Unmuted ${target.name}.`);
+    }
+    if(name === 'chat-kick'){
+      // A mod may only kick once every 10 minutes; the cooldown is persisted so
+      // a reload cannot clear it. Owners are not subject to it.
+      if(!isOwnerRank()){
+        const left = modKickRemaining();
+        if(left > 0) return fail(`You can kick again in ${cooldownLabel(left)}.`);
+      }
+      sendModerationCommand('chat-kick', target, 0);
+      if(!isOwnerRank()) markModKick();
+      return done(`Kicked ${target.name} from chat.`);
+    }
+    if(name === 'chat-mute'){
+      // Mods are hard-capped at 3 minutes; owners keep a longer mute.
+      const mod = !isOwnerRank();
+      const ms = mod ? MOD_MUTE_MAX_MS : 10 * 60000;
+      sendModerationCommand('chat-mute', target, Date.now() + ms);
+      return done(`Muted ${target.name} in chat for ${ms / 60000} minutes.${mod ? ' Mod mutes are capped at 3 minutes.' : ''}`);
     }
     return {ok:false, message:'', tone:'error', unknown:true};
   }
@@ -5103,13 +5484,15 @@ function clearDisguiseImg(){
   const ACTION_LOG_MAX = 100;
   const ACTION_LOG_LABELS = {
     'kick':'KICK', 'mute':'MUTE', 'unmute':'UNMUTE', 'ban':'BAN',
-    'chat-ban':'CHAT BAN', 'chat-kick':'CHAT KICK', 'dropowner':'DROP OWNER'
+    'chat-ban':'CHAT BAN', 'chat-kick':'CHAT KICK', 'chat-mute':'CHAT MUTE', 'dropowner':'DROP OWNER',
+    'chat-delete':'DELETED MSG'
   };
   /* Colour accent per action type: red for the severe ones, amber for the
      reversible ones, green for the restorative one. */
   const ACTION_LOG_TONES = {
     'kick':'severe', 'ban':'severe', 'chat-ban':'severe', 'chat-kick':'severe',
-    'mute':'warn', 'dropowner':'warn', 'unmute':'ok'
+    'mute':'warn', 'chat-mute':'warn', 'dropowner':'warn', 'unmute':'ok',
+    'chat-delete':'severe'
   };
   let actionLog = loadActionLog();
   let actionLogFilter = '';   // '' = ALL USERS, otherwise a target user id
@@ -5163,7 +5546,7 @@ function clearDisguiseImg(){
     });
     if(actionLog.length > ACTION_LOG_MAX) actionLog = actionLog.slice(0, ACTION_LOG_MAX);
     saveActionLog();
-    renderActionLog();
+    renderActionLog(true);
   }
 
   /* Record + broadcast in one step, so no call site can forget the network
@@ -5191,8 +5574,10 @@ function clearDisguiseImg(){
   }
 
   /* Repaint the log list. Safe to call when the panel is closed (the list
-     element simply is not in the DOM yet). */
-  function renderActionLog(){
+     element simply is not in the DOM yet). Newest entries sit at the top; an
+     optional flag scrolls the list back to the top so a brand-new entry is
+     never off-screen inside the inner scroller. */
+  function renderActionLog(scrollToNewest){
     const list = document.getElementById('actionLogList');
     if(!list) return;
     const filterEl = document.getElementById('actionLogFilter');
@@ -5217,6 +5602,7 @@ function clearDisguiseImg(){
           +`</div>`;
         }).join('')
       : `<p class="action-log-empty">${actionLogFilter ? 'No actions recorded for this user.' : 'No moderation actions yet.'}</p>`;
+    if(scrollToNewest) list.scrollTop = 0;
   }
 
   /* ── COLLAPSIBLE PANEL ──
@@ -5239,6 +5625,13 @@ function clearDisguiseImg(){
     const body = document.getElementById('ownerPanelBody');
     const toggle = document.getElementById('ownerPanelToggle');
     if(!panel) return;
+    // The mod panel has no collapse toggle, so the remembered owner-panel state
+    // must never be applied to it (that would hide it with no way back).
+    if(!isOwnerRank()){
+      panel.classList.remove('collapsed');
+      if(body) body.hidden = false;
+      return;
+    }
     const open = ownerPanelIsOpen();
     panel.classList.toggle('collapsed', !open);
     if(body) body.hidden = !open;
@@ -5255,9 +5648,10 @@ function clearDisguiseImg(){
     el.className = 'owner-panel-status' + (tone ? ' ' + tone : '');
   }
 
-  /* Everyone in the roster except the owner themselves. */
+  /* Everyone in the roster except the owner themselves, and except anyone
+     holding the owner rank — no moderation command may be aimed at an owner. */
   function ownerPanelTargets(){
-    return onlineUsers.filter(function(u){ return u.id !== myId; });
+    return onlineUsers.filter(function(u){ return u.id !== myId && u.rank !== 'owner'; });
   }
 
   /* Keep the user picker in sync with the live roster. A leading ALL USERS
@@ -5267,12 +5661,12 @@ function clearDisguiseImg(){
     if(!select) return;
     const targets = ownerPanelTargets();
     const previous = select.value;
-    select.innerHTML = '<option value="">\u2014 ALL USERS \u2014</option>'
+    select.innerHTML = `<option value="">${isModRank() ? '\u2014 PICK A USER \u2014' : '\u2014 ALL USERS \u2014'}</option>`
       + targets.map(function(u){ return `<option value="${escapeHtml(u.id)}">${escapeHtml(u.name)}</option>`; }).join('');
     const valid = previous === '' || targets.some(function(u){ return u.id === previous; });
     select.value = valid ? previous : '';
     const disabled = !targets.length;
-    ['ownerKickBtn','ownerMuteBtn','ownerUnmuteBtn'].forEach(function(id){
+    ['ownerKickBtn','ownerMuteBtn','ownerUnmuteBtn','modChatKickBtn','modChatMuteBtn','modDelMsgBtn'].forEach(function(id){
       const b = document.getElementById(id);
       if(b) b.disabled = disabled;
     });
@@ -5285,9 +5679,102 @@ function clearDisguiseImg(){
     return result;
   }
 
+  /* Mods get their own, deliberately tiny panel: a user picker and the two
+     powers they are allowed to use. No owner-only control is rendered at all,
+     so there is nothing for a mod to reach. */
+  function renderModPanel(panel){
+    panel.hidden = false;
+    panel.innerHTML =
+      `<div class="owner-panel-head">`
+        +`<span class="owner-panel-title" style="color:#9fe4ff;text-shadow:0 0 12px rgba(90,200,255,.45)">\u26a1 MOD PANEL</span>`
+        +`<button class="owner-mini-btn" type="button" id="modHelpBtn">? HELP</button>`
+      +`</div>`
+      +`<div class="owner-panel-body">`
+        +`<div class="owner-panel-row">`
+          +`<select id="ownerTargetSelect" aria-label="Choose a user"></select>`
+          +`<button class="owner-btn owner-btn-warn" type="button" id="modChatKickBtn">CHAT KICK</button>`
+          +`<button class="owner-btn owner-btn-warn" type="button" id="modChatMuteBtn">CHAT MUTE</button>`
+        +`</div>`
+        +`<p class="moderation-note">Mod powers: chat kick, chat mute and deleting messages. Mutes are capped at 3 minutes; kicks have a 10-minute cooldown.</p>`
+        +`<div class="owner-panel-log">`
+          +`<div class="action-log-head">`
+            +`<span class="action-log-title">▤ ACTION LOG</span>`
+            +`<span class="action-log-filter" id="actionLogFilter">ALL USERS</span>`
+            +`<button class="owner-btn-mini" type="button" id="actionLogAllBtn">ALL</button>`
+          +`</div>`
+          +`<div class="action-log-list" id="actionLogList"></div>`
+          +`<div class="owner-panel-row" style="margin-top:.45rem">`
+            +`<button class="owner-btn owner-btn-danger" type="button" id="ownerDeleteMsgBtn" title="Delete a chat message for everyone">DELETE MESSAGE\u2026</button>`
+          +`</div>`
+          +`<p class="moderation-note">Tip: <code>/delmsg &lt;id&gt;</code> deletes a message by id. Hovering a chat message also reveals a ✕ for mods and owners. You cannot delete an owner's message.</p>`
+        +`</div>`
+        +`<div class="owner-panel-status" id="ownerPanelStatus"></div>`
+      +`</div>`;
+    const select = document.getElementById('ownerTargetSelect');
+    const helpBtn = document.getElementById('modHelpBtn');
+    if(helpBtn) helpBtn.addEventListener('click', function(){ runOwnerPanelCommand('help', ''); });
+    function targetAction(name){
+      const target = (select && select.value)
+        ? onlineUsers.find(function(u){ return u.id === select.value; }) : null;
+      if(!target){
+        ownerPanelStatus(ownerPanelTargets().length ? 'Pick a user from the list first.' : 'No one else is online to target.', 'error');
+        return;
+      }
+      runOwnerPanelCommand(name, target.name, target);
+    }
+    const kickBtn = document.getElementById('modChatKickBtn');
+    const muteBtn = document.getElementById('modChatMuteBtn');
+    if(kickBtn) kickBtn.addEventListener('click', function(){ targetAction('chat-kick'); });
+    if(muteBtn) muteBtn.addEventListener('click', function(){ targetAction('chat-mute'); });
+    const modDelBtn = document.getElementById('ownerDeleteMsgBtn');
+    if(modDelBtn) modDelBtn.addEventListener('click', function(){ openDeleteMessageDialog(); });
+    /* Mods see the same shared action log (read-only): picking a user narrows it
+       to that user's history, and ALL clears the filter again. */
+    if(select) select.addEventListener('change', function(){
+      actionLogFilter = select.value || '';
+      renderActionLog();
+    });
+    const modAllBtn = document.getElementById('actionLogAllBtn');
+    if(modAllBtn) modAllBtn.addEventListener('click', function(){
+      actionLogFilter = '';
+      if(select) select.value = '';
+      renderActionLog();
+      ownerPanelStatus("Showing every user's recent actions.", 'ok');
+    });
+    refreshOwnerTargets();
+    renderActionLog();
+  }
+
+  /* Pick-a-message dialog, used by the panel's DELETE MESSAGE button. Only
+     reachable by mods and owners, and only lists messages they are allowed to
+     remove — an owner's message is never offered. The chosen message then goes
+     through the same confirmation gate as the hover ✕. */
+  function openDeleteMessageDialog(){
+    if(!hasModPowers()) return;
+    const candidates = chatMessages.filter(function(m){ return m.rank !== 'owner'; });
+    const rows = candidates.length
+      ? candidates.slice(-12).reverse().map(function(m){
+          const snippet = m.image ? '[image / GIF message]' : String(m.text || '').slice(0, 60);
+          return `<button class="settings-btn" type="button" data-del-target="${escapeHtml(m.id)}" style="text-align:left">`
+            + `${escapeHtml(m.name)} · ${escapeHtml(snippet)}</button>`;
+        }).join('')
+      : '<p style="text-align:center;color:rgba(255,255,255,.5);padding:.9rem .3rem">No deletable messages in the feed right now.</p>';
+    showPopup('DELETE A MESSAGE',
+      `<p style="margin-bottom:.6rem;color:rgba(255,255,255,.6)">Pick a message to delete for everyone. You cannot delete an owner's message.</p>`
+      + `<div class="roster-list">${rows}</div>`
+      + `<button class="settings-btn" type="button" style="margin-top:.8rem;margin-bottom:0;text-align:center" onclick="openLiveChat()">\u25c9 BACK TO CHAT</button>`);
+    document.querySelectorAll('[data-del-target]').forEach(function(btn){
+      btn.addEventListener('click', function(){ requestChatDelete(btn.dataset.delTarget); });
+    });
+  }
+
   function renderOwnerPanel(){
     const panel = document.getElementById('ownerPanel');
     if(!panel) return;
+    if(isModRank()){
+      renderModPanel(panel);
+      return;
+    }
     if(myRank !== 'owner'){
       panel.hidden = true;
       panel.innerHTML = '';
@@ -5331,6 +5818,10 @@ function clearDisguiseImg(){
           +`</div>`
           +`<div class="action-log-list" id="actionLogList"></div>`
         +`</div>`
+        +`<div class="owner-panel-row" style="margin-top:.45rem">`
+          +`<button class="owner-btn owner-btn-danger" type="button" id="ownerDeleteMsgBtn" title="Delete a chat message for everyone">DELETE MESSAGE\u2026</button>`
+        +`</div>`
+        +`<p class="moderation-note">Tip: <code>/delmsg &lt;id&gt;</code> deletes a message by id. Hovering a chat message also reveals a ✕ for mods and owners.</p>`
         +`<div class="owner-panel-danger" id="ownerDangerZone"></div>`
         +`<div class="owner-panel-status" id="ownerPanelStatus"></div>`
       +`</div>`;
@@ -5360,6 +5851,8 @@ function clearDisguiseImg(){
     });
     if(clearBtn) clearBtn.addEventListener('click', function(){ runOwnerPanelCommand('clear', ''); });
     if(helpBtn) helpBtn.addEventListener('click', function(){ runOwnerPanelCommand('help', ''); });
+    const delMsgBtn = document.getElementById('ownerDeleteMsgBtn');
+    if(delMsgBtn) delMsgBtn.addEventListener('click', function(){ openDeleteMessageDialog(); });
 
     function selectedTarget(){
       if(!select || !select.value) return null;
@@ -5474,7 +5967,12 @@ function clearDisguiseImg(){
 
   function updateIdentityView(){
     if(usernameEl) usernameEl.textContent = myName || '…';
-    if(rankBadge) rankBadge.hidden = myRank !== 'owner';
+    if(rankBadge){
+      const ranked = myRank === 'owner' || myRank === 'mod';
+      rankBadge.hidden = !ranked;
+      rankBadge.textContent = myRank === 'mod' ? 'MOD' : 'OWNER';
+      rankBadge.classList.toggle('mod', myRank === 'mod');
+    }
     const chip = document.getElementById('liveUserBtn');
     if(chip){
       let av = chip.querySelector('.identity-avatar');
@@ -5500,17 +5998,110 @@ function clearDisguiseImg(){
 
   function clearRank(){
     myRank = '';
-    if(rankBadge) rankBadge.setAttribute('hidden', '');
+    if(rankBadge){
+      rankBadge.setAttribute('hidden', '');
+      rankBadge.textContent = 'OWNER';
+      rankBadge.classList.remove('mod');
+    }
   }
 
   function getSavedRank(){
-    try{ return localStorage.getItem('idkgg_saved_rank') === 'owner' ? 'owner' : ''; }catch(e){ return ''; }
+    try{
+      const saved = localStorage.getItem('idkgg_saved_rank');
+      return (saved === 'owner' || saved === 'mod') ? saved : '';
+    }catch(e){ return ''; }
   }
   function setSavedRank(rank){
     try{
-      if(rank === 'owner') localStorage.setItem('idkgg_saved_rank', 'owner');
+      if(rank === 'owner' || rank === 'mod') localStorage.setItem('idkgg_saved_rank', rank);
       else localStorage.removeItem('idkgg_saved_rank');
     }catch(e){}
+  }
+
+  /* ══ MOD RANK ══
+     'mod' is a REAL rank in the same permission system as 'owner': it lives in
+     myRank and in the shared presence state, so every gate that already reads
+     myRank sees it. Mods get exactly two powers — chat kick and chat mute —
+     and nothing else. The mod access code is shared: it is stored locally and
+     broadcast on the existing moderation channel, so every client validates
+     against the same code. */
+  const MOD_CODE_KEY = 'idkgg_mod_code_v1';
+  const DEFAULT_MOD_CODE = '2689:(';
+  const MOD_MUTE_MAX_MS = 3 * 60000;        // a mod may never mute for more than 3 minutes
+  const MOD_KICK_COOLDOWN_MS = 10 * 60000;  // one kick per mod every 10 minutes
+  const MOD_KICK_COOLDOWN_KEY = 'idkgg_mod_kick_cooldown_v1';
+
+  function getModCode(){
+    try{ return localStorage.getItem(MOD_CODE_KEY) || DEFAULT_MOD_CODE; }catch(e){ return DEFAULT_MOD_CODE; }
+  }
+  function setModCode(code){
+    try{ localStorage.setItem(MOD_CODE_KEY, code); }catch(e){}
+  }
+  function isOwnerRank(){ return myRank === 'owner'; }
+  function isModRank(){ return myRank === 'mod'; }
+  function hasModPowers(){ return myRank === 'owner' || myRank === 'mod'; }
+
+  /* One place that renders a rank badge, so chat, roster, toasts and the
+     moderation menu can never drift apart. */
+  function rankBadgeHtml(rank, extraStyle){
+    if(rank !== 'owner' && rank !== 'mod') return '';
+    const style = extraStyle ? ` style="${extraStyle}"` : '';
+    return ` <span class="rank-badge${rank === 'mod' ? ' mod' : ''}"${style}>${rank === 'mod' ? 'MOD' : 'OWNER'}</span>`;
+  }
+
+  /* Per-mod kick cooldown, persisted so a reload cannot reset it. */
+  function modKickCooldowns(){
+    try{
+      const raw = localStorage.getItem(MOD_KICK_COOLDOWN_KEY);
+      const parsed = raw ? JSON.parse(raw) : {};
+      return (parsed && typeof parsed === 'object') ? parsed : {};
+    }catch(e){ return {}; }
+  }
+  function modKickRemaining(){
+    const last = Number(modKickCooldowns()[myId]) || 0;
+    const left = last + MOD_KICK_COOLDOWN_MS - Date.now();
+    return left > 0 ? left : 0;
+  }
+  function markModKick(){
+    try{
+      const map = modKickCooldowns();
+      map[myId] = Date.now();
+      localStorage.setItem(MOD_KICK_COOLDOWN_KEY, JSON.stringify(map));
+    }catch(e){}
+  }
+  function cooldownLabel(ms){
+    const total = Math.max(0, Math.ceil(ms / 1000));
+    const mins = Math.floor(total / 60), secs = total % 60;
+    return mins > 0 ? `${mins}m ${secs}s` : `${secs}s`;
+  }
+
+  /* Seed the shared mod code from the channel's retained history.
+     A broadcast only reaches clients that are connected at that moment, so a
+     visitor who arrives AFTER the owner changed the code would otherwise fall
+     back to the default and validate against the wrong code. Reading the last
+     modcode message on load closes that gap, so every client — new or old —
+     validates against the same code. */
+  function seedModCodeFromHistory(){
+    if(!client || typeof client.fetchMessages !== 'function') return;
+    // NOTE: no `end` here. PubNub's `end` is a timetoken, not a millisecond
+    // timestamp — passing Date.now() (13 digits) is read as a timetoken far in
+    // the past and silently returns only ancient messages. Omitting it defaults
+    // to "now", which is what we want.
+    client.fetchMessages({channels:[MODERATION_CHANNEL], count:100})
+      .then(function(result){
+        const messages = (result && result.channels && result.channels[MODERATION_CHANNEL]) || [];
+        let latest = null;
+        messages.forEach(function(entry){
+          // fetchMessages wraps each item as {channel, timetoken, message:{...}},
+          // so the payload we care about is entry.message (fall back to the
+          // entry itself in case a future SDK returns it unwrapped).
+          const m = (entry && entry.message) ? entry.message : entry;
+          if(m && m.action === 'modcode' && typeof m.code === 'string' && m.code){
+            if(!latest || (Number(m.issuedAt) || 0) >= (Number(latest.issuedAt) || 0)) latest = m;
+          }
+        });
+        if(latest) setModCode(latest.code);
+      }).catch(function(){});
   }
 
   function publishIdentity(){
@@ -5586,6 +6177,13 @@ function clearDisguiseImg(){
         // session so messages are delivered whenever the user is online. The
         // presence channel is joined/left by the heartbeat instead.
         client.subscribe({channels:[CHAT_CHANNEL, MODERATION_CHANNEL, ANNOUNCE_CHANNEL]});
+        // Pull the shared mod code out of the channel's retained history, so a
+        // client that connects after the owner changed it still validates
+        // against the current code rather than the built-in default.
+        seedModCodeFromHistory();
+        // Apply every chat deletion already on the channel, so a message deleted
+        // before this client connected is never shown from retained history.
+        seedDeletedFromHistory();
         // Baseline for missed-message recovery: anything published after this
         // instant is "new" and will be pulled back on the next resume.
         lastChatAt = Date.now();
@@ -5615,7 +6213,7 @@ function clearDisguiseImg(){
     }
     // Restore a previously unlocked rank instead of requiring the code every visit.
     const saved = getSavedRank();
-    if(saved === 'owner') myRank = 'owner';
+    if(saved === 'owner' || saved === 'mod') myRank = saved;
     else clearRank();
     myName = name;
     myId = getOrCreateDeviceId();
@@ -5626,17 +6224,27 @@ function clearDisguiseImg(){
 
   function submitRank(event){
     event.preventDefault();
-    if(rankInput.value !== '0962:)'){
-      rankError.textContent = 'That owner code is not valid.';
+    const entered = rankInput.value;
+    // The owner flow is unchanged; the mod code is a second, lower rank that
+    // unlocks only the two mod powers.
+    let granted = '';
+    if(entered === '0962:)') granted = 'owner';
+    else if(entered === getModCode()) granted = 'mod';
+    if(!granted){
+      rankError.textContent = 'That code is not valid.';
       rankInput.select();
       return;
     }
-    myRank = 'owner';
-    setSavedRank('owner');
+    myRank = granted;
+    setSavedRank(granted);
     updateIdentityView();
     rankGate.classList.remove('visible');
     rankInput.value = '';
     publishIdentity();
+    const grantedTitle = ownerGranted.querySelector('h2');
+    const grantedSub = ownerGranted.querySelector('p');
+    if(grantedTitle) grantedTitle.textContent = granted === 'mod' ? 'MOD ACCESS GRANTED' : 'OWNER ACCESS GRANTED';
+    if(grantedSub) grantedSub.textContent = granted === 'mod' ? 'LIMITED MODERATION UNLOCKED' : 'RANK SYNCHRONIZED';
     ownerGranted.classList.add('visible');
     setTimeout(function(){ ownerGranted.classList.remove('visible'); }, 1650);
   }
