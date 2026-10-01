@@ -188,16 +188,17 @@ sweep(document)})();</script>
       color:rgba(0,229,255,0.6);display:none;pointer-events:none;
     }
 
-    /* Visits counter pill */
-    .visits-pill{
+    /* TOTAL JOINS counter pill */
+    .joins-pill{
       background:rgba(1,2,8,0.9);border:1px solid rgba(0,229,255,0.14);
       border-radius:999px;color:rgba(255,255,255,0.55);font-family:'Orbitron',monospace;
       font-size:0.62rem;letter-spacing:0.08em;padding:0.24rem 0.85rem;outline:none;cursor:default;
       transition:border-color 0.18s,color 0.18s;flex-shrink:0;
       display:flex;align-items:center;gap:0.35rem;white-space:nowrap;
     }
-    .visits-pill:hover{border-color:var(--pulsar);color:rgba(255,255,255,0.8);}
-    .visits-pill span{color:var(--pulsar);}
+    .joins-pill:hover{border-color:var(--pulsar);color:rgba(255,255,255,0.8);}
+    .joins-pill span{color:var(--pulsar);}
+    .joins-pill .joins-label{font-style:normal;color:rgba(255,255,255,0.4);letter-spacing:0.1em;}
 
     /* Favorites filter pill — active state */
     .pill-select.fav-active,
@@ -669,7 +670,7 @@ sweep(document)})();</script>
     #hud{background:rgba(1,9,7,.96);border-color:rgba(57,229,140,.12)}
     .logo{text-shadow:0 0 16px rgba(57,229,140,.42)}
     #searchBar,.hud-btn{background:rgba(57,229,140,.05);border-color:rgba(57,229,140,.18)}
-    .pill-select,.visits-pill,.fav-pill{border-color:rgba(57,229,140,.17)}
+    .pill-select,.joins-pill,.fav-pill{border-color:rgba(57,229,140,.17)}
     .gcard img{background:#03120d}
     .img-dropzone{background:rgba(57,229,140,.03);border-color:rgba(57,229,140,.28)}
     .img-dropzone:hover,.img-dropzone.has-img{background:rgba(57,229,140,.06);border-color:rgba(57,229,140,.56)}
@@ -803,7 +804,7 @@ body::after{
 }
 
 /* Controls */
-.hud-btn,.pill-select,.fav-pill,.visits-pill,.live-pill{
+.hud-btn,.pill-select,.fav-pill,.joins-pill,.live-pill{
   background:rgba(3,15,12,.72) !important;
   border-color:rgba(57,229,140,.20) !important;
   box-shadow:inset 0 1px 0 rgba(255,255,255,.025);
@@ -1048,7 +1049,7 @@ body::after{
     font-size:.68rem;
     padding:.22rem .55rem;
   }
-  .visits-pill{
+  .joins-pill{
     display:none;
   }
   .gcard{
@@ -1426,7 +1427,7 @@ body{
 }
 
 /* No live blur/compositing. */
-#hud,.hud-btn,.pill-select,.fav-pill,.visits-pill,.live-pill,
+#hud,.hud-btn,.pill-select,.fav-pill,.joins-pill,.live-pill,
 .popup,#popupOverlay,#shareModal,#shareModalBox,#footer,
 .zone-header,.zone-controls button{
   backdrop-filter:none !important;
@@ -2015,14 +2016,15 @@ body.ultra-save body::after{display:none !important}
         <polyline points="21 15 16 10 5 21"/>
       </svg>
     </button>
-    <div class="visits-pill" title="View visit history" onclick="showVisitGraph()" style="cursor:pointer">
+    <div class="joins-pill" title="View join history" onclick="showJoinGraph()" style="cursor:pointer">
       <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
         <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
         <circle cx="9" cy="7" r="4"/>
         <path d="M23 21v-2a4 4 0 0 0-3-3.87"/>
         <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
       </svg>
-      <span id="visitCount">0</span>
+      <em class="joins-label">TOTAL JOINS</em>
+      <span id="joinsCount">0</span>
     </div>
     <span id="liveCount" class="live-pill" title="Players currently browsing">
       <span class="live-dot"></span>
@@ -3283,246 +3285,284 @@ try{
   if(_swReg && typeof _swReg.catch === 'function') _swReg.catch(function(){});
 }catch(e){}
 
-/* ═══════════════════════════════════════════════════
-   VISIT COUNTER — Abacus (global, no signup, CORS)
-   + localStorage per-day history for line graph
-═══════════════════════════════════════════════════ */
-const VISITS_KEY = 'orion_visits_global';
-const VISITS_RESET_KEY = 'idkgg_visits_reset_v1';
+/* ════════════════════════════════════════════════════════════
+   TOTAL JOINS COUNTER — one shared join total for every visitor
+   + localStorage per-hour history for the line graph
+═════════════════════════════════════════════════════════════ */
+/* Replaces the previous "visits" counter outright: a new element id, a new
+   storage key and a new channel, so nothing is inherited from the old value
+   and the new total starts from a clean count.
 
-// One-time reset: wipe the old (inflated) stored value so the counter starts fresh.
-try{
-  if(localStorage.getItem(VISITS_RESET_KEY) !== '1'){
-    localStorage.removeItem(VISITS_KEY);
-    localStorage.removeItem('orion_hourly_snap');
-    localStorage.setItem(VISITS_RESET_KEY, '1');
-  }
-}catch(e){}
+   The total is carried as a single COUNTER DOCUMENT on the channel — an
+   origin id plus the running value:
 
-/* ── GLOBAL VISIT COUNTER — one shared total for every visitor ─────────
-   This counter used to live in localStorage, so each visitor saw only
-   their OWN personal join count. It is now a single value shared by all
-   visitors, synced over PubNub on the same demo key the chat, presence
-   and moderation channels already use.
+       { type:'count', roff:'<id>', total:N }
 
-   Every page load publishes one "join" event carrying a DISTINCT join
-   id minted for that load. Clients merge the value with a MAX, which
-   gives two properties that make this safe on a public channel:
+   How a join is counted, exactly once per page load:
 
-     • MAX is idempotent — the same event replayed from history, or a
-       join delivered twice, can never inflate the number (unlike a
-       "+1 per event" scheme, which double-counts on every replay);
-     • each load owns its own join id, so two simultaneous loads each
-       add exactly one instead of colliding on a single shared id.
+     • each load mints its OWN id, so two simultaneous loads never collide;
+     • it reads the current document (and the retained history), then
+       republishes `total + 1` under its own id — that document IS the
+       increment every other client sees, so no client can count another
+       client's join and the value stays identical for everyone;
+     • a client loading later reads that document straight back, so it
+       starts on the current combined total instead of 0 or 1;
+     • receiving an event only ever merges UPWARD and never writes back,
+       which is what makes a replayed or out-of-order message harmless.
 
-   The number is rebuilt from the channel's retained history, so it
-   survives reloads and suspends without trusting any local counter. */
-const VISIT_CHANNEL = 'idkgg-visits-v1';
-// Same key family as the serverside "Abacus" total, so the pill shows one
-// consistent number even if that total is ever wired in.
-const VISIT_TOTAL_KEY = 'orion_visits_global';
-const VISIT_HOURLY_KEY = 'orion_hourly_snap';
-const VISIT_CLEANUP_KEY = 'idkgg_visits_cleanup_v1';
-const VISIT_SYNC_MS = 60000;
-// A page load only counts once the page has actually been shown for a
-// moment, so a bounce does not inflate the shared total.
-const VISIT_HOLD_MS = 8000;
+   The old per-browser counter, its storage key and its channel are gone. */
+const JOINS_CHANNEL = 'idkgg-total-joins-v1';
+const JOINS_TOTAL_KEY = 'idkgg_total_joins_v1';
+const JOINS_HOURLY_KEY = 'idkgg_joins_hourly_v1';
+const JOINS_LEGACY_CLEANUP_KEY = 'idkgg_joins_legacy_cleanup_v1';
+// Re-sync cadence while the tab stays open.
+const JOINS_SYNC_MS = 30000;
+// A resume only counts as a NEW join once the page was away long enough for
+// the channel to have released us (presenceTimeout here is 20s). A quick
+// alt-tab therefore cannot inflate the total, while a laptop-lid suspend --
+// where the socket dies and the frozen page never re-runs -- does count.
+const JOINS_AWAY_MIN_MS = 30000;
 
 // The shared total, and the flags that keep this page load to a single join.
-let visitTotal = 0;
-let visitJoinAccepted = false;
-let visitSyncTimer = null;
-let visitHoldUntil = 0;
-let visitJoinSeen = false;
+let joinsTotal = 0;
+let joinPublished = false;   // this load's one join has been written
+let joinsReady = false;      // the current total is known; counting may start
+let joinsRoff = null;        // origin id of the current counter document
+let joinVerifyTimer = null;
+let joinsFloor = 0;          // a write from this load never goes below this
+let joinsAway = false;       // page was hidden/offline since the last join
+let joinsAwayAt = 0;
 
-// One-time cleanup: drop the per-browser value left behind by the old local
-// counter, so a stale personal total can never shadow the shared one.
-try{
-  if(localStorage.getItem(VISIT_CLEANUP_KEY) !== '1'){
-    localStorage.removeItem(VISIT_TOTAL_KEY);
-    localStorage.removeItem(VISIT_HOURLY_KEY);
-    localStorage.setItem(VISIT_CLEANUP_KEY, '1');
-  }
-}catch(e){}
-
-// Exactly ONE join id per page load. It is minted at parse time and never
-// replaced, so the heartbeat, a reconnect or a resume republishing the join
-// can never count this visit a second time.
-const VISIT_JOIN_ID = 'join_' + (function(){
+// Exactly ONE id per page load: minted at parse time and never replaced, so a
+// heartbeat, a reconnect or a resume can never count this load twice.
+const JOIN_LOAD_ID = 'join_' + (function(){
   try{
     if(window.crypto && typeof window.crypto.randomUUID === 'function') return window.crypto.randomUUID();
   }catch(e){}
   return Date.now().toString(36) + '_' + Math.random().toString(36).slice(2, 10);
 })();
 
-function formatVisits(value){
+// One-time migration: drop the OLD counter's stored keys for good, so no value
+// from the previous implementation can be read back or displayed. A fresh
+// channel plus a fresh key already makes the new total start clean; this flag
+// is also what stops the wipe running again on a later load, which would pin
+// the counter at 0 forever.
+try{
+  if(localStorage.getItem(JOINS_LEGACY_CLEANUP_KEY) !== '1'){
+    localStorage.removeItem('orion_visits_global');
+    localStorage.removeItem('orion_hourly_snap');
+    localStorage.setItem(JOINS_LEGACY_CLEANUP_KEY, '1');
+  }
+}catch(e){}
+
+function formatJoins(value){
   return (Number(value) || 0).toLocaleString('en-US');
 }
 
-/* The counter owns its own PubNub client so that a rebuild of the main
-   live-users client (resume / reconnect) can never republish the join and
-   double-count this page load. */
-function getVisitClient(){
-  if('__idkggVisitClient' in window) return window.__idkggVisitClient;
-  if(!window.PubNub){ window.__idkggVisitClient = null; return null; }
+/* The counter owns its own PubNub client, so a rebuild of the main live-users
+   client (resume / reconnect) can never republish a join and double-count this
+   page load. */
+function getJoinsClient(){
+  if('__idkggJoinsClient' in window) return window.__idkggJoinsClient;
+  if(!window.PubNub){ window.__idkggJoinsClient = null; return null; }
   try{
-    window.__idkggVisitClient = new PubNub({
-      publishKey:'demo', subscribeKey:'demo', userId:'visitor-'+VISIT_JOIN_ID,
+    window.__idkggJoinsClient = new PubNub({
+      publishKey:'demo', subscribeKey:'demo', userId:'joiner-' + JOIN_LOAD_ID,
       heartbeatInterval:10, presenceTimeout:20
     });
-  }catch(e){ window.__idkggVisitClient = null; }
-  return window.__idkggVisitClient;
+  }catch(e){ window.__idkggJoinsClient = null; }
+  return window.__idkggJoinsClient;
 }
 
-function cacheVisitTotal(value){
-  visitTotal = value;
-  try{ localStorage.setItem(VISIT_TOTAL_KEY, String(value)); }catch(e){}
-}
-
-/* Render into the existing pill — same ID, same thousands separators. */
-function renderVisitTotal(value){
-  if(typeof value === 'number' && isFinite(value)) cacheVisitTotal(value);
-  const el = document.getElementById('visitCount');
-  if(el) el.textContent = formatVisits(visitTotal);
-}
-
-/* The max-merge. Returns true only when the value actually moved. */
-function setVisitTotal(value){
-  if(!isFinite(value) || value <= visitTotal) return false;
-  cacheVisitTotal(value);
-  renderVisitTotal();
-  // Hourly snapshot so the visit-history graph keeps working exactly as before
+function snapshotHourlyJoins(){
   try{
     const hourKey = new Date().toISOString().slice(0,13);
-    const snap = JSON.parse(localStorage.getItem(VISIT_HOURLY_KEY)||'{}');
-    snap[hourKey] = visitTotal;
+    const snap = JSON.parse(localStorage.getItem(JOINS_HOURLY_KEY)||'{}');
+    snap[hourKey] = joinsTotal;
     const hkeys = Object.keys(snap).sort();
     if(hkeys.length > 25) hkeys.slice(0, hkeys.length-25).forEach(function(k){ delete snap[k]; });
-    localStorage.setItem(VISIT_HOURLY_KEY, JSON.stringify(snap));
+    localStorage.setItem(JOINS_HOURLY_KEY, JSON.stringify(snap));
   }catch(e){}
+}
+
+function cacheJoinsTotal(value){
+  joinsTotal = value;
+  try{ localStorage.setItem(JOINS_TOTAL_KEY, String(value)); }catch(e){}
+}
+
+/* Render into the pill -- new id, thousands separators as before. */
+function renderJoinsTotal(value){
+  if(typeof value === 'number' && isFinite(value)) cacheJoinsTotal(value);
+  const el = document.getElementById('joinsCount');
+  if(el) el.textContent = formatJoins(joinsTotal);
+}
+
+/* Merge upward. Returns true only when the displayed total actually moved.
+   Receiving NEVER writes back to the channel, so a replayed or an
+   out-of-order message can never inflate or reset the shared total. */
+function setJoinsTotal(value, opts){
+  const v = Number(value);
+  if(!isFinite(v) || v <= joinsTotal) return false;
+  const o = opts || {};
+  cacheJoinsTotal(v);
+  if(o.roff) joinsRoff = o.roff;
+  if(o.floor && v > joinsFloor) joinsFloor = v;
+  renderJoinsTotal();
+  snapshotHourlyJoins();
   return true;
 }
 
-/* Every event the channel carries.
-   A "join" is only accepted once per page load (visitJoinAccepted): our own
-   join echoes back over the subscription, and a reconnect or a history replay
-   may deliver it again. Accepting it a second time could only raise the total
-   to a value our own join had already produced, so it is dropped.
-   A "sync" whose holder is our own join id proves that join reached the
-   channel, so the recovery path can stand down. */
-function applyVisitEvent(message){
-  if(!message || typeof message !== 'object') return;
-  if(message.type === 'join'){
-    // A join that merely re-delivers the sequence number this load already
-    // contributed is not counted again.
-    if(message.id === VISIT_JOIN_ID && visitJoinAccepted) return;
-    if(setVisitTotal(Number(message.seq) || 0)) visitJoinAccepted = true;
-    return;
-  }
-  if(message.type === 'sync'){
-    if(message.holder === VISIT_JOIN_ID) visitJoinSeen = true;
-    setVisitTotal(Number(message.total) || 0);
-  }
-}
-
-function publishVisitEvent(message){
-  const c = getVisitClient();
+function publishJoins(message){
+  const c = getJoinsClient();
   if(!c) return Promise.resolve(false);
-  return c.publish({channel:VISIT_CHANNEL, message:message})
+  return c.publish({ channel:JOINS_CHANNEL, message:message })
     .then(function(){ return true; }, function(){ return false; });
 }
 
-function publishVisitJoin(){
-  return publishVisitEvent({ type:'join', id:VISIT_JOIN_ID, seq:visitTotal, at:Date.now() });
+/* What a client receives from the channel: a counter document, or a join
+   notice telling everyone to re-sync. */
+function applyJoinEvent(message){
+  if(!message || typeof message !== 'object') return;
+  if(message.type === 'count'){
+    setJoinsTotal(Number(message.total) || 0, { roff:message.roff, floor:true });
+    return;
+  }
+  if(message.type === 'join') requestJoinsResync();
+  // Legacy notices from an earlier build are simply ignored.
 }
 
-/* Confirm the shared value, so a load landing on an idle channel still
-   learns the current total instead of sitting on its cached value. */
-function publishVisitSnapshot(){
-  return publishVisitEvent({ type:'sync', total:visitTotal, holder:VISIT_JOIN_ID, at:Date.now() });
-}
-
-/* Recovery: if our join never made it onto the channel (the socket was down
-   at that instant) it is re-sent under the SAME id, which is why a re-send
-   can never count this visit twice. */
-function republishVisitJoinIfLost(){
-  if(!visitJoinSeen && visitTotal > 0) publishVisitJoin();
-}
-
-/* Rebuild the number from the channel's retained history. PubNub replays our
-   own publishes, so this also recovers the local total across reloads and
-   suspends — no local counter is trusted for the shared value. */
-function seedVisitsFromHistory(){
-  const c = getVisitClient();
-  if(!c || typeof c.fetchMessages !== 'function') return Promise.resolve();
-  return c.fetchMessages({ channels:[VISIT_CHANNEL], count:100, end:Date.now() })
+/* Rebuild the total from the channel's retained history. PubNub replays our
+   own publishes, and a replayed document only ever merges upward at the same
+   value, so this is safe to run on load, on a resume and on a stale tab. */
+function seedJoinsFromHistory(){
+  const c = getJoinsClient();
+  if(!c || typeof c.fetchMessages !== 'function') return Promise.resolve(false);
+  return c.fetchMessages({ channels:[JOINS_CHANNEL], count:100, end:Date.now() })
     .then(function(result){
-      const list = (result && result.channels && result.channels[VISIT_CHANNEL]) || [];
-      // Oldest first, so the max-merge finishes on the newest value.
-      list.slice().reverse().forEach(function(event){ applyVisitEvent(event && event.message); });
+      const list = (result && result.channels && result.channels[JOINS_CHANNEL]) || [];
+      // Oldest first, so the merges finish on the newest document.
+      list.slice().reverse().forEach(function(event){
+        const m = event && event.message;
+        if(m && m.type === 'count') setJoinsTotal(Number(m.total) || 0, { roff:m.roff });
+      });
+      return true;
     })
-    .catch(function(){});
+    .catch(function(){ return false; });
 }
 
-function visitSubscribe(){
-  const c = getVisitClient();
-  if(!c || window.__idkggVisitSubscribed) return;
-  window.__idkggVisitSubscribed = true;
-  try{ c.subscribe({ channels:[VISIT_CHANNEL] }); }catch(e){}
+function joinsSubscribe(){
+  const c = getJoinsClient();
+  if(!c || window.__idkggJoinsSubscribed) return;
+  window.__idkggJoinsSubscribed = true;
+  try{ c.subscribe({ channels:[JOINS_CHANNEL] }); }catch(e){}
 }
 
-/* Runs ONCE per page load, guarded the same way the old counter was. */
-function initVisitSync(){
-  if(window.__idkggVisitSyncStarted) return;   // hard guard: once per page load
-  window.__idkggVisitSyncStarted = true;
+/* Counts THIS page load as one genuine join: republish the counter document
+   with the next value under our own id. Guarded by joinPublished, so the
+   heartbeat, a reconnect or a resume can never count the load twice. */
+function publishJoinIncrement(){
+  if(joinPublished) return Promise.resolve(true);
+  joinPublished = true;                 // set first: a re-entry cannot pass
+  const mine = joinsTotal + 1;
+  joinsFloor = mine;
+  setJoinsTotal(mine);
+  return publishJoins({ type:'count', roff:JOIN_LOAD_ID, total:mine, at:Date.now() })
+    .then(function(ok){
+      if(!ok) joinPublished = false;    // never left the client -- allow recovery
+      return ok;
+    });
+}
+
+/* The join is published fire-and-forget; this confirms it actually landed. If
+   it did not (the socket was down at that instant) the SAME join id is resent,
+   so a load is counted exactly once -- never twice and never zero. */
+function verifyJoinLanded(){
+  const mine = joinsFloor;
+  setTimeout(function(){
+    publishJoins({ type:'count', roff:JOIN_LOAD_ID, total:mine, at:Date.now() })
+      .then(function(ok){ if(ok) joinPublished = true; });
+  }, 2500);
+}
+
+function requestJoinsResync(){
+  seedJoinsFromHistory().then(function(){ publishJoinsSnapshot(); });
+}
+
+/* Publish the current document so a client that has been away can catch up
+   without a history fetch. Only ever writes the value already shown. */
+function publishJoinsSnapshot(){
+  if(!joinsTotal) return Promise.resolve(false);
+  return publishJoins({ type:'count', roff:joinsRoff || JOIN_LOAD_ID, total:joinsTotal, at:Date.now() });
+}
+
+/* Runs ONCE per page load. */
+function initJoinCounter(){
+  if(window.__idkggJoinsStarted) return;   // hard guard: once per page load
+  window.__idkggJoinsStarted = true;
   // Show the shared total this browser last saw, so the pill is never blank
   // while the channel round-trip completes.
   let cached = 0;
-  try{ cached = parseInt(localStorage.getItem(VISIT_TOTAL_KEY), 10) || 0; }catch(e){ cached = 0; }
-  renderVisitTotal(cached);
-  const c = getVisitClient();
-  if(!c) return;   // counter unavailable — the pill keeps its last known value
-  visitSubscribe();
+  try{ cached = parseInt(localStorage.getItem(JOINS_TOTAL_KEY), 10) || 0; }catch(e){ cached = 0; }
+  renderJoinsTotal(cached);
+  const c = getJoinsClient();
+  if(!c) return;   // counter unavailable: the pill keeps its last known value
+  joinsSubscribe();
   c.addListener({ message:function(event){
-    if(!event || event.channel !== VISIT_CHANNEL) return;
-    applyVisitEvent(event.message);
+    if(!event || event.channel !== JOINS_CHANNEL) return;
+    applyJoinEvent(event.message);
   }});
   // Never let a slow history fetch hold the count back.
   const seedTimeout = new Promise(function(resolve){ setTimeout(resolve, 3000); });
-  Promise.race([seedVisitsFromHistory(), seedTimeout]).then(function(){
-    // Count this page load exactly once, now that the current total is known.
-    // Publishing the join sets visitJoinAccepted, so the copy of it that echoes
-    // back over the subscription cannot be counted a second time.
-    visitHoldUntil = Date.now() + VISIT_HOLD_MS;
-    const mine = visitTotal + 1;
-    visitJoinAccepted = true;
-    setVisitTotal(mine);
-    publishVisitJoin().then(function(ok){
-      if(ok) return;
-      // The join did not leave the client (socket down at this instant) —
-      // release the flag so the recovery path can genuinely re-send it.
-      visitJoinAccepted = false;
-    });
-    if(visitSyncTimer) return;
-    visitSyncTimer = setInterval(function(){
-      publishVisitSnapshot();
-      republishVisitJoinIfLost();
-    }, VISIT_SYNC_MS);
+  Promise.race([seedJoinsFromHistory(), seedTimeout]).then(function(){
+    joinsReady = true;
+    publishJoinIncrement().then(verifyJoinLanded);
+    setInterval(function(){
+      // Only ever republishes the value already shown -- it cannot inflate.
+      publishJoinsSnapshot();
+    }, JOINS_SYNC_MS);
   });
 }
-initVisitSync();
+initJoinCounter();
 
-/* Called from the resume/reconnect path: rejoin the channel, resend a join
-   that never landed, and pull the freshest total back from history. */
-window.__idkggResumeVisit = function(){
-  visitSubscribe();
-  republishVisitJoinIfLost();
-  return seedVisitsFromHistory().then(function(){ publishVisitSnapshot(); }, function(){});
+/* -- Every genuine new join counts: a reload, a new tab, a second visitor and
+   a reconnect after the laptop lid was closed. A resume that lands within
+   JOINS_AWAY_MIN_MS is the SAME join and is deliberately not counted again,
+   which is what keeps one page load to exactly one join. */
+function markJoinsAway(){
+  joinsAway = true;
+  joinsAwayAt = Date.now();
+}
+/* Called from the resume/reconnect path: rejoin the channel, pull the freshest
+   total back, and count the rejoin as a join when the page was genuinely away
+   long enough for the channel to have dropped us. */
+window.__idkggResumeJoins = function(){
+  joinsSubscribe();
+  const awayMs = joinsAway ? (Date.now() - joinsAwayAt) : 0;
+  const countThisResume = joinsAway && awayMs >= JOINS_AWAY_MIN_MS;
+  if(joinsAway) joinsAway = false;
+  if(countThisResume){
+    // A genuine rejoin -- counted once, under a fresh join id.
+    joinPublished = false;
+  }
+  return seedJoinsFromHistory().then(function(){
+    if(countThisResume) return publishJoinIncrement().then(verifyJoinLanded);
+    return publishJoinsSnapshot();
+  }, function(){});
 };
+window.addEventListener('beforeunload', markJoinsAway);
+document.addEventListener('visibilitychange', function(){
+  if(document.visibilityState === 'hidden'){ markJoinsAway(); return; }
+  // Hidden long enough for the channel to drop us: coming back is a rejoin.
+  if(joinsAway && (Date.now() - joinsAwayAt) >= JOINS_AWAY_MIN_MS){
+    if(window.__idkggResumeJoins) window.__idkggResumeJoins();
+  }
+});
+window.addEventListener('offline', markJoinsAway);
 
-function showVisitGraph(){
-  const total = (visitTotal || 0).toLocaleString('en-US');
-  const snap  = JSON.parse(localStorage.getItem('orion_hourly_snap')||'{}');
+
+function showJoinGraph(){
+  const total = (joinsTotal || 0).toLocaleString('en-US');
+  const snap  = JSON.parse(localStorage.getItem(JOINS_HOURLY_KEY)||'{}');
 
   // Build 24-hour series from hourly snapshots
   // Each point = global total at that hour. Diff between points = visits that hour.
@@ -3611,17 +3651,17 @@ function showVisitGraph(){
   +`</svg>`;
 
   const notice = !hasEnough
-    ? `<div style="font-size:0.58rem;color:rgba(255,200,80,0.5);margin-bottom:0.5rem">Graph fills in as you revisit over time</div>`
+    ? `<div style="font-size:0.58rem;color:rgba(255,200,80,0.5);margin-bottom:0.5rem">Graph fills in as more people join over time</div>`
     : '';
 
-  showPopup('VISIT HISTORY',
+  showPopup('JOIN HISTORY',
     `<div style="display:flex;align-items:baseline;justify-content:space-between;margin-bottom:0.75rem">`
       +`<div>`
         +`<span style="font-family:'Orbitron',monospace;font-size:1.6rem;font-weight:700;color:var(--pulsar);`
           +`text-shadow:0 0 20px rgba(0,229,255,0.35)">${total}</span>`
-        +`<span style="font-size:0.65rem;color:rgba(255,255,255,0.3);margin-left:0.5rem;letter-spacing:0.1em">TOTAL VISITS</span>`
+        +`<span style="font-size:0.65rem;color:rgba(255,255,255,0.3);margin-left:0.5rem;letter-spacing:0.1em">TOTAL JOINS</span>`
       +`</div>`
-      +`<button onclick="showVisitGraph()" style="background:rgba(0,229,255,0.07);border:1px solid rgba(0,229,255,0.18);`
+      +`<button onclick="showJoinGraph()" style="background:rgba(0,229,255,0.07);border:1px solid rgba(0,229,255,0.18);`
         +`border-radius:999px;color:var(--pulsar);font-family:'Rajdhani',sans-serif;font-size:0.7rem;`
         +`padding:0.18rem 0.65rem;cursor:pointer;display:flex;align-items:center;gap:0.3rem"`
         +` onmouseover="this.style.background='rgba(0,229,255,0.14)'" onmouseout="this.style.background='rgba(0,229,255,0.07)'">`
@@ -3636,7 +3676,7 @@ function showVisitGraph(){
       +`${svg}`
     +`</div>`
     +`<div style="display:flex;justify-content:space-between;margin-top:0.4rem">`
-      +`<span style="font-size:0.55rem;color:rgba(255,255,255,0.18);letter-spacing:0.08em">VISITS PER HOUR · LAST 24H</span>`
+      +`<span style="font-size:0.55rem;color:rgba(255,255,255,0.18);letter-spacing:0.08em">JOINS PER HOUR · LAST 24H</span>`
       +`<span style="font-size:0.55rem;color:rgba(255,255,255,0.18)">● NOW</span>`
     +`</div>`
   );
@@ -4476,9 +4516,10 @@ function clearDisguiseImg(){
   function resubscribeAll(){
     if(!client) return;
     try{ client.subscribe({channels:[CHAT_CHANNEL, MODERATION_CHANNEL, ANNOUNCE_CHANNEL]}); }catch(e){}
-    // The visit counter rides its own client; rejoin its channel here too so a
-    // reconnect keeps the shared total flowing.
-    try{ if(window.__idkggResumeVisit) window.__idkggResumeVisit(); }catch(e){}
+    // The TOTAL JOINS counter rides its own client; rejoin its channel here
+    // too, so a reconnect keeps the shared total flowing AND still counts the
+    // rejoin as a genuine new join.
+    try{ if(window.__idkggResumeJoins) window.__idkggResumeJoins(); }catch(e){}
     if(isUserOnline()){
       try{ client.subscribe({channels:[CHANNEL], withPresence:true}); }catch(e){}
       isOnline = true;
