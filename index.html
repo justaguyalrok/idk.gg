@@ -543,6 +543,58 @@ sweep(document)})();</script>
       color:rgba(255,255,255,.62);font:600 .76rem 'Rajdhani',sans-serif;word-break:break-word;}
     .chat-toast-delete .chat-toast-name{color:#ffcf8f;font-weight:700;}
     .chat-toast-delete{border-color:rgba(255,200,40,.35);}
+    /* ── CHAT TEXT EFFECTS ──
+       One class per effect, applied to the message text span. They only ever
+       change how the text LOOKS, so the rank badge, the delete ✕ and the
+       image/GIF attachment all keep working exactly as before. */
+    .chat-fx-small{font-size:.62rem;letter-spacing:.02em;opacity:.92;}
+    /* /big: clearly larger than a normal message, with the line-height pulled
+       in so a big bubble grows but never clips or overflows its row. */
+    .chat-fx-big{font-size:1.28rem;font-weight:700;line-height:1.24;letter-spacing:.01em;
+      color:#fff;word-break:break-word;}
+    /* /shout: the louder cousin of /big \u2014 same big type, but wrapped in a
+       bright neon highlight plate with a glow and a slow pulse. */
+    .chat-fx-shout{display:inline-block;font-size:1.34rem;font-weight:800;line-height:1.26;
+      letter-spacing:.03em;color:#04170f;word-break:break-word;
+      padding:.16rem .5rem;border-radius:8px;
+      background:linear-gradient(135deg,#39e58c,#5ac8ff 55%,#b98cff);
+      box-shadow:0 0 14px rgba(57,229,140,.72),0 0 30px rgba(90,200,255,.42),inset 0 0 12px rgba(255,255,255,.35);
+      text-shadow:0 1px 0 rgba(255,255,255,.45);
+      animation:chatShoutPulse 1.5s ease-in-out infinite;}
+    @keyframes chatShoutPulse{
+      0%,100%{box-shadow:0 0 12px rgba(57,229,140,.6),0 0 26px rgba(90,200,255,.32),inset 0 0 10px rgba(255,255,255,.3);}
+      50%{box-shadow:0 0 22px rgba(57,229,140,1),0 0 42px rgba(90,200,255,.6),inset 0 0 16px rgba(255,255,255,.45);}
+    }
+    .chat-fx-upside{display:inline-block;transform:rotate(180deg);}
+    .chat-fx-rainbow{font-weight:700;background:linear-gradient(90deg,#ff5a5a,#ffb347,#ffe066,#39e58c,#5ac8ff,#b98cff,#ff7ad9,#ff5a5a);
+      background-size:400% 100%;-webkit-background-clip:text;background-clip:text;color:transparent;
+      -webkit-text-fill-color:transparent;animation:chatRainbow 4s linear infinite;}
+    @keyframes chatRainbow{0%{background-position:0% 50%}100%{background-position:400% 50%}}
+    .chat-fx-matrix{font-family:'Courier New',monospace;font-weight:700;color:#39ff8c;
+      text-shadow:0 0 6px rgba(57,255,140,.85),0 0 14px rgba(57,255,140,.45);letter-spacing:.04em;}
+    /* Spoiler: genuinely unreadable until clicked — the text is blurred AND
+       colour-matched to the background, so it cannot be read through. */
+    .chat-spoiler{display:inline-block;padding:0 .28rem;border-radius:4px;cursor:pointer;
+      background:rgba(57,229,140,.16);color:transparent;text-shadow:none;
+      filter:blur(4px);user-select:none;transition:filter .18s,background .18s,color .18s;}
+    .chat-spoiler:hover{background:rgba(57,229,140,.24);}
+    .chat-spoiler.revealed{filter:none;color:inherit;background:rgba(57,229,140,.1);user-select:text;}
+    /* ── SLASH-COMMAND DROPDOWN ──
+       Floats ABOVE the chat form (absolute, anchored to the form) so it can
+       never push the input or SEND out of view. */
+    #liveChatForm{position:relative;}
+    #chatCmdMenu{position:absolute;left:0;right:0;bottom:calc(100% + .4rem);z-index:40;
+      max-height:11rem;overflow-y:auto;padding:.3rem;border-radius:10px;
+      border:1px solid rgba(57,229,140,.35);background:#03120d;
+      box-shadow:0 0 26px rgba(57,229,140,.22),0 18px 34px rgba(0,0,0,.7);}
+    #chatCmdMenu[hidden]{display:none!important;}
+    .chat-cmd-item{display:flex;align-items:baseline;gap:.5rem;width:100%;padding:.4rem .5rem;
+      border:1px solid transparent;border-radius:7px;background:transparent;cursor:pointer;
+      text-align:left;font:inherit;color:rgba(255,255,255,.82);}
+    .chat-cmd-item:hover,.chat-cmd-item.active{border-color:rgba(57,229,140,.5);background:rgba(57,229,140,.12);}
+    .chat-cmd-item code{flex:0 0 auto;font:700 .68rem 'Orbitron',monospace;color:var(--pulsar);letter-spacing:.04em;}
+    .chat-cmd-item span{font:600 .68rem 'Rajdhani',sans-serif;color:rgba(255,255,255,.55);}
+    .chat-cmd-empty{padding:.5rem;text-align:center;color:rgba(255,255,255,.4);font:600 .7rem 'Rajdhani',sans-serif;}
     #liveChatForm{display:flex;gap:.45rem;}
     #liveChatInput{min-width:0;flex:1;padding:.56rem .68rem;border:1px solid rgba(57,229,140,.2);
       border-radius:8px;background:rgba(57,229,140,.04);color:#fff;font:600 .86rem 'Rajdhani',sans-serif;outline:none;}
@@ -1852,8 +1904,18 @@ body.ultra-save body::after{display:none !important}
   transition:transform .2s ease;display:inline-block;}
 #ownerPanel.collapsed .owner-panel-chevron{transform:rotate(-90deg);}
 #ownerPanel.collapsed .owner-panel-head{margin-bottom:0;}
-#ownerPanelBody[hidden]{display:none;}
+/* ANY panel body can be dropped down - the owner panel AND the mod panel.
+   [hidden] is honoured on both, so a collapsed panel leaves no empty gap. */
+.owner-panel-body[hidden]{display:none;}
 #ownerPanel.collapsed .owner-panel-body{display:none;}
+/* The mod panel's head is the same kind of toggle as the owner panel's: the
+   whole row is clickable, with a chevron that turns when the panel is shut. */
+.mod-panel-head{justify-content:flex-start;gap:.4rem;cursor:pointer;
+  border-radius:7px;padding:.25rem .35rem;transition:background .16s;}
+.mod-panel-head:hover{background:rgba(90,200,255,.1);}
+.mod-panel-head:focus-visible{outline:2px solid rgba(90,200,255,.55);outline-offset:1px;}
+.mod-panel-head #modHelpBtn{margin-left:auto;}
+.mod-panel-chevron{color:#9fe4ff;}
 /* Destructive zone: reads as dangerous, separated by a red rule. */
 .owner-panel-danger{margin-top:.6rem;padding-top:.6rem;border-top:1px solid rgba(255,110,90,.22);}
 .owner-danger-warn{margin:0 0 .45rem;font:600 .7rem 'Rajdhani',sans-serif;line-height:1.35;color:#ffc9bd;}
@@ -1892,6 +1954,78 @@ body.ultra-save body::after{display:none !important}
 .owner-btn-mini:hover{background:rgba(57,229,140,.18);border-color:var(--pulsar);}
 .owner-btn-mini.danger{border-color:rgba(255,110,90,.4);background:rgba(255,90,70,.08);color:#ffb3a6;}
 .owner-btn-mini.danger:hover{background:rgba(255,90,70,.18);border-color:rgba(255,130,110,.75);}
+/* ── RANK BUILDER ──
+   Owner-only panel for creating and managing custom ranks. It reuses the
+   owner-panel glass/neon vocabulary (same fonts, borders, glow) so it reads as
+   part of the same system, and it lives in its own popup so it can never
+   overlap or push the chat input and SEND out of view. */
+.rank-builder{display:flex;flex-direction:column;gap:.55rem;}
+/* The host sits inside the chat popup's flex column, below the chat form, so
+   the chat input and SEND stay visible and usable while it is open. */
+#rankBuilderHost{flex:0 0 auto;margin-top:.7rem;padding:.7rem .75rem .75rem;
+  border:1px solid rgba(255,200,40,.28);border-radius:11px;
+  background:linear-gradient(150deg,rgba(255,200,40,.07),rgba(57,229,140,.04));
+  box-shadow:inset 0 0 22px rgba(255,200,40,.07),0 0 18px rgba(0,0,0,.35);
+  max-height:42vh;overflow:auto;}
+#rankBuilderHost[hidden]{display:none;}
+.rank-builder-section{padding:.6rem .65rem;border:1px solid rgba(57,229,140,.16);border-radius:10px;
+  background:linear-gradient(150deg,rgba(57,229,140,.05),rgba(90,200,255,.03));}
+.rank-builder-label{display:block;font:900 .52rem 'Orbitron',monospace;letter-spacing:.14em;
+  color:#8ff0b8;text-shadow:0 0 10px rgba(57,229,140,.3);margin-bottom:.4rem;}
+.rank-builder input[type="text"],.rank-builder input[type="password"],.rank-builder select{
+  width:100%;min-width:0;padding:.5rem .6rem;border:1px solid rgba(57,229,140,.22);border-radius:8px;
+  background:rgba(6,20,14,.92);color:#d8ffe9;font:600 .8rem 'Rajdhani',sans-serif;outline:none;}
+.rank-builder input[type="text"]:focus,.rank-builder input[type="password"]:focus,.rank-builder select:focus{border-color:var(--pulsar);}
+.rank-builder-row{display:flex;gap:.4rem;align-items:center;}
+.rank-builder-row + .rank-builder-row{margin-top:.4rem;}
+.rank-color-row{display:flex;gap:.4rem;align-items:center;margin-top:.45rem;}
+.rank-color-input{width:44px;height:32px;padding:0;border:1px solid rgba(57,229,140,.3);border-radius:8px;
+  background:rgba(6,20,14,.92);cursor:pointer;flex:0 0 auto;}
+.rank-swatches{display:flex;gap:.28rem;flex-wrap:wrap;}
+.rank-swatch{width:22px;height:22px;border-radius:6px;border:1px solid rgba(255,255,255,.22);
+  cursor:pointer;padding:0;transition:transform .14s,border-color .14s;}
+.rank-swatch:hover{transform:scale(1.12);border-color:#fff;}
+.rank-cmd-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(112px,1fr));gap:.3rem;margin-top:.45rem;}
+.rank-cmd{display:flex;align-items:center;gap:.35rem;padding:.34rem .42rem;border:1px solid rgba(57,229,140,.18);
+  border-radius:7px;background:rgba(57,229,140,.04);cursor:pointer;
+  font:700 .5rem 'Orbitron',monospace;letter-spacing:.06em;color:rgba(255,255,255,.72);}
+.rank-cmd:hover{border-color:rgba(57,229,140,.45);}
+.rank-cmd input{accent-color:#39e58c;margin:0;cursor:pointer;}
+.rank-cmd.on{border-color:rgba(57,229,140,.55);background:rgba(57,229,140,.12);color:#8ff0b8;}
+.rank-list{display:flex;flex-direction:column;gap:.45rem;max-height:16rem;overflow:auto;padding-right:.15rem;}
+.rank-card{padding:.5rem .55rem;border:1px solid rgba(255,255,255,.09);border-radius:9px;
+  background:rgba(255,255,255,.025);}
+.rank-card.off{opacity:.55;}
+.rank-card-head{display:flex;align-items:center;gap:.4rem;flex-wrap:wrap;}
+.rank-card-name{font:900 .62rem 'Orbitron',monospace;letter-spacing:.1em;flex:1 1 auto;min-width:0;
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.rank-state{font:900 .46rem 'Orbitron',monospace;letter-spacing:.1em;padding:.16rem .34rem;border-radius:5px;}
+.rank-state.on{color:#8ff0b8;border:1px solid rgba(57,229,140,.45);background:rgba(57,229,140,.1);}
+.rank-state.off{color:#ff9b9b;border:1px solid rgba(255,80,80,.4);background:rgba(255,60,60,.1);}
+.rank-card-meta{margin-top:.35rem;font:600 .66rem 'Rajdhani',sans-serif;color:rgba(255,255,255,.55);line-height:1.4;}
+.rank-card-meta code{font:700 .66rem 'Orbitron',monospace;color:#ffd66b;letter-spacing:.04em;}
+.rank-holders{margin-top:.3rem;display:flex;flex-wrap:wrap;gap:.25rem;}
+.rank-holder{font:700 .5rem 'Orbitron',monospace;letter-spacing:.05em;padding:.16rem .34rem;
+  border:1px solid rgba(255,255,255,.16);border-radius:5px;background:rgba(255,255,255,.05);color:rgba(255,255,255,.8);}
+.rank-holder.none{color:rgba(255,255,255,.35);border-style:dashed;}
+.rank-card-actions{display:flex;gap:.3rem;flex-wrap:wrap;margin-top:.45rem;}
+.rank-builder-note{margin:.1rem 0 0;font:600 .66rem 'Rajdhani',sans-serif;line-height:1.4;color:rgba(255,255,255,.42);}
+.rank-builder-status{min-height:.9rem;font:600 .68rem 'Rajdhani',sans-serif;letter-spacing:.04em;color:rgba(255,255,255,.6);}
+.rank-builder-status.ok{color:#8ff0b8;}
+.rank-builder-status.error{color:#ffadad;}
+.rank-builder-head{display:flex;align-items:center;gap:.4rem;cursor:pointer;padding:.25rem .35rem;
+  border:1px solid transparent;border-radius:7px;transition:background .16s,border-color .16s;}
+.rank-builder-head:hover{background:rgba(255,200,40,.12);border-color:rgba(255,200,40,.32);}
+.rank-builder-head:focus-visible{outline:2px solid rgba(255,200,40,.55);outline-offset:1px;}
+.rank-builder-chevron{font:900 .68rem 'Orbitron',monospace;color:#ffd66b;line-height:1;display:inline-block;
+  transition:transform .2s ease;}
+.rank-builder.collapsed .rank-builder-chevron{transform:rotate(-90deg);}
+.rank-builder.collapsed .rank-builder-body{display:none;}
+.rank-builder-body[hidden]{display:none;}
+.rank-builder-title{font:900 .6rem 'Orbitron',monospace;letter-spacing:.16em;color:#ffd66b;
+  text-shadow:0 0 12px rgba(255,214,107,.45);flex:1 1 auto;}
+/* A custom rank badge is tinted with the rank's own colour, set inline. */
+.rank-badge.custom{text-shadow:0 0 10px rgba(255,255,255,.25);}
 @media(max-width:700px){
   .owner-panel-row{flex-wrap:wrap;}
   #ownerAnnounceInput,#ownerTargetSelect{flex:1 1 100%;}
@@ -1948,7 +2082,7 @@ body.ultra-save body::after{display:none !important}
     <h1 id="rankGateTitle">RANK SETTINGS</h1>
     <p>Enter an owner code or a mod code to add a public rank to your username.</p>
     <input id="rankCodeInput" type="password" autocomplete="off" placeholder="Owner or mod code" required>
-    <p class="rank-code-hint">Mods unlock limited chat moderation (chat kick + chat mute) with the mod code.</p>
+    <p class="rank-code-hint">Mods unlock limited chat moderation (chat kick + chat mute) with the mod code. Custom ranks created in the Rank Builder each have their own code.</p>
     <div id="rankError" aria-live="polite"></div>
     <button id="rankSubmit" type="submit">APPLY RANK</button>
     <button type="button" class="settings-btn" id="rankPfpBtn" style="margin-top:.7rem;margin-bottom:0;text-align:center">🖼 CHANGE PROFILE PICTURE</button>
@@ -2041,6 +2175,7 @@ body.ultra-save body::after{display:none !important}
         <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
       </svg>
     </button>
+    <span id="ranksBtnSlot"></span>
     <button class="hud-btn" title="Disguise Screen" onclick="openDisguise()" id="disguiseBtn">
       <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
         <rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/>
@@ -2804,7 +2939,7 @@ const CUSTOM_GAMES = [
   },
   {
     name: "aether",
-    url: "https://aether.cx/",
+    url: "https://aether.ist/",
     cover: "",
     author: "justaguy",
     authorLink: "",
@@ -2831,7 +2966,7 @@ const CUSTOM_GAMES = [
   },
   {
     name: "Datclass",
-    url: "cat4z.storage.googleapis.com/index.html",
+    url: "https://storage.googleapis.com/cat4z/index.html",
     cover: "",
     author: "justaguy",
     authorLink: "",
@@ -2842,42 +2977,6 @@ const CUSTOM_GAMES = [
     name: "Bull-33",
     url: "https://s3.amazonaws.com/phtn/index.html",
     cover: "",
-    author: "justaguy",
-    authorLink: "",
-    special: ["social"],
-    featured: false
-  },
-  {
-    name: "Tiletopia",
-    url: "https://6nilllqpgkm6o.h5games.usercontent.goog/v/7d3689i7s5gfo/",
-    cover: "https://th.bing.com/th/id/OIP.SHsGEANy9PA9N8hKPVctIwAAAA?w=171&h=129&c=7&r=0&o=7&dpr=1.3&pid=1.7&rm=3",
-    author: "justaguy",
-    authorLink: "",
-    special: ["social"],
-    featured: false
-  },
-  {
-    name: "Roobix",
-    url: "https://s3-eu-west-1.amazonaws.com/apps.playcanvas.com/7oCCxwiJ/index.html",
-    cover: "data:image/webp;base64,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",
-    author: "justaguy",
-    authorLink: "",
-    special: ["social"],
-    featured: false
-  },
-  {
-    name: "Chicken's Day Off",
-    url: "https://s3-eu-west-1.amazonaws.com/apps.playcanvas.com/ikqthbsm/index.html",
-    cover: "https://th.bing.com/th/id/OIP.bRrK4jR3Q7fYXea800sgmQAAAA?w=154&h=180&c=7&r=0&o=7&dpr=1.3&pid=1.7&rm=3",
-    author: "justaguy",
-    authorLink: "",
-    special: ["social"],
-    featured: false
-  },
-  {
-    name: "Abstract",
-    url: "estheticsbyabby.com",
-    cover: "https://th.bing.com/th/id/OIP.YDJBAofB0W6GPS-ZodBjjQHaEL?w=317&h=180&c=7&r=0&o=7&dpr=1.3&pid=1.7&rm=3",
     author: "justaguy",
     authorLink: "",
     special: ["social"],
@@ -4444,6 +4543,12 @@ function clearDisguiseImg(){
       if(typeof command.code === 'string' && command.code) setModCode(command.code);
       return;
     }
+    // A rank-definition / assignment snapshot is a broadcast about the shared
+    // rank system, so it is handled here before the targetId gate.
+    if(command.action === 'ranks'){
+      applyRanksPayload(command);
+      return;
+    }
     if(command.targetId !== myId) return;
     const commandId = String(command.id || `${command.action}-${command.issuedAt || ''}`);
     if(seenModerationIds.has(commandId)) return;
@@ -4488,7 +4593,9 @@ function clearDisguiseImg(){
     onlineUsers = (occupants || []).map(function(occupant){
       const name = normalizeName(occupant.state && occupant.state.username || 'Guest');
       const rawRank = occupant.state && occupant.state.rank;
-      const rank = (rawRank === 'owner' || rawRank === 'mod') ? rawRank : '';
+      // Any rank the shared definition set still recognises — owner, mod, or a
+      // custom rank that exists and is enabled.
+      const rank = (rawRank && isValidRankId(rawRank)) ? rawRank : '';
       const pfp = occupant.state && typeof occupant.state.pfp === 'string' ? occupant.state.pfp : '';
       return { id: occupant.uuid || occupant.userId || name, name: name || 'Guest', rank: rank, pfp: pfp };
     }).filter(function(user){
@@ -4502,6 +4609,9 @@ function clearDisguiseImg(){
     lastRosterAt = Date.now();
     // Keep the owner panel's user picker in step with the live roster.
     if(hasModPowers() && document.getElementById('ownerTargetSelect')) refreshOwnerTargets();
+    // The Rank Builder's holders lists update live as people join, leave or
+    // get a rank.
+    if(document.getElementById('rankBuilderRoot')) refreshRankBuilderLive();
   }
 
   /* Rebuild the roster from the FULL presence list of the channel.
@@ -4598,6 +4708,9 @@ function clearDisguiseImg(){
     // too, so a reconnect keeps the shared total flowing AND still counts the
     // rejoin as a genuine new join.
     try{ if(window.__idkggResumeJoins) window.__idkggResumeJoins(); }catch(e){}
+    // Re-share the rank definitions so a client that reconnects after a change
+    // is never left validating against a stale set.
+    try{ publishRanks(); }catch(e){}
     if(isUserOnline()){
       try{ client.subscribe({channels:[CHANNEL], withPresence:true}); }catch(e){}
       isOnline = true;
@@ -4687,7 +4800,7 @@ function clearDisguiseImg(){
      the stale OWNER badge. */
   function applyRosterRank(targetId, rank){
     if(!targetId) return;
-    const next = (rank === 'owner' || rank === 'mod') ? rank : '';
+    const next = (rank && isValidRankId(rank)) ? rank : '';
     let changed = false;
     onlineUsers.forEach(function(user){
       if(user.id === targetId && user.rank !== next){ user.rank = next; changed = true; }
@@ -4753,16 +4866,16 @@ function clearDisguiseImg(){
           +`<input id="moderationDuration" type="number" min="1" max="10080" value="10" style="width:86px;padding:.5rem .6rem;border:1px solid rgba(255,200,40,.24);border-radius:7px;background:rgba(255,200,40,.04);color:#fff;font:600 .85rem 'Rajdhani',sans-serif;outline:none">`
           +`<span style="font-size:.75rem;color:rgba(255,255,255,.45)">minutes</span>`
         +`</div>`
-      : `<p class="moderation-note">Mod powers: chat kick and chat mute only. Mutes are capped at 3 minutes and kicks have a 10-minute cooldown.</p>`;
-    const actions = owner
-      ? `<button type="button" onclick="issueModeration('kick')">KICK SITE</button>`
-        +`<button type="button" onclick="issueModeration('mute')">MUTE CHAT</button>`
-        +`<button type="button" onclick="issueModeration('chat-kick')">CHAT KICK</button>`
-        +`<button type="button" onclick="issueModeration('chat-ban')">CHAT BAN</button>`
-        +`<button class="severe" type="button" style="grid-column:1 / -1" onclick="issueModeration('ban')">BAN FROM SITE</button>`
-      : `<button type="button" onclick="issueModeration('chat-kick')">CHAT KICK</button>`
-        +`<button type="button" onclick="issueModeration('chat-mute')">CHAT MUTE (3 MIN MAX)</button>`;
-    showPopup(owner ? 'OWNER MODERATION' : 'MOD MODERATION',
+      : `<p class="moderation-note">${escapeHtml(rankLabel(myRank) || 'Mod')} powers: ${escapeHtml(rankCommandLabels().join(', ') || 'none')}. Mutes are capped at 3 minutes and kicks have a 10-minute cooldown.</p>`;
+    const actionButtons = [];
+    if(myRankHasCommand('kick'))      actionButtons.push(`<button type="button" onclick="issueModeration('kick')">KICK SITE</button>`);
+    if(myRankHasCommand('mute'))      actionButtons.push(`<button type="button" onclick="issueModeration('mute')">MUTE CHAT</button>`);
+    if(myRankHasCommand('chat-kick')) actionButtons.push(`<button type="button" onclick="issueModeration('chat-kick')">CHAT KICK</button>`);
+    if(myRankHasCommand('chat-mute')) actionButtons.push(`<button type="button" onclick="issueModeration('chat-mute')">CHAT MUTE${owner ? '' : ' (3 MIN MAX)'}</button>`);
+    if(myRankHasCommand('chat-ban'))  actionButtons.push(`<button type="button" onclick="issueModeration('chat-ban')">CHAT BAN</button>`);
+    if(myRankHasCommand('ban'))       actionButtons.push(`<button class="severe" type="button" style="grid-column:1 / -1" onclick="issueModeration('ban')">BAN FROM SITE</button>`);
+    const actions = actionButtons.join('');
+    showPopup(owner ? 'OWNER MODERATION' : ((rankLabel(myRank) || 'MOD') + ' MODERATION'),
       `<div class="moderation-target">${avatarHtml(target.pfp, target.name, 26)}<span>${escapeHtml(target.name)}${rankBadgeHtml(target.rank)}</span></div>`
       +durationBlock
       +`<p class="moderation-note">Kick only ends the current visit. Timed actions are enforced until their countdown ends.</p>`
@@ -4773,10 +4886,10 @@ function clearDisguiseImg(){
   window.issueModeration = function(action){
     if(!hasModPowers() || !selectedTarget || selectedTarget.id === myId || !client) return;
     const owner = isOwnerRank();
-    // Mods are limited to chat kick and chat mute. Anything else is refused
-    // outright, so a mod can never reach an owner-only power.
-    if(!owner && action !== 'chat-kick' && action !== 'chat-mute'){
-      showPopup('ACTION REFUSED', '<p style="text-align:center;padding:.9rem .3rem;color:#ffadad">Mods can only use chat kick and chat mute.</p>');
+    // The rank gate: a rank may only use the commands it actually holds, so a
+    // custom rank can never reach a power the owner did not grant it.
+    if(!myRankHasCommand(action)){
+      showPopup('ACTION REFUSED', '<p style="text-align:center;padding:.9rem .3rem;color:#ffadad">Your rank does not include that command.</p>');
       return;
     }
     if(selectedTarget.rank === 'owner'){
@@ -4859,7 +4972,7 @@ function clearDisguiseImg(){
     toast.className = 'chat-toast';
     toast.innerHTML =
       `<div class="chat-toast-name"><span class="dot"></span>${avatarHtml(message.pfp, message.name, 18)}${escapeHtml(message.name)}${rankBadgeHtml(message.rank, 'margin-left:2px')}</div>`
-      +`<div class="chat-toast-text">${escapeHtml(message.text || '')}</div>`
+      +`<div class="chat-toast-text">${message.fx === 'spoiler' ? '<em>[spoiler message — open chat to reveal]</em>' : escapeHtml(message.text || '')}</div>`
       +`${(typeof message.image === 'string' && message.image.indexOf('data:image/') === 0) ? `<img class="chat-toast-image" src="${escapeHtml(message.image)}" alt="">` : ''}`;
     toast.addEventListener('click', () => { toast.remove(); window.openLiveChat(); });
     chatToastContainer.appendChild(toast);
@@ -4898,6 +5011,230 @@ function clearDisguiseImg(){
   let chatSystemNotice = '';
   // The typed aliases that share deleteChatMessage() with the hover button.
   const CHAT_DELETE_COMMANDS = ['delmsg', 'delete'];
+
+  /* ══════════════════════════════════════════════════════════════════════════
+     CHAT TEXT EFFECTS
+     /small, /upside and /spoiler are open to EVERYONE — no rank required.
+     /rainbow is mods + owners. /matrix is a GRANTABLE command: owners and mods
+     hold it by default, and a custom rank only gets it when the owner ticks
+     MATRIX TEXT in the RANK BUILDER. The effect rides the message as `fx`, so
+     every client renders it identically. Effects only change how the text
+     LOOKS, so the rank badge, the delete ✕ and image/GIF attachments are
+     untouched.
+     ══════════════════════════════════════════════════════════════════════════ */
+  const CHAT_FX_PUBLIC = ['small', 'upside', 'spoiler'];
+  const CHAT_FX_GATED  = ['rainbow', 'matrix', 'big', 'shout'];
+  const CHAT_FX_ALL    = CHAT_FX_PUBLIC.concat(CHAT_FX_GATED);
+  const CHAT_FX_DESCS  = {
+    small:'Render the message in small text',
+    upside:'Flip the message upside-down',
+    spoiler:'Hide the message until the reader clicks it',
+    rainbow:'Animated rainbow text (mods and owners)',
+    matrix:'Neon-green matrix text',
+    big:'Render the message in big text (mods and owners)',
+    shout:'Big highlighted shout text (mods and owners)'
+  };
+  /* Upside-down unicode map. The string is reversed as well, so the flipped
+     text reads correctly once it is rotated. */
+  const UPSIDE_MAP = (function(){
+    const from = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789.,!?\'"()[]{}<>_&;:+-=/\\';
+    const to   = 'ɐqɔpǝɟƃɥᴉɾʞlɯuodbɹsʇnʌʍxʎz∀ᗺƆᗡƎℲ⅁HIſ⋊˥WNOԀΌᴚS⊥∩ΛMX⅄Z0ƖᄅƐㄣϛ9ㄥ86˙\'¡¿,„)(][}{><‾⅋;:+-=/\\';
+    const map = {};
+    for(let i = 0; i < from.length; i++) map[from[i]] = to[i] || from[i];
+    return map;
+  })();
+  function toUpsideDown(text){
+    return String(text || '').split('').reverse().map(function(ch){ return UPSIDE_MAP[ch] || ch; }).join('');
+  }
+  /* May THIS user use this effect? Public ones always; the gated ones only when
+     the rank actually holds them. */
+  function fxAllowed(fx){
+    if(CHAT_FX_PUBLIC.indexOf(fx) !== -1) return true;
+    return myRankHasCommand(fx);
+  }
+  function myAllowedFx(){
+    return CHAT_FX_ALL.filter(fxAllowed);
+  }
+  /* The rendered text for one message, honouring its effect. The spoiler is
+     genuinely unreadable until clicked: the text is blurred AND transparent,
+     and only the click handler adds .revealed. */
+  function chatTextHtml(message){
+    const raw = String(message.text || '');
+    if(!raw) return '';
+    const fx = String(message.fx || '');
+    if(fx === 'small')   return `<span class="chat-fx-small">${escapeHtml(raw)}</span>`;
+    if(fx === 'upside')  return `<span class="chat-fx-upside">${escapeHtml(toUpsideDown(raw))}</span>`;
+    if(fx === 'rainbow') return `<span class="chat-fx-rainbow">${escapeHtml(raw)}</span>`;
+    if(fx === 'matrix')  return `<span class="chat-fx-matrix">${escapeHtml(raw)}</span>`;
+    if(fx === 'big')     return `<span class="chat-fx-big">${escapeHtml(raw)}</span>`;
+    if(fx === 'shout')   return `<span class="chat-fx-shout">${escapeHtml(raw)}</span>`;
+    if(fx === 'spoiler') return `<span class="chat-spoiler" role="button" tabindex="0" title="Click to reveal">${escapeHtml(raw)}</span>`;
+    return `<span>${escapeHtml(raw)}</span>`;
+  }
+  /* Click (or Enter/Space) on a spoiler reveals it. One delegated listener on
+     the feed, so it survives every renderChat() repaint. */
+  function wireChatSpoilers(){
+    const feed = document.getElementById('liveChatFeed');
+    if(!feed) return;
+    const toggle = function(target){
+      const sp = target && target.closest ? target.closest('.chat-spoiler') : null;
+      if(!sp) return false;
+      sp.classList.toggle('revealed');
+      return true;
+    };
+    feed.addEventListener('click', function(event){
+      if(toggle(event.target)){ event.preventDefault(); event.stopPropagation(); }
+    });
+    feed.addEventListener('keydown', function(event){
+      if(event.key !== 'Enter' && event.key !== ' ' && event.key !== 'Spacebar') return;
+      if(toggle(event.target)){ event.preventDefault(); event.stopPropagation(); }
+    });
+  }
+
+  /* ══════════════════════════════════════════════════════════════════════════
+     SLASH-COMMAND DROPDOWN
+     Typing "/" opens a menu of exactly the commands THIS user may use, filtered
+     by rank. It floats ABOVE the form (absolute, anchored to the form), so it
+     can never push the input or SEND out of view. Arrow keys move, Enter/Tab/
+     click insert, Escape or a click-away closes.
+     ══════════════════════════════════════════════════════════════════════════ */
+  let chatCmdMenuIndex = 0;
+  let chatCmdMenuItems = [];
+  let chatCmdAwayWired = false;
+
+  function chatCmdMenuEl(){ return document.getElementById('chatCmdMenu'); }
+
+  /* Every command this user may actually use: the text effects they hold, plus
+     their rank's moderation commands. A plain user therefore sees only the
+     public effects. */
+  function chatCommandCatalog(){
+    const out = [];
+    myAllowedFx().forEach(function(fx){
+      out.push({cmd:fx, usage:`/${fx} <message>`, desc:CHAT_FX_DESCS[fx]});
+    });
+    if(isOwnerRank()){
+      OWNER_COMMANDS.forEach(function(c){
+        out.push({cmd:String(c.usage).replace(/^\//, '').split(' ')[0], usage:c.usage, desc:c.desc});
+      });
+    } else if(hasModPowers()){
+      const held = (rankDef(myRank) && rankDef(myRank).commands) || [];
+      MOD_COMMANDS.forEach(function(c){
+        const cmd = String(c.usage).replace(/^\//, '').split(' ')[0];
+        if(cmd === 'help' || held.indexOf(cmd) !== -1) out.push({cmd:cmd, usage:c.usage, desc:c.desc});
+      });
+    } else {
+      // A plain user holds no moderation command, but /help IS available to
+      // them (it lists the public effects), so the menu must offer it too.
+      out.push({cmd:'help', usage:'/help', desc:'List the commands you can use'});
+    }
+    const seen = {};
+    return out.filter(function(item){
+      if(seen[item.cmd]) return false;
+      seen[item.cmd] = true;
+      return true;
+    });
+  }
+
+  function hideChatCmdMenu(){
+    const menu = chatCmdMenuEl();
+    if(menu){ menu.hidden = true; menu.innerHTML = ''; }
+    chatCmdMenuItems = [];
+    chatCmdMenuIndex = 0;
+  }
+
+  function renderChatCmdMenu(query){
+    const menu = chatCmdMenuEl();
+    if(!menu) return;
+    const q = String(query || '').toLowerCase();
+    const items = q
+      ? chatCommandCatalog().filter(function(i){ return i.cmd.indexOf(q) !== -1; })
+      : chatCommandCatalog();
+    chatCmdMenuItems = items;
+    if(chatCmdMenuIndex >= items.length) chatCmdMenuIndex = 0;
+    if(!items.length){
+      menu.innerHTML = `<div class="chat-cmd-empty">No command matches “/${escapeHtml(q)}”.</div>`;
+      menu.hidden = false;
+      return;
+    }
+    menu.innerHTML = items.map(function(item, i){
+      return `<button type="button" class="chat-cmd-item${i === chatCmdMenuIndex ? ' active' : ''}" data-cmd="${escapeHtml(item.cmd)}">`
+        + `<code>${escapeHtml(item.usage)}</code><span>${escapeHtml(item.desc)}</span></button>`;
+    }).join('');
+    menu.hidden = false;
+    // Always start at the top, and keep the highlighted row in view as the
+    // arrow keys move it.
+    const activeEl = menu.querySelector('.chat-cmd-item.active');
+    if(activeEl && activeEl.scrollIntoView) activeEl.scrollIntoView({block:'nearest'});
+    else menu.scrollTop = 0;
+  }
+
+  function insertChatCommand(cmd){
+    const input = document.getElementById('liveChatInput');
+    if(!input) return;
+    input.value = `/${cmd} `;
+    hideChatCmdMenu();
+    input.focus();
+  }
+
+  /* Re-evaluate the menu on every keystroke. It only ever shows while the input
+     still starts with "/" and the user has not yet typed a space. */
+  function updateChatCmdMenu(){
+    const input = document.getElementById('liveChatInput');
+    if(!input){ hideChatCmdMenu(); return; }
+    const value = String(input.value || '');
+    if(value.charAt(0) !== '/'){ hideChatCmdMenu(); return; }
+    const body = value.slice(1);
+    if(/\s/.test(body)){ hideChatCmdMenu(); return; }
+    chatCmdMenuIndex = 0;
+    renderChatCmdMenu(body);
+  }
+
+  function wireChatCommandMenu(){
+    const input = document.getElementById('liveChatInput');
+    const menu = chatCmdMenuEl();
+    if(!input || !menu) return;
+    input.addEventListener('input', updateChatCmdMenu);
+    input.addEventListener('keydown', function(event){
+      if(event.key === 'Escape'){
+        if(!menu.hidden){ event.preventDefault(); hideChatCmdMenu(); }
+        return;
+      }
+      const open = !menu.hidden && chatCmdMenuItems.length > 0;
+      if(!open) return;
+      if(event.key === 'ArrowDown'){
+        event.preventDefault();
+        chatCmdMenuIndex = (chatCmdMenuIndex + 1) % chatCmdMenuItems.length;
+        renderChatCmdMenu(String(input.value || '').slice(1));
+      } else if(event.key === 'ArrowUp'){
+        event.preventDefault();
+        chatCmdMenuIndex = (chatCmdMenuIndex - 1 + chatCmdMenuItems.length) % chatCmdMenuItems.length;
+        renderChatCmdMenu(String(input.value || '').slice(1));
+      } else if(event.key === 'Enter' || event.key === 'Tab'){
+        event.preventDefault();
+        const item = chatCmdMenuItems[chatCmdMenuIndex];
+        if(item) insertChatCommand(item.cmd);
+      }
+    });
+    // mousedown (not click) so the input never loses focus before we insert.
+    menu.addEventListener('mousedown', function(event){
+      const btn = event.target && event.target.closest ? event.target.closest('.chat-cmd-item') : null;
+      if(!btn) return;
+      event.preventDefault();
+      insertChatCommand(btn.dataset.cmd || '');
+    });
+    // Click-away closes the menu. Wired ONCE per page, not per popup open.
+    if(!chatCmdAwayWired){
+      chatCmdAwayWired = true;
+      document.addEventListener('click', function(event){
+        const m = chatCmdMenuEl();
+        if(!m || m.hidden) return;
+        const t = event.target;
+        if(t && t.id === 'liveChatInput') return;
+        if(t && t.closest && t.closest('#chatCmdMenu')) return;
+        hideChatCmdMenu();
+      });
+    }
+  }
 
   function loadDeletedMessages(){
     try{
@@ -4962,13 +5299,13 @@ function clearDisguiseImg(){
   function renderChat(){
     const feed = document.getElementById('liveChatFeed');
     if(!feed) return;
-    const deletable = hasModPowers();
+    const deletable = myRankHasCommand('delmsg');
     const listHtml = chatMessages.length
       ? chatMessages.map(function(message){
           const img = message.image
             ? `<img class="chat-image" src="${escapeHtml(message.image)}" alt="${escapeHtml(message.imageName || 'image')}" loading="lazy">`
             : '';
-          const txt = message.text ? `<span>${escapeHtml(message.text)}</span>` : '';
+          const txt = chatTextHtml(message);
           // The ✕ is only emitted for mods and owners, and never on an owner's
           // message — keeping the "no commands on owners" rule consistent.
           const canDelete = deletable && message.rank !== 'owner';
@@ -4994,7 +5331,7 @@ function clearDisguiseImg(){
       if(!btn) return;
       event.preventDefault();
       event.stopPropagation();
-      if(!hasModPowers()) return;
+      if(!myRankHasCommand('delmsg')) return;
       requestChatDelete(btn.dataset.msgId || '');
     });
   }
@@ -5122,12 +5459,15 @@ function clearDisguiseImg(){
     chatMessages.push({
       id:id,
       name:normalizeName(message.name || 'Guest') || 'Guest',
-      rank:(message.rank === 'owner' || message.rank === 'mod') ? message.rank : '',
+      rank:(message.rank && isValidRankId(message.rank)) ? message.rank : '',
       pfp: typeof message.pfp === 'string' ? message.pfp : '',
       // Sender identity, so a later rank change can strip an OWNER badge from
       // this user's existing messages in the feed.
       fromId: typeof message.fromId === 'string' ? message.fromId : '',
       text: typeof message.text === 'string' ? message.text.trim().slice(0, 300) : '',
+      // The text effect (small / upside / spoiler / rainbow / matrix), carried
+      // on the message so every client renders it the same way.
+      fx: (typeof message.fx === 'string' && CHAT_FX_ALL.indexOf(message.fx) !== -1) ? message.fx : '',
       image: hasImage ? message.image : '',
       imageName: typeof message.imageName === 'string' ? message.imageName.slice(0, 80) : ''
     });
@@ -5160,17 +5500,25 @@ function clearDisguiseImg(){
         +`<input id="chatAttachInput" type="file" accept="image/*" hidden>`
         +`<input id="liveChatInput" type="text" maxlength="300" autocomplete="off" placeholder="${chatMuteUntil ? `Muted for ${durationLabel(chatMuteUntil)}` : 'Send a message'}" ${(client && !chatMuteUntil) ? '' : 'disabled'}>`
         +`<button id="liveChatSend" type="submit" ${(client && !chatMuteUntil) ? '' : 'disabled'}>SEND</button>`
+        // Slash-command dropdown. A child of the form so it can float ABOVE it
+        // without ever pushing the input or SEND out of view.
+        +`<div id="chatCmdMenu" hidden></div>`
       +`</form>`
       +`${chatMuteUntil ? `<p style="margin-top:.5rem;color:#ffcf8f;font-size:.7rem">You can read chat, but cannot send messages for ${durationLabel(chatMuteUntil)}.</p>` : (client ? '' : '<p style="margin-top:.5rem;color:#ff8585;font-size:.7rem">Chat is unavailable because the live service did not load.</p>')}`
-      +`${isOwnerRank() ? '<p id="ownerChatHint" style="margin-top:.5rem;color:rgba(255,214,107,.72);font-size:.68rem">Owner: type <code>/help</code> for commands, or use the panel below. Hover a message and click ✕ to delete it.</p>' : (isModRank() ? '<p id="ownerChatHint" style="margin-top:.5rem;color:rgba(159,228,255,.72);font-size:.68rem">Mod: type <code>/help</code> for your commands, or use the panel below. Hover a message and click ✕ to delete it.</p>' : '')}`
+      +`${isOwnerRank() ? '<p id="ownerChatHint" style="margin-top:.5rem;color:rgba(255,214,107,.72);font-size:.68rem">Owner: type <code>/</code> for the command menu or <code>/help</code> for the list. Hover a message and click ✕ to delete it.</p>' : (hasModPowers() ? `<p id="ownerChatHint" style="margin-top:.5rem;color:rgba(159,228,255,.72);font-size:.68rem">${escapeHtml(rankLabel(myRank) || 'Mod')}: type <code>/</code> for the command menu or <code>/help</code> for the list.${myRankHasCommand('delmsg') ? ' Hover a message and click ✕ to delete it.' : ''}</p>` : '<p id="ownerChatHint" style="margin-top:.5rem;color:rgba(57,229,140,.6);font-size:.68rem">Type <code>/</code> for the command menu — try <code>/small</code>, <code>/upside</code> or <code>/spoiler</code>.</p>')}`
       // Owner-only one-click panel. The container is always present in the
       // markup but stays empty (and therefore invisible) for non-owners.
       +`<div id="ownerPanel" hidden></div>`
+      // Owner-only RANK BUILDER host. It lives INSIDE the chat popup, below the
+      // chat form, so opening it can never cover the chat input or SEND.
+      +`<div id="rankBuilderHost" hidden><div id="rankBuilderRoot"></div></div>`
     , 'chat');
     renderChat();
     renderOwnerPanel();
     wireChatAttach();
     wireChatDelete();
+    wireChatSpoilers();
+    wireChatCommandMenu();
     const chatForm = document.getElementById('liveChatForm');
     const chatInput = document.getElementById('liveChatInput');
     if(chatInput && !chatInput.disabled) chatInput.focus();
@@ -5219,6 +5567,10 @@ function clearDisguiseImg(){
     {usage:'/chat-kick <user>',       desc:'Kick a user out of chat only'},
     {usage:'/chat-mute <user>',       desc:'Mute a user in chat only'},
     {usage:'/delmsg <id>',          desc:'Delete a chat message for everyone'},
+    {usage:'/rainbow <message>',      desc:'Animated rainbow text (mods and owners)'},
+    {usage:'/matrix <message>',       desc:'Neon-green matrix text'},
+    {usage:'/big <message>',          desc:'Big text'},
+    {usage:'/shout <message>',        desc:'Big highlighted shout text'},
     {usage:'/setmodcode <newcode>',   desc:'Change the shared mod access code'},
     {usage:'/dropowner confirm',      desc:'Remove your own OWNER rank'},
     {usage:'/help',                   desc:'List these commands'}
@@ -5230,9 +5582,13 @@ function clearDisguiseImg(){
     {usage:'/chat-kick <user>', desc:'Kick a user out of chat (10-minute cooldown)'},
     {usage:'/chat-mute <user>', desc:'Mute a user in chat (3 minutes max)'},
     {usage:'/delmsg <id>',      desc:'Delete a chat message for everyone'},
+    {usage:'/rainbow <message>', desc:'Animated rainbow text'},
+    {usage:'/matrix <message>',  desc:'Neon-green matrix text'},
+    {usage:'/big <message>',     desc:'Big text'},
+    {usage:'/shout <message>',   desc:'Big highlighted shout text'},
     {usage:'/help',             desc:'List these commands'}
   ];
-  const MOD_ALLOWED_COMMANDS = ['chat-kick', 'chat-mute', 'delmsg', 'delete'];
+  const MOD_ALLOWED_COMMANDS = ['chat-kick', 'chat-mute', 'delmsg', 'delete', 'rainbow', 'matrix', 'big', 'shout'];
 
   function commandReply(text, tone){
     const color = tone === 'error' ? '#ffadad' : (tone === 'ok' ? '#8ff0b8' : 'rgba(255,255,255,.72)');
@@ -5240,15 +5596,32 @@ function clearDisguiseImg(){
   }
 
   function commandHelpHtml(){
-    const mod = isModRank();
-    const list = mod ? MOD_COMMANDS : OWNER_COMMANDS;
-    const rows = list.map(function(c){
+    const owner = isOwnerRank();
+    const held = owner ? null : ((rankDef(myRank) && rankDef(myRank).commands) || []);
+    // The text effects this user may use come first, so a plain user sees the
+    // public ones even though they hold no moderation command at all.
+    const fxRows = myAllowedFx().map(function(fx){
+      return {usage:`/${fx} <message>`, desc:CHAT_FX_DESCS[fx]};
+    });
+    const list = fxRows.concat(owner ? OWNER_COMMANDS : MOD_COMMANDS.filter(function(c){
+      const cmd = String(c.usage).replace(/^\//, '').split(' ')[0];
+      return cmd === 'help' || held.indexOf(cmd) !== -1;
+    }));
+    const seen = {};
+    const rows = list.filter(function(c){
+      const cmd = String(c.usage).replace(/^\//, '').split(' ')[0];
+      if(seen[cmd]) return false;
+      seen[cmd] = true;
+      return true;
+    }).map(function(c){
       return `<div class="cmd-row"><code>${escapeHtml(c.usage)}</code><span>${escapeHtml(c.desc)}</span></div>`;
     }).join('');
-    const intro = mod
-      ? 'Mod commands — type them into the chat box. Mods can only chat kick and chat mute.'
-      : 'Owner commands — type them into the chat box.';
-    return `<p style="margin-bottom:.6rem;color:rgba(255,255,255,.6)">${intro}</p><div class="cmd-list">${rows}</div>`;
+    const intro = owner
+      ? 'Owner commands — type them into the chat box.'
+      : (hasModPowers()
+          ? `${rankLabel(myRank) || 'Mod'} commands — type them into the chat box. This rank holds: ${rankCommandLabels().join(', ') || 'no commands'}.`
+          : 'Chat commands — type them into the chat box. Type / to see this list as a menu.');
+    return `<p style="margin-bottom:.6rem;color:rgba(255,255,255,.6)">${escapeHtml(intro)}</p><div class="cmd-list">${rows}</div>`;
   }
 
   function findRosterUser(query){
@@ -5377,21 +5750,43 @@ function clearDisguiseImg(){
     const done = function(text){ report(text, 'ok'); return {ok:true, message:text, tone:'ok'}; };
 
     if(name === 'help' || name === 'commands'){
-      if(!hasModPowers()) return fail("You don't have permission to use owner commands.");
-      showPopup(isModRank() ? 'MOD COMMANDS' : 'OWNER COMMANDS', commandHelpHtml());
+      // Every rank may list its own commands \u2014 a plain user sees the public
+      // text effects, a mod/owner sees their moderation set on top.
+      showPopup(isOwnerRank() ? 'OWNER COMMANDS' : ((rankLabel(myRank) || (hasModPowers() ? 'MOD' : 'CHAT')) + ' COMMANDS'), commandHelpHtml());
+      return {ok:true, message:'', tone:'ok'};
+    }
+
+    /* \u2500\u2500 CHAT TEXT EFFECTS \u2500\u2500
+       /small, /upside and /spoiler are open to EVERYONE; /rainbow and /matrix
+       are gated on the rank actually holding them. The effect is published as
+       an ordinary chat message carrying `fx`, so every client renders it the
+       same way. No popup is shown \u2014 the user is in chat, and a popup would
+       replace the chat window. */
+    if(CHAT_FX_ALL.indexOf(name) !== -1){
+      if(!fxAllowed(name)) return fail("You don't have permission to use that command.");
+      if(!arg) return fail(`Usage: /${name} <message>`);
+      if(activeUntil('chatBanUntil')) return fail('You cannot send chat messages right now.');
+      if(activeUntil('chatMuteUntil')) return fail('You are muted in chat right now.');
+      if(!client) return fail('The live service is unavailable, so nothing was sent.');
+      const fxMessage = {
+        id:`${myId}-${Date.now()}-${Math.random().toString(36).slice(2,7)}`,
+        fromId:myId, name:myName, rank:myRank, pfp:myPfp,
+        text:arg.slice(0, 300), fx:name, sentAt:Date.now()
+      };
+      addChatMessage(fxMessage);
+      client.publish({channel:CHAT_CHANNEL, message:fxMessage}).catch(function(){});
       return {ok:true, message:'', tone:'ok'};
     }
 
     // Unknown command → not ours. The typed path falls through to chat.
-    if(['announcement','announce','clear','kick','mute','unmute','dropowner','drop-owner','resign','unowner','chat-kick','chat-mute','setmodcode','delmsg','delete'].indexOf(name) === -1){
+    if(['announcement','announce','clear','kick','mute','unmute','dropowner','drop-owner','resign','unowner','chat-kick','chat-mute','setmodcode','delmsg','delete'].concat(CHAT_FX_ALL).indexOf(name) === -1){
       return {ok:false, message:'', tone:'error', unknown:true};
     }
 
-    // ── RANK GATE ── owners get everything; mods get exactly the two
-    // commands in MOD_ALLOWED_COMMANDS; everyone else gets a reply and nothing
-    // is broadcast.
-    const modAllowed = isModRank() && MOD_ALLOWED_COMMANDS.indexOf(name) !== -1;
-    if(!isOwnerRank() && !modAllowed){
+    // ── RANK GATE ── owners get everything; every other rank gets exactly
+    // the commands its definition grants (mods: chat kick, chat mute, delete).
+    // Anything else gets a reply and nothing is broadcast.
+    if(!myRankHasCommand(name)){
       return fail("You don't have permission to use that command.");
     }
 
@@ -5521,14 +5916,16 @@ function clearDisguiseImg(){
   const ACTION_LOG_LABELS = {
     'kick':'KICK', 'mute':'MUTE', 'unmute':'UNMUTE', 'ban':'BAN',
     'chat-ban':'CHAT BAN', 'chat-kick':'CHAT KICK', 'chat-mute':'CHAT MUTE', 'dropowner':'DROP OWNER',
-    'chat-delete':'DELETED MSG'
+    'chat-delete':'DELETED MSG',
+    'rank-give':'RANK GIVE', 'rank-clear':'RANK CLEAR', 'rank-create':'RANK NEW', 'rank-delete':'RANK DEL'
   };
   /* Colour accent per action type: red for the severe ones, amber for the
      reversible ones, green for the restorative one. */
   const ACTION_LOG_TONES = {
     'kick':'severe', 'ban':'severe', 'chat-ban':'severe', 'chat-kick':'severe',
     'mute':'warn', 'chat-mute':'warn', 'dropowner':'warn', 'unmute':'ok',
-    'chat-delete':'severe'
+    'chat-delete':'severe',
+    'rank-give':'ok', 'rank-clear':'warn', 'rank-create':'ok', 'rank-delete':'severe'
   };
   let actionLog = loadActionLog();
   let actionLogFilter = '';   // '' = ALL USERS, otherwise a target user id
@@ -5603,6 +6000,7 @@ function clearDisguiseImg(){
   }
 
   function clearActionLog(){
+    if(!isOwnerRank()) return;   // the log is owner-only, so only an owner may wipe it
     actionLog = [];
     saveActionLog();
     renderActionLog();
@@ -5614,8 +6012,12 @@ function clearDisguiseImg(){
      optional flag scrolls the list back to the top so a brand-new entry is
      never off-screen inside the inner scroller. */
   function renderActionLog(scrollToNewest){
+    /* The action log is OWNER-ONLY. For every other rank there is no list element
+       to fill, and this guard wipes one defensively if it ever existed - so the
+       entries are genuinely absent from the DOM, never merely hidden by CSS. */
     const list = document.getElementById('actionLogList');
     if(!list) return;
+    if(!isOwnerRank()){ list.innerHTML = ''; return; }
     const filterEl = document.getElementById('actionLogFilter');
     if(filterEl){
       const target = actionLogFilter
@@ -5646,34 +6048,38 @@ function clearDisguiseImg(){
      its owner left it. Collapsing hides the body outright (rather than leaving
      an empty gap) and leaves just the header line inside the panel border. */
   const OWNER_PANEL_OPEN_KEY = 'idkgg_owner_panel_open';
+  const MOD_PANEL_OPEN_KEY = 'idkgg_mod_panel_open';
 
-  function ownerPanelIsOpen(){
-    try{ return localStorage.getItem(OWNER_PANEL_OPEN_KEY) !== '0'; }catch(e){ return true; }
+  /* One collapse implementation serves BOTH panels: the owner panel and the mod
+     panel each keep their own remembered flag, so a panel a user shut stays
+     shut across reloads. Collapsing hides the body outright, so no empty gap is
+     left behind - the panel shrinks to its header row inside the border. */
+  function activePanelOpenKey(){
+    return isOwnerRank() ? OWNER_PANEL_OPEN_KEY : MOD_PANEL_OPEN_KEY;
   }
 
-  function setOwnerPanelOpen(open){
-    try{ localStorage.setItem(OWNER_PANEL_OPEN_KEY, open ? '1' : '0'); }catch(e){}
-    applyOwnerPanelOpen();
+  function panelIsOpen(key){
+    try{ return localStorage.getItem(key || activePanelOpenKey()) !== '0'; }catch(e){ return true; }
   }
 
-  function applyOwnerPanelOpen(){
+  function setPanelOpen(key, open){
+    try{ localStorage.setItem(key || activePanelOpenKey(), open ? '1' : '0'); }catch(e){}
+    applyPanelOpen();
+  }
+
+  function applyPanelOpen(){
     const panel = document.getElementById('ownerPanel');
-    const body = document.getElementById('ownerPanelBody');
-    const toggle = document.getElementById('ownerPanelToggle');
     if(!panel) return;
-    // The mod panel has no collapse toggle, so the remembered owner-panel state
-    // must never be applied to it (that would hide it with no way back).
-    if(!isOwnerRank()){
-      panel.classList.remove('collapsed');
-      if(body) body.hidden = false;
-      return;
-    }
-    const open = ownerPanelIsOpen();
+    const mod = !isOwnerRank();
+    const key = mod ? MOD_PANEL_OPEN_KEY : OWNER_PANEL_OPEN_KEY;
+    const open = panelIsOpen(key);
+    const body = document.getElementById(mod ? 'modPanelBody' : 'ownerPanelBody');
+    const toggle = document.getElementById(mod ? 'modPanelHead' : 'ownerPanelToggle');
     panel.classList.toggle('collapsed', !open);
     if(body) body.hidden = !open;
     if(toggle){
       toggle.setAttribute('aria-expanded', open ? 'true' : 'false');
-      toggle.title = open ? 'Collapse the owner panel' : 'Expand the owner panel';
+      toggle.title = open ? 'Collapse this panel' : 'Expand this panel';
     }
   }
 
@@ -5697,7 +6103,7 @@ function clearDisguiseImg(){
     if(!select) return;
     const targets = ownerPanelTargets();
     const previous = select.value;
-    select.innerHTML = `<option value="">${isModRank() ? '\u2014 PICK A USER \u2014' : '\u2014 ALL USERS \u2014'}</option>`
+    select.innerHTML = `<option value="">${isOwnerRank() ? '\u2014 ALL USERS \u2014' : '\u2014 PICK A USER \u2014'}</option>`
       + targets.map(function(u){ return `<option value="${escapeHtml(u.id)}">${escapeHtml(u.name)}</option>`; }).join('');
     const valid = previous === '' || targets.some(function(u){ return u.id === previous; });
     select.value = valid ? previous : '';
@@ -5720,35 +6126,65 @@ function clearDisguiseImg(){
      so there is nothing for a mod to reach. */
   function renderModPanel(panel){
     panel.hidden = false;
+    const def = rankDef(myRank) || {name:'MOD', color:'#9fe4ff'};
+    const color = def.color || '#9fe4ff';
+    const rankName = def.name || 'MOD';
+    /* Only the controls this rank actually holds are rendered — a rank without
+       a command has no button for it, so there is nothing to reach. */
+    const targetBtns = [];
+    if(myRankHasCommand('chat-kick')) targetBtns.push(`<button class="owner-btn owner-btn-warn" type="button" id="modChatKickBtn">CHAT KICK</button>`);
+    if(myRankHasCommand('chat-mute')) targetBtns.push(`<button class="owner-btn owner-btn-warn" type="button" id="modChatMuteBtn">CHAT MUTE</button>`);
+    if(myRankHasCommand('kick'))      targetBtns.push(`<button class="owner-btn owner-btn-danger" type="button" id="modKickBtn">KICK SITE</button>`);
+    if(myRankHasCommand('mute'))      targetBtns.push(`<button class="owner-btn owner-btn-warn" type="button" id="modMuteBtn">MUTE SITE</button>`);
+    if(myRankHasCommand('unmute'))    targetBtns.push(`<button class="owner-btn owner-btn-ok" type="button" id="modUnmuteBtn">UNMUTE</button>`);
+    if(myRankHasCommand('chat-ban'))  targetBtns.push(`<button class="owner-btn owner-btn-danger" type="button" id="modChatBanBtn">CHAT BAN</button>`);
+    if(myRankHasCommand('ban'))       targetBtns.push(`<button class="owner-btn owner-btn-danger" type="button" id="modBanBtn">BAN SITE</button>`);
+    const extraRows = [];
+    if(myRankHasCommand('announcement')){
+      extraRows.push(`<div class="owner-panel-row">`
+        +`<input id="ownerAnnounceInput" type="text" maxlength="200" autocomplete="off" placeholder="Announcement message\u2026">`
+        +`<button class="owner-btn owner-btn-primary" type="button" id="ownerAnnounceBtn">SEND ANNOUNCEMENT</button>`
+      +`</div>`);
+    }
+    if(myRankHasCommand('clear')){
+      extraRows.push(`<div class="owner-panel-row"><button class="owner-btn owner-btn-warn" type="button" id="ownerClearBtn">CLEAR CHAT</button></div>`);
+    }
+    if(myRankHasCommand('setmodcode')){
+      extraRows.push(`<div class="owner-panel-row">`
+        +`<input id="modCodeInput" type="text" maxlength="40" autocomplete="off" placeholder="New mod access code\u2026">`
+        +`<button class="owner-btn owner-btn-primary" type="button" id="modCodeBtn">SET MOD CODE</button>`
+      +`</div>`);
+    }
+    if(myRankHasCommand('dropowner')){
+      extraRows.push(`<div class="owner-panel-danger" id="ownerDangerZone"></div>`);
+    }
     panel.innerHTML =
-      `<div class="owner-panel-head">`
-        +`<span class="owner-panel-title" style="color:#9fe4ff;text-shadow:0 0 12px rgba(90,200,255,.45)">\u26a1 MOD PANEL</span>`
+      `<div class="owner-panel-head mod-panel-head" id="modPanelHead" role="button" tabindex="0" aria-expanded="true" aria-controls="modPanelBody" title="Collapse this panel">`
+        +`<span class="owner-panel-chevron mod-panel-chevron" id="modPanelChevron" style="color:${color}">\u25be</span>`
+        +`<span class="owner-panel-title" style="color:${color};text-shadow:0 0 12px ${hexToRgba(color,0.45)}">\u26a1 ${escapeHtml(rankName)} PANEL</span>`
         +`<button class="owner-mini-btn" type="button" id="modHelpBtn">? HELP</button>`
       +`</div>`
-      +`<div class="owner-panel-body">`
+      +`<div class="owner-panel-body" id="modPanelBody">`
+        + extraRows.join('')
         +`<div class="owner-panel-row">`
           +`<select id="ownerTargetSelect" aria-label="Choose a user"></select>`
-          +`<button class="owner-btn owner-btn-warn" type="button" id="modChatKickBtn">CHAT KICK</button>`
-          +`<button class="owner-btn owner-btn-warn" type="button" id="modChatMuteBtn">CHAT MUTE</button>`
+          + targetBtns.join('')
         +`</div>`
-        +`<p class="moderation-note">Mod powers: chat kick, chat mute and deleting messages. Mutes are capped at 3 minutes; kicks have a 10-minute cooldown.</p>`
-        +`<div class="owner-panel-log">`
-          +`<div class="action-log-head">`
-            +`<span class="action-log-title">▤ ACTION LOG</span>`
-            +`<span class="action-log-filter" id="actionLogFilter">ALL USERS</span>`
-            +`<button class="owner-btn-mini" type="button" id="actionLogAllBtn">ALL</button>`
-          +`</div>`
-          +`<div class="action-log-list" id="actionLogList"></div>`
-          +`<div class="owner-panel-row" style="margin-top:.45rem">`
-            +`<button class="owner-btn owner-btn-danger" type="button" id="ownerDeleteMsgBtn" title="Delete a chat message for everyone">DELETE MESSAGE\u2026</button>`
-          +`</div>`
-          +`<p class="moderation-note">Tip: <code>/delmsg &lt;id&gt;</code> deletes a message by id. Hovering a chat message also reveals a ✕ for mods and owners. You cannot delete an owner's message.</p>`
-        +`</div>`
+        +`<p class="moderation-note">${escapeHtml(rankName)} powers: ${escapeHtml(rankCommandLabels().join(', ') || 'none')}. Mutes are capped at 3 minutes; kicks have a 10-minute cooldown.</p>`
+        + (myRankHasCommand('delmsg')
+            ? `<div class="owner-panel-row">`
+                +`<button class="owner-btn owner-btn-danger" type="button" id="ownerDeleteMsgBtn" title="Delete a chat message for everyone">DELETE MESSAGE\u2026</button>`
+              +`</div>`
+              +`<p class="moderation-note">Tip: <code>/delmsg &lt;id&gt;</code> deletes a message by id. Hovering a chat message also reveals a \u2715. You cannot delete an owner's message.</p>`
+            : '')
         +`<div class="owner-panel-status" id="ownerPanelStatus"></div>`
       +`</div>`;
     const select = document.getElementById('ownerTargetSelect');
     const helpBtn = document.getElementById('modHelpBtn');
-    if(helpBtn) helpBtn.addEventListener('click', function(){ runOwnerPanelCommand('help', ''); });
+    if(helpBtn) helpBtn.addEventListener('click', function(ev){
+      ev.stopPropagation();
+      runOwnerPanelCommand('help', '');
+    });
     function targetAction(name){
       const target = (select && select.value)
         ? onlineUsers.find(function(u){ return u.id === select.value; }) : null;
@@ -5758,27 +6194,49 @@ function clearDisguiseImg(){
       }
       runOwnerPanelCommand(name, target.name, target);
     }
-    const kickBtn = document.getElementById('modChatKickBtn');
-    const muteBtn = document.getElementById('modChatMuteBtn');
-    if(kickBtn) kickBtn.addEventListener('click', function(){ targetAction('chat-kick'); });
-    if(muteBtn) muteBtn.addEventListener('click', function(){ targetAction('chat-mute'); });
+    [['modChatKickBtn','chat-kick'],['modChatMuteBtn','chat-mute'],['modKickBtn','kick'],
+     ['modMuteBtn','mute'],['modUnmuteBtn','unmute'],['modChatBanBtn','chat-ban'],['modBanBtn','ban']]
+      .forEach(function(pair){
+        const btn = document.getElementById(pair[0]);
+        if(btn) btn.addEventListener('click', function(){ targetAction(pair[1]); });
+      });
     const modDelBtn = document.getElementById('ownerDeleteMsgBtn');
     if(modDelBtn) modDelBtn.addEventListener('click', function(){ openDeleteMessageDialog(); });
-    /* Mods see the same shared action log (read-only): picking a user narrows it
-       to that user's history, and ALL clears the filter again. */
-    if(select) select.addEventListener('change', function(){
-      actionLogFilter = select.value || '';
-      renderActionLog();
+    const announceBtn = document.getElementById('ownerAnnounceBtn');
+    const announceInput = document.getElementById('ownerAnnounceInput');
+    function sendAnnouncement(){
+      const text = announceInput ? announceInput.value.trim() : '';
+      if(!text){ ownerPanelStatus('Type a message to announce.', 'error'); return; }
+      const result = runOwnerPanelCommand('announcement', text);
+      if(result && result.ok && announceInput) announceInput.value = '';
+    }
+    if(announceBtn) announceBtn.addEventListener('click', sendAnnouncement);
+    if(announceInput) announceInput.addEventListener('keydown', function(ev){
+      if(ev.key === 'Enter'){ ev.preventDefault(); sendAnnouncement(); }
     });
-    const modAllBtn = document.getElementById('actionLogAllBtn');
-    if(modAllBtn) modAllBtn.addEventListener('click', function(){
-      actionLogFilter = '';
-      if(select) select.value = '';
-      renderActionLog();
-      ownerPanelStatus("Showing every user's recent actions.", 'ok');
+    const clearBtn = document.getElementById('ownerClearBtn');
+    if(clearBtn) clearBtn.addEventListener('click', function(){ runOwnerPanelCommand('clear', ''); });
+    const modCodeBtn = document.getElementById('modCodeBtn');
+    const modCodeInput = document.getElementById('modCodeInput');
+    if(modCodeBtn) modCodeBtn.addEventListener('click', function(){
+      const code = modCodeInput ? modCodeInput.value.trim() : '';
+      const result = runOwnerPanelCommand('setmodcode', code);
+      if(result && result.ok && modCodeInput) modCodeInput.value = '';
     });
+    /* The mod panel collapses and expands exactly like the owner panel, with its
+       OWN remembered state. The whole head row is the toggle. */
+    const modHead = document.getElementById('modPanelHead');
+    if(modHead){
+      modHead.addEventListener('click', function(){ setPanelOpen(MOD_PANEL_OPEN_KEY, !panelIsOpen(MOD_PANEL_OPEN_KEY)); });
+      modHead.addEventListener('keydown', function(ev){
+        if(ev.key === 'Enter' || ev.key === ' ' || ev.key === 'Spacebar'){
+          ev.preventDefault();
+          setPanelOpen(MOD_PANEL_OPEN_KEY, !panelIsOpen(MOD_PANEL_OPEN_KEY));
+        }
+      });
+    }
     refreshOwnerTargets();
-    renderActionLog();
+    applyPanelOpen();
   }
 
   /* Pick-a-message dialog, used by the panel's DELETE MESSAGE button. Only
@@ -5786,7 +6244,7 @@ function clearDisguiseImg(){
      remove — an owner's message is never offered. The chosen message then goes
      through the same confirmation gate as the hover ✕. */
   function openDeleteMessageDialog(){
-    if(!hasModPowers()) return;
+    if(!myRankHasCommand('delmsg')) return;
     const candidates = chatMessages.filter(function(m){ return m.rank !== 'owner'; });
     const rows = candidates.length
       ? candidates.slice(-12).reverse().map(function(m){
@@ -5807,8 +6265,12 @@ function clearDisguiseImg(){
   function renderOwnerPanel(){
     const panel = document.getElementById('ownerPanel');
     if(!panel) return;
-    if(isModRank()){
-      renderModPanel(panel);
+    if(!isOwnerRank()){
+      // Only a rank that actually holds commands gets a panel. A plain user —
+      // and a custom rank with no commands — gets nothing at all, not an empty
+      // shell.
+      if(rankHasAnyCommand()) renderModPanel(panel);
+      else { panel.hidden = true; panel.innerHTML = ''; }
       return;
     }
     if(myRank !== 'owner'){
@@ -5994,20 +6456,36 @@ function clearDisguiseImg(){
     renderDangerZone();
 
     const toggleBtn = document.getElementById('ownerPanelToggle');
-    if(toggleBtn) toggleBtn.addEventListener('click', function(){ setOwnerPanelOpen(!ownerPanelIsOpen()); });
+    if(toggleBtn) toggleBtn.addEventListener('click', function(){ setPanelOpen(OWNER_PANEL_OPEN_KEY, !panelIsOpen(OWNER_PANEL_OPEN_KEY)); });
 
     refreshOwnerTargets();
     if(select) select.value = actionLogFilter;
-    applyOwnerPanelOpen();
+    applyPanelOpen();
   }
 
   function updateIdentityView(){
     if(usernameEl) usernameEl.textContent = myName || '…';
+    // The RANKS button exists only for an owner — injected here, removed for
+    // every other rank, so it is never merely hidden.
+    renderRanksButton();
     if(rankBadge){
-      const ranked = myRank === 'owner' || myRank === 'mod';
+      const def = rankDef(myRank);
+      const ranked = !!(def && def.enabled !== false);
       rankBadge.hidden = !ranked;
-      rankBadge.textContent = myRank === 'mod' ? 'MOD' : 'OWNER';
       rankBadge.classList.toggle('mod', myRank === 'mod');
+      rankBadge.classList.toggle('custom', !!(def && !def.builtin));
+      if(ranked){
+        rankBadge.textContent = def.name;
+        if(def.builtin){
+          rankBadge.style.borderColor = '';
+          rankBadge.style.color = '';
+          rankBadge.style.background = '';
+        }else{
+          rankBadge.style.borderColor = def.color;
+          rankBadge.style.color = def.color;
+          rankBadge.style.background = hexToRgba(def.color, 0.12);
+        }
+      }
     }
     const chip = document.getElementById('liveUserBtn');
     if(chip){
@@ -6038,18 +6516,24 @@ function clearDisguiseImg(){
       rankBadge.setAttribute('hidden', '');
       rankBadge.textContent = 'OWNER';
       rankBadge.classList.remove('mod');
+      rankBadge.classList.remove('custom');
+      rankBadge.style.borderColor = '';
+      rankBadge.style.color = '';
+      rankBadge.style.background = '';
     }
   }
 
+  /* A saved rank is restored only while it is still valid — a custom rank that
+     was disabled or deleted in the meantime must not come back on reload. */
   function getSavedRank(){
     try{
       const saved = localStorage.getItem('idkgg_saved_rank');
-      return (saved === 'owner' || saved === 'mod') ? saved : '';
+      return (saved && isValidRankId(saved)) ? saved : '';
     }catch(e){ return ''; }
   }
   function setSavedRank(rank){
     try{
-      if(rank === 'owner' || rank === 'mod') localStorage.setItem('idkgg_saved_rank', rank);
+      if(rank && isValidRankId(rank)) localStorage.setItem('idkgg_saved_rank', rank);
       else localStorage.removeItem('idkgg_saved_rank');
     }catch(e){}
   }
@@ -6075,14 +6559,31 @@ function clearDisguiseImg(){
   }
   function isOwnerRank(){ return myRank === 'owner'; }
   function isModRank(){ return myRank === 'mod'; }
-  function hasModPowers(){ return myRank === 'owner' || myRank === 'mod'; }
+  /* "Can moderate at all" — owners, mods, and any custom rank the owner gave at
+     least one moderation command. Used for the roster MANAGE menu and the
+     message-delete control; the per-command gate is myRankHasCommand(). */
+  function hasModPowers(){ return isOwnerRank() || isModRank() || rankCanModerate(); }
+
+  function hexToRgba(hex, alpha){
+    const m = /^#([0-9a-fA-F]{6})$/.exec(String(hex || ''));
+    if(!m) return `rgba(90,200,255,${alpha})`;
+    const n = parseInt(m[1], 16);
+    return `rgba(${(n >> 16) & 255},${(n >> 8) & 255},${n & 255},${alpha})`;
+  }
 
   /* One place that renders a rank badge, so chat, roster, toasts and the
-     moderation menu can never drift apart. */
+     moderation menu can never drift apart. A custom rank is tinted with its
+     own colour, which is what makes the colour picker actually visible. */
   function rankBadgeHtml(rank, extraStyle){
-    if(rank !== 'owner' && rank !== 'mod') return '';
-    const style = extraStyle ? ` style="${extraStyle}"` : '';
-    return ` <span class="rank-badge${rank === 'mod' ? ' mod' : ''}"${style}>${rank === 'mod' ? 'MOD' : 'OWNER'}</span>`;
+    const def = rankDef(rank);
+    if(!def || def.enabled === false) return '';
+    if(def.builtin){
+      const style = extraStyle ? ` style="${extraStyle}"` : '';
+      return ` <span class="rank-badge${rank === 'mod' ? ' mod' : ''}"${style}>${def.name}</span>`;
+    }
+    const extra = extraStyle ? extraStyle.replace(/;?\s*$/, ';') : '';
+    const color = def.color;
+    return ` <span class="rank-badge custom" style="${extra}border-color:${color};color:${color};background:${hexToRgba(color, 0.12)}">${escapeHtml(def.name)}</span>`;
   }
 
   /* Per-mod kick cooldown, persisted so a reload cannot reset it. */
@@ -6138,6 +6639,388 @@ function clearDisguiseImg(){
         });
         if(latest) setModCode(latest.code);
       }).catch(function(){});
+  }
+
+  /* ══════════════════════════════════════════════════════════════════════
+     CUSTOM RANKS — the RANK BUILDER
+     A custom rank is a REAL rank in the same permission system as owner and
+     mod: it lives in myRank, in the shared presence state, and in the same
+     command gate. A rank carries a name, a colour, a set of allowed commands
+     and an access code. Definitions AND assignments are shared over the
+     existing moderation channel and seeded from its retained history, so every
+     client validates against the same codes and shows the same badges.
+     ══════════════════════════════════════════════════════════════════════ */
+  const CUSTOM_RANKS_KEY = 'idkgg_custom_ranks_v1';
+  const RANK_ASSIGN_KEY = 'idkgg_rank_assign_v1';
+  const MOD_RANK_ENABLED_KEY = 'idkgg_mod_rank_enabled_v1';
+  const RANK_BUILDER_OPEN_KEY = 'idkgg_rank_builder_open';
+  const RANK_NAME_MAX = 18;
+  const RANK_CODE_MAX = 40;
+  const RANK_MAX = 24;
+  /* The commands a custom rank can be granted. Kept as data so the panel's
+     checkboxes, the help list and the gate can never disagree. */
+  const RANK_COMMANDS = [
+    {id:'chat-kick',    label:'CHAT KICK'},
+    {id:'chat-mute',    label:'CHAT MUTE'},
+    {id:'delmsg',       label:'DELETE MSG'},
+    {id:'announcement', label:'ANNOUNCE'},
+    {id:'clear',        label:'CLEAR CHAT'},
+    {id:'kick',         label:'KICK SITE'},
+    {id:'mute',         label:'MUTE SITE'},
+    {id:'unmute',       label:'UNMUTE'},
+    {id:'ban',          label:'BAN SITE'},
+    {id:'chat-ban',     label:'CHAT BAN'},
+    {id:'dropowner',    label:'DROP OWNER'},
+    {id:'setmodcode',   label:'SET MOD CODE'},
+    {id:'matrix',       label:'MATRIX TEXT'},
+    {id:'big',          label:'BIG TEXT'},
+    {id:'shout',        label:'SHOUT TEXT'}
+  ];
+  const RANK_COLOR_PRESETS = ['#ff5a5a','#ffb347','#ffe066','#39e58c','#5ac8ff','#b98cff','#ff7ad9','#ffffff'];
+  const DEFAULT_RANK_COLOR = '#5ac8ff';
+
+  let customRanks = loadCustomRanks();
+  let rankAssignments = loadRankAssignments();
+  let rankBuilderOpen = true;
+  let lastRanksAt = 0;
+
+  function loadCustomRanks(){
+    try{
+      const raw = localStorage.getItem(CUSTOM_RANKS_KEY);
+      const parsed = raw ? JSON.parse(raw) : [];
+      if(!Array.isArray(parsed)) return [];
+      return parsed.filter(function(r){ return r && typeof r.id === 'string' && r.id; }).slice(0, RANK_MAX);
+    }catch(e){ return []; }
+  }
+  function saveCustomRanks(){
+    try{ localStorage.setItem(CUSTOM_RANKS_KEY, JSON.stringify(customRanks.slice(0, RANK_MAX))); }catch(e){}
+  }
+  function loadRankAssignments(){
+    try{
+      const raw = localStorage.getItem(RANK_ASSIGN_KEY);
+      const parsed = raw ? JSON.parse(raw) : {};
+      return (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) ? parsed : {};
+    }catch(e){ return {}; }
+  }
+  function saveRankAssignments(){
+    try{ localStorage.setItem(RANK_ASSIGN_KEY, JSON.stringify(rankAssignments)); }catch(e){}
+  }
+  function modRankEnabled(){
+    try{ return localStorage.getItem(MOD_RANK_ENABLED_KEY) !== '0'; }catch(e){ return true; }
+  }
+  function setModRankEnabled(on){
+    try{ localStorage.setItem(MOD_RANK_ENABLED_KEY, on ? '1' : '0'); }catch(e){}
+  }
+
+  function findCustomRank(id){
+    const key = String(id || '');
+    return customRanks.find(function(r){ return r.id === key; }) || null;
+  }
+  /* A rank id is valid when it is a built-in rank, or a custom rank that still
+     exists. A disabled rank is NOT valid: it can neither be entered nor used. */
+  function isValidRankId(id){
+    const key = String(id || '');
+    if(key === 'owner') return true;
+    if(key === 'mod') return modRankEnabled();
+    const custom = findCustomRank(key);
+    return !!(custom && custom.enabled !== false);
+  }
+  function isCustomRankId(id){
+    const key = String(id || '');
+    return key !== 'owner' && key !== 'mod' && !!findCustomRank(key);
+  }
+  function isCustomRank(){ return isCustomRankId(myRank); }
+
+  /* One definition lookup, so the badge, the gate and the panel all read the
+     same name / colour / command set. */
+  function rankDef(id){
+    const key = String(id || '');
+    if(key === 'owner') return {id:'owner', name:'OWNER', color:'#ffd66b', commands:null, builtin:true, enabled:true};
+    if(key === 'mod')   return {id:'mod',   name:'MOD',   color:'#9fe4ff', commands:MOD_ALLOWED_COMMANDS.slice(), builtin:true, enabled:modRankEnabled()};
+    const custom = findCustomRank(key);
+    if(!custom) return null;
+    return {
+      id:custom.id, name:custom.name, color:custom.color || DEFAULT_RANK_COLOR,
+      commands:Array.isArray(custom.commands) ? custom.commands.slice() : [],
+      builtin:false, enabled:custom.enabled !== false
+    };
+  }
+  function rankLabel(id){
+    const def = rankDef(id);
+    return def ? def.name : '';
+  }
+  function rankColor(id){
+    const def = rankDef(id);
+    return def ? def.color : '#ffd66b';
+  }
+  /* Does the rank currently held by THIS user allow this command? Owners hold
+     every command; mods hold exactly MOD_ALLOWED_COMMANDS; a custom rank holds
+     exactly what the owner ticked for it. */
+  function myRankHasCommand(name){
+    if(isOwnerRank()) return true;
+    const key = String(name || '');
+    if(!key) return false;
+    if(isModRank()) return MOD_ALLOWED_COMMANDS.indexOf(key) !== -1;
+    const def = rankDef(myRank);
+    if(!def || def.enabled === false) return false;
+    return (def.commands || []).indexOf(key) !== -1;
+  }
+  /* Any rank that can moderate at all gets the roster MANAGE menu and the
+     message-delete control. */
+  function rankCanModerate(){
+    if(isOwnerRank()) return true;
+    const def = rankDef(myRank);
+    if(!def || def.enabled === false) return false;
+    return (def.commands || []).some(function(c){
+      return ['chat-kick','chat-mute','delmsg','kick','mute','unmute','ban','chat-ban'].indexOf(c) !== -1;
+    });
+  }
+  /* Does the current rank hold ANY command at all? A rank with no commands has
+     nothing to show, so it gets no panel — and a plain user (no rank) gets
+     none either. */
+  function rankHasAnyCommand(){
+    if(isOwnerRank()) return true;
+    const def = rankDef(myRank);
+    if(!def || def.enabled === false) return false;
+    return (def.commands || []).length > 0;
+  }
+  /* Human labels for the commands the current rank holds, for the panel notes
+     and the help list. */
+  function rankCommandLabels(){
+    const def = rankDef(myRank);
+    if(!def) return [];
+    return (def.commands || []).map(function(c){
+      const found = RANK_COMMANDS.find(function(rc){ return rc.id === c; });
+      return found ? found.label : String(c).toUpperCase();
+    });
+  }
+
+  /* ── SHARED STATE ──
+     Definitions and assignments travel together on the existing moderation
+     channel, and are seeded from its retained history on load so a client that
+     connects after a change still validates against the current codes. */
+  function publishRanks(){
+    if(!client) return;
+    client.publish({channel:MODERATION_CHANNEL, message:{
+      id:`ranks-${myId}-${Date.now()}-${Math.random().toString(36).slice(2,7)}`,
+      action:'ranks',
+      defs:customRanks,
+      assign:rankAssignments,
+      modEnabled:modRankEnabled(),
+      issuedAt:Date.now()
+    }}).catch(function(){});
+  }
+  function applyRanksPayload(payload){
+    if(!payload) return;
+    const at = Number(payload.issuedAt) || 0;
+    if(at && at < lastRanksAt) return;   // an older snapshot never overwrites a newer one
+    if(at) lastRanksAt = at;
+    if(Array.isArray(payload.defs)){
+      customRanks = payload.defs.filter(function(r){ return r && typeof r.id === 'string' && r.id; }).slice(0, RANK_MAX);
+      saveCustomRanks();
+    }
+    if(payload.assign && typeof payload.assign === 'object' && !Array.isArray(payload.assign)){
+      rankAssignments = payload.assign;
+      saveRankAssignments();
+    }
+    if(typeof payload.modEnabled === 'boolean') setModRankEnabled(payload.modEnabled);
+    // A rank that was disabled or deleted while we held it must stop working.
+    if(myRank && !isValidRankId(myRank)){
+      myRank = '';
+      setSavedRank('');
+      clearRank();
+      updateIdentityView();
+      renderOwnerPanelForRank();
+    }
+    refreshRosterViews();
+    renderChat();
+    if(document.getElementById('rankBuilderRoot')) renderRankBuilder();
+  }
+  function seedRanksFromHistory(){
+    if(!client || typeof client.fetchMessages !== 'function') return;
+    // NOTE: no `end` — PubNub's `end` is a timetoken, not a millisecond stamp.
+    client.fetchMessages({channels:[MODERATION_CHANNEL], count:100})
+      .then(function(result){
+        const list = (result && result.channels && result.channels[MODERATION_CHANNEL]) || [];
+        let latest = null;
+        list.forEach(function(entry){
+          const m = (entry && entry.message) ? entry.message : entry;
+          if(m && m.action === 'ranks' && Array.isArray(m.defs)){
+            if(!latest || (Number(m.issuedAt) || 0) >= (Number(latest.issuedAt) || 0)) latest = m;
+          }
+        });
+        if(latest) applyRanksPayload(latest);
+      }).catch(function(){});
+  }
+
+  /* ── ASSIGN / CLEAR ──
+     Both are strictly owner-only: the UI never renders the control for anyone
+     else, and each function re-checks the rank itself so no other path can
+     reach it. Every change is broadcast and recorded in the action log. */
+  function applyRankToUser(userId, rankId){
+    const id = String(userId || '');
+    if(!id) return;
+    if(rankId) rankAssignments[id] = rankId;
+    else delete rankAssignments[id];
+    saveRankAssignments();
+    // Reflect it locally right away, so the badge moves without waiting for the
+    // presence round-trip.
+    onlineUsers.forEach(function(user){ if(user.id === id) user.rank = rankId || ''; });
+    if(id === myId){
+      myRank = rankId || '';
+      setSavedRank(myRank);
+      if(!myRank) clearRank();
+      updateIdentityView();
+      renderOwnerPanelForRank();
+    }
+    if(rankId === ''){
+      chatMessages.forEach(function(message){
+        if(message.fromId && message.fromId === id && message.rank) message.rank = '';
+      });
+    }
+    renderChat();
+    refreshRosterViews();
+    if(document.getElementById('rankBuilderRoot')) renderRankBuilder();
+  }
+
+  function giveRankToUser(userId, rankId){
+    if(!isOwnerRank()) return {ok:false, message:"You don't have permission to change ranks."};
+    const user = onlineUsers.find(function(u){ return u.id === String(userId || ''); });
+    if(!user) return {ok:false, message:'Pick a user from the roster first.'};
+    if(!isValidRankId(rankId)) return {ok:false, message:'Pick a rank first.'};
+    applyRankToUser(user.id, rankId);
+    if(client){
+      client.publish({channel:MODERATION_CHANNEL, message:{
+        id:`rank-${myId}-${Date.now()}`, action:'rank', targetId:user.id, rank:rankId, issuedAt:Date.now()
+      }}).catch(function(){});
+    }
+    publishRanks();
+    logModerationAction('rank-give', {id:user.id, name:user.name});
+    return {ok:true, message:`Gave ${rankLabel(rankId)} to ${user.name}.`};
+  }
+
+  function clearRankFromUser(userId){
+    if(!isOwnerRank()) return {ok:false, message:"You don't have permission to clear ranks."};
+    const user = onlineUsers.find(function(u){ return u.id === String(userId || ''); });
+    if(!user) return {ok:false, message:'Pick a user from the roster first.'};
+    // The assignment map is the source of truth: a user can hold a rank that
+    // their presence state has not caught up with yet, and that must still be
+    // clearable.
+    const held = user.rank || rankAssignments[user.id] || '';
+    if(!held) return {ok:false, message:`${user.name} has no rank to clear.`};
+    const had = rankLabel(held) || held;
+    applyRankToUser(user.id, '');
+    if(client){
+      client.publish({channel:MODERATION_CHANNEL, message:{
+        id:`rank-${myId}-${Date.now()}`, action:'rank', targetId:user.id, rank:'', issuedAt:Date.now()
+      }}).catch(function(){});
+    }
+    publishRanks();
+    logModerationAction('rank-clear', {id:user.id, name:user.name});
+    return {ok:true, message:`Cleared ${had} from ${user.name}.`};
+  }
+
+  /* ── CREATE / EDIT / DELETE A CUSTOM RANK ── */
+  function createCustomRank(name, color, commands, code){
+    if(!isOwnerRank()) return {ok:false, message:"You don't have permission to create ranks."};
+    const cleanName = String(name || '').trim().slice(0, RANK_NAME_MAX);
+    const cleanCode = String(code || '').trim().slice(0, RANK_CODE_MAX);
+    if(cleanName.length < 2) return {ok:false, message:'Give the rank a name of at least 2 characters.'};
+    if(!cleanCode) return {ok:false, message:'Give the rank an access code.'};
+    if(customRanks.length >= RANK_MAX) return {ok:false, message:`You can have at most ${RANK_MAX} custom ranks.`};
+    if(customRanks.some(function(r){ return r.name.toLowerCase() === cleanName.toLowerCase(); }))
+      return {ok:false, message:'A rank with that name already exists.'};
+    if(cleanCode === '0962:)' || cleanCode === getModCode())
+      return {ok:false, message:'That code is already used by another rank.'};
+    if(customRanks.some(function(r){ return r.code === cleanCode; }))
+      return {ok:false, message:'That code is already used by another rank.'};
+    const rank = {
+      id: 'cr_' + Date.now().toString(36) + '_' + Math.random().toString(36).slice(2, 7),
+      name: cleanName,
+      color: /^#[0-9a-fA-F]{6}$/.test(String(color || '')) ? String(color) : DEFAULT_RANK_COLOR,
+      commands: (Array.isArray(commands) ? commands : []).filter(function(c){
+        return RANK_COMMANDS.some(function(rc){ return rc.id === c; });
+      }),
+      code: cleanCode,
+      enabled: true,
+      createdAt: Date.now()
+    };
+    customRanks.push(rank);
+    saveCustomRanks();
+    publishRanks();
+    logModerationAction('rank-create', {id:rank.id, name:rank.name});
+    return {ok:true, message:`Created the ${rank.name} rank. Enter its code to unlock it.`, rank:rank};
+  }
+
+  function updateCustomRank(rankId, patch){
+    if(!isOwnerRank()) return {ok:false, message:"You don't have permission to change ranks."};
+    const rank = findCustomRank(rankId);
+    if(!rank) return {ok:false, message:'That rank no longer exists.'};
+    const p = patch || {};
+    if(typeof p.code === 'string'){
+      const code = p.code.trim().slice(0, RANK_CODE_MAX);
+      if(!code) return {ok:false, message:'The access code cannot be empty.'};
+      if(code === '0962:)' || code === getModCode())
+        return {ok:false, message:'That code is already used by another rank.'};
+      if(customRanks.some(function(r){ return r.id !== rank.id && r.code === code; }))
+        return {ok:false, message:'That code is already used by another rank.'};
+      rank.code = code;
+    }
+    if(typeof p.enabled === 'boolean') rank.enabled = p.enabled;
+    if(typeof p.color === 'string' && /^#[0-9a-fA-F]{6}$/.test(p.color)) rank.color = p.color;
+    if(Array.isArray(p.commands)){
+      rank.commands = p.commands.filter(function(c){ return RANK_COMMANDS.some(function(rc){ return rc.id === c; }); });
+    }
+    saveCustomRanks();
+    publishRanks();
+    // A rank that was just disabled must stop working for whoever holds it.
+    if(rank.enabled === false && myRank === rank.id){
+      myRank = '';
+      setSavedRank('');
+      clearRank();
+      updateIdentityView();
+      renderOwnerPanelForRank();
+    }
+    refreshRosterViews();
+    renderChat();
+    return {ok:true, message:`Updated the ${rank.name} rank.`};
+  }
+
+  function deleteCustomRank(rankId){
+    if(!isOwnerRank()) return {ok:false, message:"You don't have permission to delete ranks."};
+    const rank = findCustomRank(rankId);
+    if(!rank) return {ok:false, message:'That rank no longer exists.'};
+    customRanks = customRanks.filter(function(r){ return r.id !== rank.id; });
+    saveCustomRanks();
+    // Anyone holding it loses it, everywhere.
+    Object.keys(rankAssignments).forEach(function(uid){
+      if(rankAssignments[uid] === rank.id) delete rankAssignments[uid];
+    });
+    saveRankAssignments();
+    onlineUsers.forEach(function(user){ if(user.rank === rank.id) user.rank = ''; });
+    if(myRank === rank.id){
+      myRank = '';
+      setSavedRank('');
+      clearRank();
+      updateIdentityView();
+      renderOwnerPanelForRank();
+    }
+    publishRanks();
+    logModerationAction('rank-delete', {id:rank.id, name:rank.name});
+    refreshRosterViews();
+    renderChat();
+    return {ok:true, message:`Deleted the ${rank.name} rank.`};
+  }
+
+  /* The code a visitor types is matched against the owner code, the mod code
+     (when the mod rank is enabled) and every enabled custom rank. */
+  function rankForCode(entered){
+    const code = String(entered || '');
+    if(!code) return '';
+    if(code === '0962:)') return 'owner';
+    if(modRankEnabled() && code === getModCode()) return 'mod';
+    const custom = customRanks.find(function(r){ return r.enabled !== false && r.code === code; });
+    return custom ? custom.id : '';
   }
 
   function publishIdentity(){
@@ -6217,6 +7100,9 @@ function clearDisguiseImg(){
         // client that connects after the owner changed it still validates
         // against the current code rather than the built-in default.
         seedModCodeFromHistory();
+        // Same for the custom rank definitions and assignments: a client that
+        // connects after a rank was created or given must still see it.
+        seedRanksFromHistory();
         // Apply every chat deletion already on the channel, so a message deleted
         // before this client connected is never shown from retained history.
         seedDeletedFromHistory();
@@ -6249,7 +7135,7 @@ function clearDisguiseImg(){
     }
     // Restore a previously unlocked rank instead of requiring the code every visit.
     const saved = getSavedRank();
-    if(saved === 'owner' || saved === 'mod') myRank = saved;
+    if(saved) myRank = saved;
     else clearRank();
     myName = name;
     myId = getOrCreateDeviceId();
@@ -6261,11 +7147,9 @@ function clearDisguiseImg(){
   function submitRank(event){
     event.preventDefault();
     const entered = rankInput.value;
-    // The owner flow is unchanged; the mod code is a second, lower rank that
-    // unlocks only the two mod powers.
-    let granted = '';
-    if(entered === '0962:)') granted = 'owner';
-    else if(entered === getModCode()) granted = 'mod';
+    // The owner flow is unchanged; the mod code is a second, lower rank, and
+    // every enabled custom rank's code is matched here too.
+    const granted = rankForCode(entered);
     if(!granted){
       rankError.textContent = 'That code is not valid.';
       rankInput.select();
@@ -6279,8 +7163,9 @@ function clearDisguiseImg(){
     publishIdentity();
     const grantedTitle = ownerGranted.querySelector('h2');
     const grantedSub = ownerGranted.querySelector('p');
-    if(grantedTitle) grantedTitle.textContent = granted === 'mod' ? 'MOD ACCESS GRANTED' : 'OWNER ACCESS GRANTED';
-    if(grantedSub) grantedSub.textContent = granted === 'mod' ? 'LIMITED MODERATION UNLOCKED' : 'RANK SYNCHRONIZED';
+    const grantedName = rankLabel(granted) || 'RANK';
+    if(grantedTitle) grantedTitle.textContent = granted === 'owner' ? 'OWNER ACCESS GRANTED' : (grantedName + ' ACCESS GRANTED');
+    if(grantedSub) grantedSub.textContent = granted === 'owner' ? 'RANK SYNCHRONIZED' : 'LIMITED MODERATION UNLOCKED';
     ownerGranted.classList.add('visible');
     setTimeout(function(){ ownerGranted.classList.remove('visible'); }, 1650);
   }
@@ -6306,6 +7191,328 @@ function clearDisguiseImg(){
     rankGate.classList.remove('visible');
     window.openProfile();
   });
+
+  /* ══════════════════════════════════════════════════════════════════════
+     RANK BUILDER — the owner-only panel
+     Opened from the RANKS button beside the settings button. The button is
+     only ever injected for an owner, so for anyone else it is absent from the
+     DOM entirely rather than hidden. The panel lives in its own popup, so it
+     can never overlap or push the chat input and SEND out of view.
+     ══════════════════════════════════════════════════════════════════════ */
+  function rankBuilderIsOpen(){
+    try{ return localStorage.getItem(RANK_BUILDER_OPEN_KEY) !== '0'; }catch(e){ return true; }
+  }
+  function setRankBuilderOpen(open){
+    rankBuilderOpen = !!open;
+    try{ localStorage.setItem(RANK_BUILDER_OPEN_KEY, open ? '1' : '0'); }catch(e){}
+    applyRankBuilderOpen();
+  }
+  function applyRankBuilderOpen(){
+    const root = document.getElementById('rankBuilderRoot');
+    if(!root) return;
+    const open = rankBuilderIsOpen();
+    root.classList.toggle('collapsed', !open);
+    const body = document.getElementById('rankBuilderBody');
+    if(body) body.hidden = !open;
+    const head = document.getElementById('rankBuilderHead');
+    if(head){
+      head.setAttribute('aria-expanded', open ? 'true' : 'false');
+      head.title = open ? 'Collapse this panel' : 'Expand this panel';
+    }
+  }
+
+  /* The RANKS button is injected into the HUD only for an owner. For every
+     other rank the slot is emptied, so the control is genuinely not in the
+     DOM and cannot be reached by any UI path. */
+  function renderRanksButton(){
+    const slot = document.getElementById('ranksBtnSlot');
+    if(!slot) return;
+    if(!isOwnerRank()){ slot.innerHTML = ''; return; }
+    if(slot.querySelector('#ranksBtn')) return;
+    slot.innerHTML =
+      `<button class="hud-btn" id="ranksBtn" title="Rank Builder" aria-label="Rank Builder" onclick="openRankBuilder()">`
+        +`<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">`
+          +`<path d="M3 7l4.5 3L12 4l4.5 6L21 7l-1.6 11H4.6z"/><circle cx="12" cy="14" r="1.6"/>`
+        +`</svg>`
+      +`</button>`;
+  }
+
+  function rankBuilderStatus(text, tone){
+    const el = document.getElementById('rankBuilderStatus');
+    if(!el) return;
+    el.textContent = text || '';
+    el.className = 'rank-builder-status' + (tone ? ' ' + tone : '');
+  }
+
+  window.openRankBuilder = function(){
+    if(!isOwnerRank()) return;   // hard guard: the panel is owner-only
+    const host = document.getElementById('rankBuilderHost');
+    if(host){
+      // NOTE: no scrollIntoView here — the host lives inside the chat popup's
+      // non-scrolling flex body, and scrolling an ancestor would push the chat
+      // input and SEND off-screen.
+      host.hidden = false;
+      renderRankBuilder();
+      return;
+    }
+    // The chat popup is not open yet — open it, then render into the host.
+    if(typeof window.openLiveChat === 'function') window.openLiveChat();
+    setTimeout(function(){
+      const h = document.getElementById('rankBuilderHost');
+      if(h){ h.hidden = false; renderRankBuilder(); }
+    }, 500);
+  };
+
+  /* Full build. Called when the panel opens and after any structural change. */
+  function renderRankBuilder(){
+    const root = document.getElementById('rankBuilderRoot');
+    if(!root) return;
+    if(!isOwnerRank()){ root.innerHTML = ''; return; }
+    const cmdBoxes = RANK_COMMANDS.map(function(c){
+      return `<label class="rank-cmd" data-cmd-label="${c.id}">`
+        +`<input type="checkbox" data-cmd="${c.id}">${escapeHtml(c.label)}</label>`;
+    }).join('');
+    const swatches = RANK_COLOR_PRESETS.map(function(c){
+      return `<button class="rank-swatch" type="button" data-swatch="${c}" style="background:${c}" title="${c}" aria-label="Use colour ${c}"></button>`;
+    }).join('');
+    root.className = 'rank-builder' + (rankBuilderIsOpen() ? '' : ' collapsed');
+    root.innerHTML =
+      `<div class="rank-builder-head" id="rankBuilderHead" role="button" tabindex="0" aria-expanded="true" aria-controls="rankBuilderBody" title="Collapse this panel">`
+        +`<span class="rank-builder-chevron">\u25be</span>`
+        +`<span class="rank-builder-title">\u2691 RANK BUILDER</span>`
+      +`</div>`
+      +`<div class="rank-builder-body" id="rankBuilderBody">`
+        +`<div class="rank-builder-section">`
+          +`<span class="rank-builder-label">CREATE A RANK</span>`
+          +`<div class="rank-builder-row"><input type="text" id="rankNameInput" maxlength="${RANK_NAME_MAX}" autocomplete="off" placeholder="Rank name (e.g. VIP)"></div>`
+          +`<div class="rank-color-row">`
+            +`<input type="color" class="rank-color-input" id="rankColorInput" value="${DEFAULT_RANK_COLOR}" aria-label="Rank colour">`
+            +`<div class="rank-swatches">${swatches}</div>`
+          +`</div>`
+          +`<div class="rank-cmd-grid">${cmdBoxes}</div>`
+          +`<div class="rank-builder-row"><input type="text" id="rankBuilderCodeInput" maxlength="${RANK_CODE_MAX}" autocomplete="off" placeholder="Access code for this rank"></div>`
+          +`<div class="rank-builder-row"><button class="owner-btn owner-btn-primary" type="button" id="rankCreateBtn" style="flex:1 1 auto">CREATE RANK</button></div>`
+          +`<p class="rank-builder-note">The code unlocks the rank for whoever types it. The colour is used on the badge in chat and in the roster.</p>`
+        +`</div>`
+        +`<div class="rank-builder-section">`
+          +`<span class="rank-builder-label">GIVE A RANK</span>`
+          +`<div class="rank-builder-row">`
+            +`<select id="rankUserSelect" aria-label="Choose a user"></select>`
+            +`<select id="rankGiveSelect" aria-label="Choose a rank"></select>`
+          +`</div>`
+          +`<div class="rank-builder-row">`
+            +`<button class="owner-btn owner-btn-primary" type="button" id="rankGiveBtn" style="flex:1 1 auto">GIVE RANK</button>`
+            +`<button class="owner-btn owner-btn-danger" type="button" id="rankClearBtn" style="flex:1 1 auto">CLEAR RANK</button>`
+          +`</div>`
+          +`<p class="rank-builder-note">Giving and clearing a rank is shared instantly with every client and recorded in the action log.</p>`
+        +`</div>`
+        +`<div class="rank-builder-section">`
+          +`<span class="rank-builder-label">RANKS</span>`
+          +`<div class="rank-list" id="rankList"></div>`
+        +`</div>`
+        +`<div class="rank-builder-status" id="rankBuilderStatus"></div>`
+      +`</div>`;
+
+    const head = document.getElementById('rankBuilderHead');
+    if(head){
+      head.addEventListener('click', function(){ setRankBuilderOpen(!rankBuilderIsOpen()); });
+      head.addEventListener('keydown', function(ev){
+        if(ev.key === 'Enter' || ev.key === ' ' || ev.key === 'Spacebar'){
+          ev.preventDefault();
+          setRankBuilderOpen(!rankBuilderIsOpen());
+        }
+      });
+    }
+    const colorInput = document.getElementById('rankColorInput');
+    root.querySelectorAll('[data-swatch]').forEach(function(btn){
+      btn.addEventListener('click', function(){
+        if(colorInput) colorInput.value = btn.dataset.swatch;
+      });
+    });
+    root.querySelectorAll('[data-cmd]').forEach(function(box){
+      box.addEventListener('change', function(){
+        const label = box.closest('.rank-cmd');
+        if(label) label.classList.toggle('on', box.checked);
+      });
+    });
+    const createBtn = document.getElementById('rankCreateBtn');
+    if(createBtn) createBtn.addEventListener('click', function(){
+      const name = document.getElementById('rankNameInput');
+      // NOTE: this must NOT be 'rankCodeInput' \u2014 that id belongs to the rank
+      // GATE's input, which sits in the static markup and is still in the DOM.
+      // getElementById returns the FIRST match, so reusing the id made the
+      // builder read the gate's empty field and CREATE RANK always failed with
+      // "Give the rank an access code."
+      const code = document.getElementById('rankBuilderCodeInput');
+      const color = document.getElementById('rankColorInput');
+      const commands = [];
+      root.querySelectorAll('[data-cmd]').forEach(function(box){ if(box.checked) commands.push(box.dataset.cmd); });
+      const result = createCustomRank(name ? name.value : '', color ? color.value : '', commands, code ? code.value : '');
+      rankBuilderStatus(result.message, result.ok ? 'ok' : 'error');
+      if(result.ok){
+        if(name) name.value = '';
+        if(code) code.value = '';
+        root.querySelectorAll('[data-cmd]').forEach(function(box){
+          box.checked = false;
+          const label = box.closest('.rank-cmd');
+          if(label) label.classList.remove('on');
+        });
+        renderRankBuilder();
+        rankBuilderStatus(result.message, 'ok');
+      }
+    });
+    const giveBtn = document.getElementById('rankGiveBtn');
+    if(giveBtn) giveBtn.addEventListener('click', function(){
+      const userSel = document.getElementById('rankUserSelect');
+      const rankSel = document.getElementById('rankGiveSelect');
+      const result = giveRankToUser(userSel ? userSel.value : '', rankSel ? rankSel.value : '');
+      rankBuilderStatus(result.message, result.ok ? 'ok' : 'error');
+    });
+    const clearBtn = document.getElementById('rankClearBtn');
+    if(clearBtn) clearBtn.addEventListener('click', function(){
+      const userSel = document.getElementById('rankUserSelect');
+      const result = clearRankFromUser(userSel ? userSel.value : '');
+      rankBuilderStatus(result.message, result.ok ? 'ok' : 'error');
+    });
+    refreshRankBuilderLive();
+    applyRankBuilderOpen();
+  }
+
+  /* Live part: the user picker, the rank picker and the holders lists. Kept
+     separate from the full build so a roster change never wipes what the owner
+     is typing into the create form. */
+  function refreshRankBuilderLive(){
+    const root = document.getElementById('rankBuilderRoot');
+    if(!root || !isOwnerRank()) return;
+    const userSel = document.getElementById('rankUserSelect');
+    if(userSel){
+      const previous = userSel.value;
+      userSel.innerHTML = `<option value="">\u2014 PICK A USER \u2014</option>`
+        + onlineUsers.map(function(u){
+            return `<option value="${escapeHtml(u.id)}">${escapeHtml(u.name)}${u.rank ? ' \u00b7 ' + escapeHtml(rankLabel(u.rank) || u.rank) : ''}</option>`;
+          }).join('');
+      if(previous && onlineUsers.some(function(u){ return u.id === previous; })) userSel.value = previous;
+    }
+    const rankSel = document.getElementById('rankGiveSelect');
+    if(rankSel){
+      const previous = rankSel.value;
+      const options = [{id:'owner', name:'OWNER'}, {id:'mod', name:'MOD'}]
+        .concat(customRanks.map(function(r){ return {id:r.id, name:r.name}; }));
+      rankSel.innerHTML = `<option value="">\u2014 PICK A RANK \u2014</option>`
+        + options.map(function(o){ return `<option value="${escapeHtml(o.id)}">${escapeHtml(o.name)}</option>`; }).join('');
+      if(previous && options.some(function(o){ return o.id === previous; })) rankSel.value = previous;
+    }
+    const list = document.getElementById('rankList');
+    if(!list) return;
+    const builtins = [
+      {id:'owner', name:'OWNER', color:'#ffd66b', builtin:true, enabled:true, commands:null, code:'0962:)'},
+      {id:'mod',   name:'MOD',   color:'#9fe4ff', builtin:true, enabled:modRankEnabled(), commands:MOD_ALLOWED_COMMANDS.slice(), code:getModCode()}
+    ];
+    const all = builtins.concat(customRanks.map(function(r){
+      return {id:r.id, name:r.name, color:r.color || DEFAULT_RANK_COLOR, builtin:false,
+              enabled:r.enabled !== false, commands:r.commands || [], code:r.code || ''};
+    }));
+    list.innerHTML = all.map(function(r){
+      // A holder is anyone whose roster rank is this rank OR who has been
+      // assigned it — the assignment map is authoritative, so a user whose
+      // presence state has not caught up still shows up here.
+      const holders = onlineUsers.filter(function(u){
+        return u.rank === r.id || rankAssignments[u.id] === r.id;
+      });
+      const holderHtml = holders.length
+        ? holders.map(function(u){ return `<span class="rank-holder">${escapeHtml(u.name)}</span>`; }).join('')
+        : `<span class="rank-holder none">nobody yet</span>`;
+      const cmdText = r.builtin
+        ? (r.id === 'owner' ? 'every command' : (r.commands || []).join(', '))
+        : ((r.commands || []).map(function(c){
+            const found = RANK_COMMANDS.find(function(rc){ return rc.id === c; });
+            return found ? found.label : c;
+          }).join(', ') || 'no commands');
+      const actions = r.builtin
+        ? (r.id === 'mod'
+            ? `<button class="owner-btn-mini" type="button" data-rank-toggle="${r.id}">${r.enabled ? 'TURN OFF' : 'TURN ON'}</button>`
+            : `<span class="rank-holder none">always on</span>`)
+        : `<button class="owner-btn-mini" type="button" data-rank-toggle="${r.id}">${r.enabled ? 'TURN OFF' : 'TURN ON'}</button>`
+          +`<button class="owner-btn-mini" type="button" data-rank-code="${r.id}">CHANGE CODE</button>`
+          +`<button class="owner-btn-mini danger" type="button" data-rank-delete="${r.id}">DELETE</button>`;
+      return `<div class="rank-card${r.enabled ? '' : ' off'}">`
+        +`<div class="rank-card-head">`
+          +`<span class="rank-card-name" style="color:${r.color};text-shadow:0 0 10px ${hexToRgba(r.color,0.4)}">${escapeHtml(r.name)}</span>`
+          +`<span class="rank-state ${r.enabled ? 'on' : 'off'}">${r.enabled ? 'ON' : 'OFF'}</span>`
+        +`</div>`
+        +`<div class="rank-card-meta">Code: <code data-code-for="${r.id}" data-masked="1">\u2022\u2022\u2022\u2022\u2022\u2022</code>`
+          +` <button class="owner-btn-mini" type="button" data-reveal="${r.id}">REVEAL</button></div>`
+        +`<div class="rank-card-meta">Commands: ${escapeHtml(cmdText)}</div>`
+        +`<div class="rank-holders">${holderHtml}</div>`
+        +`<div class="rank-card-actions">${actions}</div>`
+      +`</div>`;
+    }).join('');
+
+    list.querySelectorAll('[data-reveal]').forEach(function(btn){
+      btn.addEventListener('click', function(){
+        const id = btn.dataset.reveal;
+        const codeEl = list.querySelector(`[data-code-for="${id}"]`);
+        if(!codeEl) return;
+        const rank = all.find(function(r){ return r.id === id; });
+        const masked = codeEl.dataset.masked === '1';
+        codeEl.textContent = masked ? (rank ? rank.code : '') : '\u2022\u2022\u2022\u2022\u2022\u2022';
+        codeEl.dataset.masked = masked ? '0' : '1';
+        btn.textContent = masked ? 'HIDE' : 'REVEAL';
+      });
+    });
+    list.querySelectorAll('[data-rank-toggle]').forEach(function(btn){
+      btn.addEventListener('click', function(){
+        const id = btn.dataset.rankToggle;
+        if(id === 'mod'){
+          const next = !modRankEnabled();
+          setModRankEnabled(next);
+          publishRanks();
+          if(!next && isModRank()){
+            myRank = '';
+            setSavedRank('');
+            clearRank();
+            updateIdentityView();
+            renderOwnerPanelForRank();
+          }
+          rankBuilderStatus(`The MOD rank is now ${next ? 'ON' : 'OFF'}.`, 'ok');
+          renderRankBuilder();
+          rankBuilderStatus(`The MOD rank is now ${next ? 'ON' : 'OFF'}.`, 'ok');
+          return;
+        }
+        const rank = findCustomRank(id);
+        if(!rank) return;
+        const result = updateCustomRank(id, {enabled: rank.enabled === false});
+        rankBuilderStatus(result.message, result.ok ? 'ok' : 'error');
+        renderRankBuilder();
+        rankBuilderStatus(result.message, result.ok ? 'ok' : 'error');
+      });
+    });
+    list.querySelectorAll('[data-rank-code]').forEach(function(btn){
+      btn.addEventListener('click', function(){
+        const id = btn.dataset.rankCode;
+        const rank = findCustomRank(id);
+        if(!rank) return;
+        const next = window.prompt(`New access code for the ${rank.name} rank:`, rank.code || '');
+        if(next === null) return;
+        const result = updateCustomRank(id, {code: next});
+        rankBuilderStatus(result.message, result.ok ? 'ok' : 'error');
+        renderRankBuilder();
+        rankBuilderStatus(result.message, result.ok ? 'ok' : 'error');
+      });
+    });
+    list.querySelectorAll('[data-rank-delete]').forEach(function(btn){
+      btn.addEventListener('click', function(){
+        const id = btn.dataset.rankDelete;
+        const rank = findCustomRank(id);
+        if(!rank) return;
+        if(!window.confirm(`Delete the ${rank.name} rank? Everyone holding it loses it.`)) return;
+        const result = deleteCustomRank(id);
+        rankBuilderStatus(result.message, result.ok ? 'ok' : 'error');
+        renderRankBuilder();
+        rankBuilderStatus(result.message, result.ok ? 'ok' : 'error');
+      });
+    });
+  }
 
   // Re-render the owner panel container (used after a rank change). The panel
   // is always present in the chat popup markup, so this works without
