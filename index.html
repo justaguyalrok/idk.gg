@@ -519,6 +519,16 @@ sweep(document)})();</script>
     .chat-message{padding:.48rem .6rem;border-radius:8px;background:rgba(57,229,140,.04);
       border:1px solid rgba(57,229,140,.09);font-size:.82rem;line-height:1.35;word-break:break-word;}
     .chat-message-name{color:var(--pulsar);font-weight:600;margin-right:.35rem;}
+    /* ── CHAT TIMESTAMPS ──
+       Small and subtle, sitting next to the author name / rank badge so it never
+       competes with the message text. The value comes from the message's OWN
+       sentAt and is formatted in the viewer's local timezone, so a late arrival,
+       a replay out of retained history, or a re-render after a reload all show
+       the time it was actually sent. */
+    .chat-time{color:rgba(255,255,255,.36);font:600 .62rem/1 'Rajdhani',sans-serif;
+      letter-spacing:.03em;margin-right:.4rem;white-space:nowrap;vertical-align:middle;
+      user-select:none;pointer-events:none;}
+    .chat-toast-name .chat-time{color:rgba(255,255,255,.44);margin-right:.35rem;}
     /* ── CHAT MESSAGE DELETION ──
        The ✕ sits at the top-right of the message row and is revealed on hover
        (or on keyboard focus). It is only rendered at all for mods and owners,
@@ -1761,8 +1771,8 @@ body.ultra-save body::after{display:none !important}
    Disguise, Moderation, …) keeps its normal compact size.
    ========================================================= */
 .popup.chat-mode{
-  width:min(94vw,calc(100vw - 2rem)) !important;
-  max-width:min(94vw,calc(100vw - 2rem)) !important;
+  width:min(96vw,calc(100vw - 2rem)) !important;
+  max-width:min(96vw,calc(100vw - 2rem)) !important;
   height:min(94vh,calc(100vh - 2rem)) !important;
   max-height:min(94vh,calc(100vh - 2rem)) !important;
 }
@@ -1784,6 +1794,375 @@ body.ultra-save body::after{display:none !important}
 }
 /* Input form stays pinned at the bottom of the popup */
 .popup.chat-mode #liveChatForm{flex:0 0 auto;}
+
+/* =========================================================
+   CHAT ONLINE SIDEBAR
+   Docked to the RIGHT, INSIDE the chat popup. It is driven by the same
+   `onlineUsers` roster that powers ONLINE NOW and the players-online count,
+   so the two can never disagree. The feed shrinks to fit beside it, and the
+   sidebar scrolls on its own, so nothing is ever covered or pushed away.
+   ========================================================= */
+.popup.chat-mode #liveChatMain{
+  flex:1 1 auto;
+  min-height:0;
+  display:flex;
+  gap:.6rem;
+  align-items:stretch;
+}
+/* The feed takes the remaining width and is allowed to shrink (min-width:0),
+   which is what keeps a long message from pushing the sidebar off-screen. */
+.popup.chat-mode #liveChatFeed{flex:1 1 auto;min-width:0;margin-bottom:0;}
+#liveChatSide{
+  flex:0 0 170px;
+  min-width:0;
+  display:flex;
+  flex-direction:column;
+  min-height:0;
+  border:1px solid rgba(57,229,140,.16);
+  border-radius:10px;
+  background:linear-gradient(160deg,rgba(57,229,140,.05),rgba(32,230,255,.02));
+  box-shadow:inset 0 0 22px rgba(57,229,140,.05);
+  overflow:hidden;
+}
+#liveChatSide[hidden]{display:none!important;}
+/* =========================================================
+   DM RAIL (LEFT)
+   A narrow vertical column docked to the LEFT of the chat, mirroring the
+   online sidebar on the right. The top entry is the viewer's OWN avatar (the
+   "home" entry: clicking it returns to the public chat, and it can never open
+   a DM with yourself). Underneath sit one avatar per DM conversation, most
+   recent first, each carrying that person's rank badge and - when messages are
+   waiting - a neon-GREEN unread count. Themed in the app's neon green accent
+   (--pulsar), deliberately NOT the blue the DM button uses.
+   ========================================================= */
+#chatCol{
+  flex:1 1 auto;min-height:0;min-width:0;
+  display:flex;gap:.6rem;align-items:stretch;
+}
+#dmRail{
+  flex:0 0 58px;min-width:0;
+  display:flex;flex-direction:column;align-items:center;gap:.34rem;
+  padding:.32rem .22rem;
+  border:1px solid rgba(57,229,140,.22);
+  border-radius:10px;
+  background:linear-gradient(180deg,rgba(57,229,140,.075),rgba(32,230,255,.02));
+  box-shadow:inset 0 0 22px rgba(57,229,140,.07);
+  overflow:hidden;
+}
+.dm-rail-label{
+  flex:0 0 auto;width:100%;text-align:center;
+  font:700 .42rem 'Orbitron',monospace;letter-spacing:.12em;
+  color:rgba(168,255,218,.72);text-transform:uppercase;
+}
+/* The "home" entry: your own avatar. Clicking it returns to the public chat. */
+.dm-rail-home{
+  position:relative;flex:0 0 auto;
+  width:42px;height:42px;padding:0;border-radius:50%;cursor:pointer;
+  border:2px solid var(--pulsar);background:rgba(57,229,140,.12);
+  display:flex;align-items:center;justify-content:center;
+  box-shadow:0 0 14px rgba(57,229,140,.45);
+  -webkit-appearance:none;appearance:none;
+  transition:box-shadow .16s,transform .16s;
+}
+.dm-rail-home:hover{box-shadow:0 0 20px rgba(57,229,140,.8);transform:translateY(-1px);}
+.dm-rail-home:focus-visible{outline:2px solid var(--pulsar);outline-offset:2px;}
+.dm-rail-home .avatar{width:30px;height:30px;border:0;box-shadow:none;}
+.dm-rail-home-dot{
+  position:absolute;right:1px;bottom:1px;width:8px;height:8px;border-radius:50%;
+  background:var(--pulsar);box-shadow:0 0 8px rgba(57,229,140,.9);
+  border:1px solid #03120d;
+}
+.dm-rail-sep{
+  flex:0 0 auto;width:72%;height:1px;
+  background:linear-gradient(90deg,transparent,rgba(57,229,140,.45),transparent);
+}
+.dm-rail-list{
+  flex:1 1 auto;min-height:0;width:100%;overflow-y:auto;
+  display:flex;flex-direction:column;align-items:center;gap:.32rem;padding:.08rem 0;
+}
+/* One entry per DM conversation. */
+.dm-rail-user{
+  position:relative;flex:0 0 auto;
+  width:44px;padding:.14rem 0;border-radius:9px;cursor:pointer;
+  display:flex;flex-direction:column;align-items:center;gap:.08rem;
+  border:1px solid rgba(57,229,140,.18);
+  background:rgba(57,229,140,.05);
+  -webkit-appearance:none;appearance:none;
+  transition:border-color .16s,background .16s,box-shadow .16s,transform .16s;
+}
+.dm-rail-user:hover{
+  border-color:var(--pulsar);background:rgba(57,229,140,.16);
+  box-shadow:0 0 14px rgba(57,229,140,.42);transform:translateY(-1px);
+}
+.dm-rail-user:focus-visible{outline:2px solid var(--pulsar);outline-offset:1px;}
+.dm-rail-user .avatar{
+  width:30px;height:30px;
+  border:1px solid rgba(57,229,140,.6);box-shadow:0 0 8px rgba(57,229,140,.3);
+}
+/* The conversation currently on screen is ringed, so the rail shows where you are. */
+.dm-rail-user.active{
+  border-color:var(--pulsar);background:rgba(57,229,140,.2);
+  box-shadow:0 0 16px rgba(57,229,140,.5);
+}
+.dm-rail-user .rank-badge{
+  font-size:.4rem;padding:.02rem .18rem;max-width:48px;
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap;display:inline-block;
+}
+/* Neon-GREEN unread count, matching the app's accent. */
+.dm-rail-unread{
+  position:absolute;top:-.2rem;right:-.2rem;
+  min-width:15px;height:15px;padding:0 .18rem;
+  display:flex;align-items:center;justify-content:center;
+  border-radius:999px;background:var(--pulsar);color:#02150d;
+  font:700 .46rem 'Orbitron',monospace;letter-spacing:0;
+  box-shadow:0 0 10px rgba(57,229,140,.9);border:1px solid #02150d;
+}
+.dm-rail-empty{
+  flex:0 0 auto;padding:.34rem 0;
+  color:rgba(57,229,140,.4);font:700 .62rem 'Orbitron',monospace;
+}
+.chat-side-head{
+  flex:0 0 auto;
+  display:flex;align-items:center;gap:.4rem;
+  padding:.5rem .6rem;
+  border-bottom:1px solid rgba(57,229,140,.14);
+  background:rgba(57,229,140,.05);
+  font:700 .58rem 'Orbitron',monospace;letter-spacing:.1em;
+  color:#a8ffda;text-transform:uppercase;white-space:nowrap;
+}
+.chat-side-head .chat-side-count{
+  margin-left:auto;color:var(--pulsar);
+  text-shadow:0 0 8px rgba(57,229,140,.6);
+}
+.chat-side-list{
+  flex:1 1 auto;min-height:0;overflow-y:auto;
+  display:grid;align-content:start;gap:.3rem;
+  padding:.4rem;
+}
+.chat-side-user{
+  display:flex;align-items:center;gap:.3rem;
+  padding:.24rem .3rem;border-radius:7px;
+  border:1px solid rgba(57,229,140,.1);
+  background:rgba(57,229,140,.035);
+  color:rgba(255,255,255,.82);
+  font:600 .68rem 'Rajdhani',sans-serif;
+  min-width:0;
+}
+/* The current user's own row is highlighted so they can spot themselves. */
+.chat-side-user.me{
+  border-color:rgba(57,229,140,.55);
+  background:rgba(57,229,140,.13);
+  box-shadow:0 0 12px rgba(57,229,140,.22);
+}
+/* The row's MAIN area. For a viewer who holds moderation powers it is a real
+   button that opens the moderation menu (the same gate the ONLINE NOW roster
+   uses); for everyone else it is a plain, non-clickable div, so nobody is ever
+   offered a menu they are not allowed to use. The DM button is a SEPARATE
+   click target beside it, so the two can never interfere. */
+.chat-side-main{
+  display:flex;align-items:center;gap:.42rem;
+  flex:1 1 auto;min-width:0;
+  padding:.1rem .12rem;border:1px solid transparent;border-radius:6px;
+  background:transparent;color:inherit;font:inherit;text-align:left;
+}
+button.chat-side-main{
+  cursor:pointer;-webkit-appearance:none;appearance:none;
+  transition:border-color .16s,background .16s,box-shadow .16s;
+}
+button.chat-side-main:hover{
+  border-color:rgba(255,200,40,.6);
+  background:rgba(255,200,40,.08);
+  box-shadow:0 0 12px rgba(255,200,40,.18);
+}
+button.chat-side-main:focus-visible{outline:2px solid var(--pulsar);outline-offset:1px;}
+/* The DM entry point on each row. Small and clearly labelled, in the existing
+   neon/glass styling, with an unread badge when a private message is waiting. */
+.chat-side-dm{
+  flex:0 0 auto;position:relative;
+  padding:.2rem .34rem;border-radius:6px;cursor:pointer;
+  border:1px solid rgba(90,200,255,.4);
+  background:rgba(90,200,255,.1);
+  color:#9fe4ff;font:700 .5rem 'Orbitron',monospace;letter-spacing:.06em;
+  -webkit-appearance:none;appearance:none;
+  transition:background .16s,border-color .16s,box-shadow .16s;
+}
+.chat-side-dm:hover{
+  background:rgba(90,200,255,.24);border-color:#9fe4ff;
+  box-shadow:0 0 12px rgba(90,200,255,.4);
+}
+.chat-side-dm:focus-visible{outline:2px solid var(--pulsar);outline-offset:1px;}
+.dm-unread{
+  position:absolute;top:-.34rem;right:-.34rem;
+  min-width:14px;height:14px;padding:0 .18rem;
+  display:flex;align-items:center;justify-content:center;
+  border-radius:999px;background:#ff5a5a;color:#fff;
+  font:700 .46rem 'Orbitron',monospace;letter-spacing:0;
+  box-shadow:0 0 8px rgba(255,90,90,.8);
+}
+.chat-side-dot{
+  flex:0 0 auto;width:7px;height:7px;border-radius:50%;
+  background:var(--pulsar);box-shadow:0 0 8px rgba(57,229,140,.85);
+}
+.chat-side-name{
+  min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+}
+.chat-side-user .rank-badge{flex:0 0 auto;font-size:.5rem;padding:.05rem .24rem;}
+.chat-side-empty{
+  padding:.7rem .5rem;text-align:center;
+  color:rgba(255,255,255,.35);font:600 .66rem 'Rajdhani',sans-serif;
+}
+/* =========================================================
+   PRIVATE DM CONVERSATION
+   A clearly-labelled panel INSIDE the chat popup. While it is open it replaces
+   the public feed and the public composer, so the two can never be confused.
+   It reuses the chat's own message markup, so timestamps, every text effect and
+   the rank badge look and behave exactly as they do in the public feed.
+   ========================================================= */
+#dmPanel{
+  flex:1 1 auto;min-height:0;
+  display:flex;flex-direction:column;
+  border:1px solid rgba(90,200,255,.22);
+  border-radius:10px;
+  background:linear-gradient(160deg,rgba(90,200,255,.05),rgba(57,229,140,.02));
+  box-shadow:inset 0 0 22px rgba(90,200,255,.06);
+  overflow:hidden;
+}
+#dmPanel[hidden]{display:none!important;}
+.dm-head{
+  flex:0 0 auto;display:flex;align-items:center;gap:.5rem;
+  padding:.45rem .55rem;
+  border-bottom:1px solid rgba(90,200,255,.18);
+  background:rgba(90,200,255,.06);
+}
+#dmBackBtn{
+  flex:0 0 auto;padding:.3rem .5rem;border-radius:7px;cursor:pointer;
+  border:1px solid rgba(57,229,140,.4);background:rgba(57,229,140,.1);
+  color:var(--pulsar);font:700 .5rem 'Orbitron',monospace;letter-spacing:.06em;
+  -webkit-appearance:none;appearance:none;
+  transition:background .16s,border-color .16s,box-shadow .16s;
+}
+#dmBackBtn:hover{background:rgba(57,229,140,.22);border-color:var(--pulsar);
+  box-shadow:0 0 12px rgba(57,229,140,.35);}
+.dm-head-who{
+  display:flex;align-items:center;gap:.4rem;min-width:0;flex:1 1 auto;
+}
+.dm-head-who .avatar{flex:0 0 auto;}
+.dm-head-name{
+  min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+  color:#9fe4ff;font:700 .72rem 'Rajdhani',sans-serif;letter-spacing:.02em;
+}
+.dm-head-status{
+  flex:0 0 auto;font:700 .48rem 'Orbitron',monospace;letter-spacing:.08em;
+  color:rgba(255,255,255,.4);
+}
+.dm-head-status.online{color:var(--pulsar);text-shadow:0 0 8px rgba(57,229,140,.6);}
+#dmFeed{
+  flex:1 1 auto;min-height:0;overflow-y:auto;
+  display:grid;align-content:start;gap:.45rem;
+  padding:.5rem .55rem;
+}
+.dm-empty{
+  color:rgba(255,255,255,.35);text-align:center;padding:2rem .5rem;
+  font:600 .72rem 'Rajdhani',sans-serif;
+}
+/* The viewer's own DM bubbles are tinted so the two sides of the thread are
+   instantly distinguishable. */
+.dm-message.dm-mine{
+  background:rgba(90,200,255,.07);
+  border-color:rgba(90,200,255,.2);
+}
+#dmForm{position:relative;flex:0 0 auto;display:flex;gap:.45rem;padding:.5rem .55rem;
+  border-top:1px solid rgba(90,200,255,.14);}
+#dmInput{min-width:0;flex:1;padding:.56rem .68rem;border:1px solid rgba(90,200,255,.24);
+  border-radius:8px;background:rgba(90,200,255,.05);color:#fff;
+  font:600 .86rem 'Rajdhani',sans-serif;outline:none;}
+#dmInput:focus{border-color:#9fe4ff;}
+#dmSend{padding:.45rem .65rem;border:1px solid rgba(90,200,255,.5);border-radius:8px;
+  background:rgba(90,200,255,.13);color:#9fe4ff;font:700 .56rem 'Orbitron',monospace;
+  letter-spacing:.08em;cursor:pointer;}
+#dmSend:hover{background:rgba(90,200,255,.26);box-shadow:0 0 12px rgba(90,200,255,.35);}
+#dmAttachBtn{flex:0 0 auto;width:38px;padding:0;border:1px solid rgba(90,200,255,.4);border-radius:8px;
+  background:rgba(90,200,255,.09);color:#9fe4ff;font:700 1.15rem/1 'Orbitron',monospace;cursor:pointer;
+  display:flex;align-items:center;justify-content:center;
+  transition:background .16s,border-color .16s,box-shadow .16s;}
+#dmAttachBtn:hover{background:rgba(90,200,255,.22);border-color:#9fe4ff;
+  box-shadow:0 0 14px rgba(90,200,255,.35);}
+#dmAttachPreview{display:flex;align-items:center;gap:.6rem;margin:.5rem .55rem 0;padding:.5rem .6rem;
+  border:1px solid rgba(90,200,255,.3);border-radius:9px;
+  background:linear-gradient(150deg,rgba(90,200,255,.08),rgba(57,229,140,.04));}
+#dmAttachPreview[hidden]{display:none!important;}
+#dmAttachThumb{width:46px;height:46px;object-fit:cover;border-radius:7px;flex:0 0 auto;
+  border:1px solid rgba(90,200,255,.4);background:rgba(0,0,0,.35);}
+#dmAttachName{font:600 .74rem 'Rajdhani',sans-serif;color:rgba(255,255,255,.82);
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+#dmAttachSize{font:700 .58rem 'Orbitron',monospace;letter-spacing:.06em;color:rgba(90,200,255,.8);}
+#dmAttachRemove{flex:0 0 auto;width:26px;height:26px;border-radius:7px;border:1px solid rgba(255,120,100,.35);
+  background:rgba(255,90,70,.08);color:rgba(255,185,175,.9);font-size:.8rem;line-height:1;cursor:pointer;
+  display:flex;align-items:center;justify-content:center;}
+#dmAttachRemove:hover{background:rgba(255,90,70,.2);border-color:rgba(255,130,110,.7);}
+#dmAttachError{margin:.5rem .55rem 0;padding:.5rem .6rem;border:1px solid rgba(255,120,100,.35);
+  border-radius:9px;background:rgba(255,90,70,.07);color:#ffadad;font-size:.74rem;line-height:1.4;}
+#dmAttachError[hidden]{display:none!important;}
+/* The DM command menu floats ABOVE the DM form, exactly like the public one, so
+   it can never push the input or SEND out of view. */
+#dmCmdMenu{position:absolute;left:.55rem;right:.55rem;bottom:calc(100% + .4rem);z-index:40;
+  max-height:11rem;overflow-y:auto;padding:.3rem;border-radius:10px;
+  border:1px solid rgba(90,200,255,.4);background:#03120d;
+  box-shadow:0 0 26px rgba(90,200,255,.22),0 18px 34px rgba(0,0,0,.7);}
+#dmCmdMenu[hidden]{display:none!important;}
+/* While a private conversation is open, the public feed, the public composer,
+   the online sidebar and the public-chat-only panels (owner controls, the rank
+   builder, the owner hint and the mute/status line) are hidden, so the DM panel
+   owns the whole popup and its feed gets the full height. They all come back
+   the moment BACK TO CHAT is pressed \u2014 this is CSS only, nothing is destroyed. */
+.popup.dm-open #liveChatMain,
+.popup.dm-open #liveChatForm,
+.popup.dm-open #chatAttachPreview,
+.popup.dm-open #chatAttachError,
+.popup.dm-open #ownerPanel,
+.popup.dm-open #ownerChatHint,
+.popup.dm-open #rankBuilderHost,
+.popup.dm-open #popupBody > p{display:none!important;}
+/* While a private conversation is open the body becomes a ROW: the rail keeps
+   its place on the left (its row-mate #liveChatMain is hidden, so #chatCol
+   shrinks to just the rail) and the DM panel fills everything to its right \u2014
+   Discord-style, and it means the rail never moves or disappears. Every other
+   child is already display:none under .dm-open, so none of them join the row. */
+.popup.dm-open #popupBody{flex-direction:row;gap:.6rem;}
+.popup.dm-open #chatCol{flex:0 0 auto;}
+.popup.dm-open #dmPanel{flex:1 1 auto;min-width:0;}
+.chat-toast-dm{border-color:rgba(90,200,255,.4);}
+.chat-toast-dm .chat-toast-name{color:#9fe4ff;font-weight:700;}
+/* Narrow chat: shrink the sidebar first, then drop it entirely, so the feed
+   and the input/SEND are never crushed by it. Keyed off the CHAT WINDOW's own
+   width (a container query on the popup body), not the viewport, so it reacts
+   to the actual space the chat has. */
+.popup.chat-mode #popupBody{container-type:inline-size;}
+@container (max-width:700px){
+  #liveChatSide{flex-basis:132px;}
+  #dmRail{flex-basis:50px;}
+  .dm-rail-home{width:36px;height:36px;}
+  .dm-rail-user{width:38px;}
+  .dm-rail-home .avatar,.dm-rail-user .avatar{width:26px;height:26px;}
+}
+/* At the narrowest widths the right-hand online sidebar goes first. The rail
+   STAYS, because it is the DM entry point, but shrinks so the feed keeps room. */
+@container (max-width:560px){
+  #liveChatSide{display:none;}
+  #dmRail{flex-basis:46px;}
+}
+/* Viewport fallback for engines without container queries. */
+@media(max-width:820px){
+  #liveChatSide{flex-basis:132px;}
+  #dmRail{flex-basis:50px;}
+  .dm-rail-home{width:36px;height:36px;}
+  .dm-rail-user{width:38px;}
+  .dm-rail-home .avatar,.dm-rail-user .avatar{width:26px;height:26px;}
+}
+@media(max-width:640px){
+  #liveChatSide{display:none;}
+  #dmRail{flex-basis:46px;}
+}
 
 /* Mobile: a touch more of the viewport, still with a small margin */
 @media(max-width:700px){
@@ -1948,6 +2327,33 @@ body.ultra-save body::after{display:none !important}
   white-space:nowrap;}
 .action-log-empty{margin:0;padding:.5rem .3rem;text-align:center;font:600 .68rem 'Rajdhani',sans-serif;
   color:rgba(255,255,255,.35);}
+/* == DM METADATA LOG (OWNER-ONLY, READ-ONLY) ==
+   A record of who direct-messaged whom, and when. It stores and shows
+   METADATA ONLY - no message body is ever written here. Collapsible like the
+   action log above it, and wiped from the DOM entirely for every non-owner. */
+.dm-log-wrap{margin-top:.6rem;padding-top:.6rem;border-top:1px solid rgba(90,200,255,.2);}
+.dm-log-toggle{display:flex;align-items:center;gap:.4rem;flex:1 1 auto;min-width:0;
+  padding:.2rem .3rem;border:1px solid transparent;border-radius:7px;background:transparent;
+  cursor:pointer;text-align:left;transition:background .16s,border-color .16s;}
+.dm-log-toggle:hover{background:rgba(90,200,255,.12);border-color:rgba(90,200,255,.32);}
+.dm-log-toggle:focus-visible{outline:2px solid rgba(90,200,255,.55);outline-offset:1px;}
+.dm-log-wrap .owner-panel-chevron{color:#9fe4ff;}
+.dm-log-wrap .action-log-title{color:#9fe4ff;text-shadow:0 0 10px rgba(90,200,255,.35);}
+.dm-log-wrap.collapsed .owner-panel-chevron{transform:rotate(-90deg);}
+.dm-log-wrap.collapsed .action-log-head{margin-bottom:0;}
+.dm-log-wrap.collapsed #dmLogBody{display:none;}
+#dmLogBody[hidden]{display:none;}
+.dm-log-note{margin:0 0 .45rem;font:600 .6rem 'Rajdhani',sans-serif;letter-spacing:.03em;
+  color:rgba(159,228,255,.62);line-height:1.3;}
+.dm-log-entry{display:flex;align-items:baseline;gap:.4rem;padding:.34rem .45rem;
+  border:1px solid rgba(90,200,255,.14);border-radius:7px;background:rgba(90,200,255,.05);}
+.dm-log-arrow{flex:0 0 auto;font:900 .6rem 'Orbitron',monospace;color:#9fe4ff;opacity:.85;}
+.dm-log-body{flex:1 1 auto;min-width:0;font:600 .68rem 'Rajdhani',sans-serif;
+  color:rgba(255,255,255,.7);line-height:1.3;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.dm-log-body strong{color:#fff;font-weight:700;}
+.dm-log-body .dm-log-to{color:rgba(255,255,255,.4);font-weight:600;}
+.dm-log-time{flex:0 0 auto;font:600 .58rem 'Rajdhani',sans-serif;color:rgba(255,255,255,.44);
+  white-space:nowrap;}
 .owner-btn-mini{padding:.24rem .45rem;border-radius:6px;border:1px solid rgba(57,229,140,.35);
   background:rgba(57,229,140,.08);color:var(--pulsar);font:700 .5rem 'Orbitron',monospace;
   letter-spacing:.07em;cursor:pointer;white-space:nowrap;transition:background .16s,border-color .16s;}
@@ -3125,6 +3531,26 @@ function setNewTabVisibility(file){
   btn.setAttribute('aria-hidden', isChatcord ? 'false' : 'true');
 }
 
+// True only for the Chatcord card. Matches on the card name or its URL so a
+// renamed card still resolves, and every other zone returns false.
+function isChatcordZone(file){
+  if(!file) return false;
+  const name=String(file.name||'').trim().toLowerCase();
+  const url=String(file.url||'').toLowerCase();
+  return name==='chatcord'
+    || url.includes('justaguyalrok.github.io/chatcord-justaguy')
+    || url.includes('github.com/justaguyalrok/chatcord-justaguy');
+}
+
+// Opening Chatcord drops the user straight into the existing near-full-screen
+// chat. It reuses window.openLiveChat() \u2014 the same path the \u25c9 Chat button and
+// the ONLINE NOW roster use \u2014 so there is no second chat window. Every other
+// zone is left exactly as it was.
+function maybeAutoOpenChatForZone(file){
+  if(!isChatcordZone(file)) return;
+  if(typeof window.openLiveChat === 'function') window.openLiveChat();
+}
+
 function loadIntoViewer(html, file){
   if(zoneFrame&&zoneFrame.parentNode)zoneFrame.parentNode.removeChild(zoneFrame);
   zoneFrame=document.createElement('iframe');
@@ -3142,6 +3568,7 @@ function loadIntoViewer(html, file){
   authorEl.href=file.authorLink||'#';
   hideMenu();zoneViewer.style.display='flex';
   try{const u=new URL(location);u.searchParams.set('id',file.id);history.pushState(null,'',u);}catch(e){}
+  maybeAutoOpenChatForZone(file);
 }
 
 function openZone(file){
@@ -3168,6 +3595,7 @@ function openZone(file){
       authorEl.href=file.authorLink||'#';
       hideMenu();zoneViewer.style.display='flex';
       try{const u=new URL(location);u.searchParams.set('id',file.id);history.pushState(null,'',u);}catch(e){}
+      maybeAutoOpenChatForZone(file);
     });
 }
 function closeZone(){
@@ -3207,6 +3635,11 @@ function showPopup(title,html,mode){
 function closePopup(){
   const popupEl=popupOverlay.querySelector('.popup');
   if(popupEl) popupEl.classList.remove('chat-mode');
+  if(popupEl) popupEl.classList.remove('dm-open');
+  // The chat popup is torn down here, so the private conversation view must be
+  // reset with it \u2014 otherwise a later DM would be treated as "on screen" and
+  // would never raise an unread badge.
+  if(typeof window.__idkggDmOnPopupClose === 'function') window.__idkggDmOnPopupClose();
   popupOverlay.style.display='none';
 }
 function overlayClick(e){if(e.target===popupOverlay)closePopup();}
@@ -4089,6 +4522,30 @@ function clearDisguiseImg(){
   let chatAttachment = null;
   const MAX_ATTACH_CHARS = 30000;              // data-URL length cap
   const MAX_SOURCE_BYTES = 8 * 1024 * 1024;    // largest file we will accept
+  /* ── DIRECT MESSAGES (DM) ──────────────────────────────────────────────
+     A private conversation between exactly two people. Each PAIR gets its own
+     deterministic PubNub channel, derived from the two user ids SORTED, so both
+     sides compute the same name and a third client can never land in it. A DM
+     is never published on the public chat channel, so it can never appear in
+     the public feed. Each user also has a personal "inbox" channel that carries
+     only a tiny nudge (who messaged, when) so a recipient who was offline still
+     learns about the message and can pull the backlog out of the pair channel's
+     retained history. */
+  const DM_CHANNEL_PREFIX = 'idkgg-dm-v1-';
+  const DM_INBOX_PREFIX   = 'idkgg-dminbox-v1-';
+  const DM_THREADS_KEY    = 'idkgg_dm_threads_v1';
+  const DM_UNREAD_KEY     = 'idkgg_dm_unread_v1';
+  const DM_MAX_THREADS    = 40;                // newest conversations kept
+  const DM_MAX_MESSAGES   = 200;               // per conversation
+  let dmThreads = loadDmThreads();             // { peerId: {peerId,peerName,peerRank,peerPfp,messages:[],lastAt} }
+  let dmUnread  = loadDmUnread();              // { peerId: count }
+  let dmActivePeer = null;                     // peerId of the open conversation, or null
+  let dmPeerOnline = false;
+  let dmAttachment = null;                     // pending attachment for the DM composer
+  let dmCmdMenuIndex = 0;
+  let dmCmdMenuItems = [];
+  let dmCmdAwayWired = false;
+  let dmInboxSubscribed = false;
   // ── PRESENCE HEARTBEAT ──
   // Keeps this user in the online roster while the page is open and the tab is
   // visible, and drops them out of it when the tab is hidden or closed.
@@ -4515,7 +4972,16 @@ function clearDisguiseImg(){
       const rankId = String(command.id || `rank-${command.targetId}-${command.issuedAt || ''}`);
       if(seenModerationIds.has(rankId)) return;
       seenModerationIds.add(rankId);
+      // Mirror the change into the assignment map, so the same source of truth
+      // drives the roster and this user's own rank.
+      if(command.targetId){
+        if(command.rank) rankAssignments[command.targetId] = command.rank;
+        else delete rankAssignments[command.targetId];
+        saveRankAssignments();
+      }
       applyRosterRank(command.targetId, command.rank);
+      // A targeted rank change is explicit: give OR take away.
+      if(syncMyRankFromAssignments(true)) publishIdentity();
       return;
     }
     // Action-log traffic is a broadcast about OTHER users, so it is handled
@@ -4594,8 +5060,13 @@ function clearDisguiseImg(){
       const name = normalizeName(occupant.state && occupant.state.username || 'Guest');
       const rawRank = occupant.state && occupant.state.rank;
       // Any rank the shared definition set still recognises — owner, mod, or a
-      // custom rank that exists and is enabled.
-      const rank = (rawRank && isValidRankId(rawRank)) ? rawRank : '';
+      // custom rank that exists and is enabled. The assignment map is
+      // authoritative: presence state lags a manual GIVE RANK by a beat, and a
+      // fresh roster fetch must not blank the badge in that window.
+      const uid = occupant.uuid || occupant.userId;
+      const assigned = uid ? rankAssignments[uid] : '';
+      const rank = (rawRank && isValidRankId(rawRank)) ? rawRank
+                 : ((assigned && isValidRankId(assigned)) ? assigned : '');
       const pfp = occupant.state && typeof occupant.state.pfp === 'string' ? occupant.state.pfp : '';
       return { id: occupant.uuid || occupant.userId || name, name: name || 'Guest', rank: rank, pfp: pfp };
     }).filter(function(user){
@@ -4606,6 +5077,11 @@ function clearDisguiseImg(){
     // Player count = real connected clients only. No artificial floor, so an
     // empty roster reads 0 instead of a stale/inflated number.
     if(countEl) countEl.textContent = onlineUsers.length;
+    // The chat sidebar reads the same roster, so it repaints here too.
+    renderChatSidebar();
+    // A live roster change also refreshes the open DM header, so the peer's
+    // online/offline state and rank badge stay accurate.
+    if(dmActivePeer) dmRenderHeader();
     lastRosterAt = Date.now();
     // Keep the owner panel's user picker in step with the live roster.
     if(hasModPowers() && document.getElementById('ownerTargetSelect')) refreshOwnerTargets();
@@ -4630,13 +5106,16 @@ function clearDisguiseImg(){
   }
 
   /* ── PRESENCE HEARTBEAT ────────────────────────────────
-     A user counts as ONLINE when the page is open, the tab is
-     visible, and they have entered a username. The heartbeat
-     re-asserts that state every 60s (and immediately on load,
-     on join, and on every visibility change) so the roster entry
-     stays alive and incoming chat messages keep reaching them. */
+     A user counts as ONLINE while the page is open and they have entered a
+     username. A HIDDEN tab is still a connected client: it keeps its presence
+     subscription and keeps heartbeating, so it is never dropped from the
+     roster and never emits a spurious `leave` that would remove it from
+     everyone else's list. Only closing the page takes a user offline. The
+     heartbeat re-asserts that state every 60s (and immediately on load, on
+     join, and on every resume) so the roster entry stays alive and incoming
+     chat messages keep reaching them. */
   function isUserOnline(){
-    return !!myName && document.visibilityState === 'visible';
+    return !!myName;
   }
 
   function goOnline(){
@@ -4662,6 +5141,7 @@ function clearDisguiseImg(){
     // without waiting for the next presence event.
     onlineUsers = onlineUsers.filter(function(user){ return user.id !== myId; });
     if(countEl) countEl.textContent = onlineUsers.length;
+    renderChatSidebar();
     refreshRoster();
   }
 
@@ -4704,6 +5184,13 @@ function clearDisguiseImg(){
   function resubscribeAll(){
     if(!client) return;
     try{ client.subscribe({channels:[CHAT_CHANNEL, MODERATION_CHANNEL, ANNOUNCE_CHANNEL]}); }catch(e){}
+    // Rejoin the personal DM inbox, and the pair channel of any conversation
+    // that is currently open, so private messages keep flowing after a resume.
+    dmInboxSubscribed = false;
+    dmSubscribeInbox();
+    if(dmActivePeer){
+      try{ client.subscribe({channels:[dmChannelFor(myId, dmActivePeer)]}); }catch(e){}
+    }
     // The TOTAL JOINS counter rides its own client; rejoin its channel here
     // too, so a reconnect keeps the shared total flowing AND still counts the
     // rejoin as a genuine new join.
@@ -4788,7 +5275,10 @@ function clearDisguiseImg(){
   // Every signal the browser gives us that the page is back in the foreground.
   document.addEventListener('visibilitychange', function(){
     if(document.visibilityState === 'visible') resumeConnection();
-    else heartbeat();
+    // Going hidden must NOT drop this user from the roster: the tab is still
+    // connected, so presence is left exactly as it is. The heartbeat keeps
+    // running (browsers throttle it, and resumeConnection re-arms it on the way
+    // back), so the entry stays alive for everyone else.
   });
   window.addEventListener('focus', resumeConnection);
   window.addEventListener('pageshow', resumeConnection);
@@ -4818,10 +5308,160 @@ function clearDisguiseImg(){
     if(changed){ renderChat(); refreshRosterViews(); renderActionLog(); }
   }
 
+  /* ── CHAT ONLINE SIDEBAR ──
+     The live list of everyone currently online, docked inside the chat popup.
+     It reads the SAME `onlineUsers` roster that powers ONLINE NOW and the
+     players-online count, so it can never drift from them: every path that
+     updates the roster (setUsers, a presence leave/timeout, goOffline, a live
+     rank change) repaints this list too. It is a no-op while the chat is
+     closed, because the container does not exist then. */
+  function renderChatSidebar(){
+    const list = document.getElementById('chatSideList');
+    if(!list) return;
+    const count = document.getElementById('chatSideCount');
+    if(count) count.textContent = onlineUsers.length;
+    // Keep every DM thread's cached identity in step with the live roster, so a
+    // rename or a rank change shows up in the conversation header too.
+    let peerChanged = false;
+    Object.keys(dmThreads).forEach(function(peerId){
+      const live = dmPeerFromRoster(peerId);
+      if(!live) return;
+      const t = dmThreads[peerId];
+      if(t.peerName !== live.name || t.peerRank !== (live.rank || '') || t.peerPfp !== (live.pfp || '')){
+        t.peerName = live.name; t.peerRank = live.rank || ''; t.peerPfp = live.pfp || '';
+        peerChanged = true;
+      }
+    });
+    if(peerChanged) saveDmThreads();
+    list.innerHTML = onlineUsers.length
+      ? onlineUsers.map(function(user){
+          const me = user.id === myId;
+          const inner = `<span class="chat-side-dot"></span>`
+            + `<span class="chat-side-name">${escapeHtml(user.name)}${me ? ' (you)' : ''}</span>`
+            + rankBadgeHtml(user.rank);
+          // The row's MAIN area opens the moderation menu, and only for a viewer
+          // who actually holds moderation powers — the same gate the ONLINE NOW
+          // roster uses. Your own row is never a button: you cannot moderate
+          // yourself, so there is no menu to offer.
+          const main = me
+            ? `<div class="chat-side-main" title="This is you">${inner}</div>`
+            : (hasModPowers()
+                ? `<button type="button" class="chat-side-main" data-moderation-id="${escapeHtml(user.id)}" title="Open the moderation menu for ${escapeHtml(user.name)}">${inner}</button>`
+                : `<div class="chat-side-main">${inner}</div>`);
+          // The DM entry point is a SEPARATE click target, so starting a private
+          // conversation can never be confused with opening the moderation menu.
+          // Your own row offers no DM — you cannot message yourself.
+          const unread = dmUnreadFor(user.id);
+          const dm = me ? '' : `<button type="button" class="chat-side-dm" data-dm-id="${escapeHtml(user.id)}" title="Send ${escapeHtml(user.name)} a private message" aria-label="Send ${escapeHtml(user.name)} a private message">DM${unread ? `<span class="dm-unread">${unread > 99 ? '99+' : unread}</span>` : ''}</button>`;
+          return `<div class="chat-side-user${me ? ' me' : ''}">${main}${dm}</div>`;
+        }).join('')
+      : '<div class="chat-side-empty">Nobody else is online yet.</div>';
+    // Wire the rows to the SAME moderation menu the ONLINE NOW roster opens, so
+    // the actions behave identically no matter which list they were launched
+    // from. Re-queried on every repaint, because the list is rebuilt wholesale.
+    list.querySelectorAll('[data-moderation-id]').forEach(function(button){
+      button.addEventListener('click', function(){ window.openModerationMenuForId(button.dataset.moderationId); });
+    });
+    // The DM buttons are wired separately, so the two click targets never
+    // interfere with one another.
+    list.querySelectorAll('[data-dm-id]').forEach(function(button){
+      button.addEventListener('click', function(event){
+        event.preventDefault();
+        event.stopPropagation();
+        dmOpenConversation(button.dataset.dmId);
+      });
+    });
+    // Keep the left DM rail in step: a new conversation adds an avatar, a fresh
+    // unread DM raises its badge. Repainting from here means every existing
+    // caller of renderChatSidebar (presence updates, unread changes, renames)
+    // covers the rail too, and it is a no-op while the chat is closed.
+    renderDmRail();
+  }
+
+  /* ---------- DM RAIL (LEFT) ----------
+     A narrow vertical column docked to the LEFT of the chat, mirroring the
+     online sidebar on the right. Its top entry is the viewer's OWN avatar and
+     is the "home" entry: clicking it returns to the public chat and can never
+     open a DM with yourself. Underneath sit one avatar per DM conversation,
+     most recent first, each carrying that person's rank badge and - when
+     messages are waiting - a neon-GREEN unread count. Clicking one calls the
+     SAME dmOpenConversation the sidebar's DM button uses, so the thread, the
+     header, the effects, the attachments and the mute rules are identical.
+     Themed in the app's neon green accent, deliberately not the DM button blue. */
+  function dmRailMembers(){
+    return Object.keys(dmThreads).sort(function(a, b){
+      return (dmThreads[b].lastAt || 0) - (dmThreads[a].lastAt || 0);
+    }).slice(0, 12);
+  }
+
+  function renderDmRail(){
+    const home = document.getElementById('chatRailHome');
+    const list = document.getElementById('chatRailList');
+    if(!home || !list) return;
+    // Your own avatar, using the same `myPfp` the HUD identity chip shows, with
+    // the app's existing initial-avatar fallback when no custom PFP is set.
+    home.innerHTML = '<img class="avatar" src="' + escapeHtml(myPfp || defaultAvatarDataUrl(myName)) + '" alt="">'
+      + '<span class="dm-rail-home-dot" aria-hidden="true"></span>';
+    if(!home._railWired){
+      home._railWired = true;
+      home.addEventListener('click', dmRailHome);
+    }
+    const keys = dmRailMembers();
+    if(!keys.length){
+      list.innerHTML = '<div class="dm-rail-empty" title="No private conversations yet">-</div>';
+      return;
+    }
+    list.innerHTML = keys.map(function(peerId){
+      const t = dmThreads[peerId] || {};
+      const live = dmPeerFromRoster(peerId);
+      const name = ((live && live.name) || t.peerName || 'Guest');
+      const rank = ((live ? live.rank : t.peerRank) || '');
+      const pfp  = ((live && live.pfp) || t.peerPfp || '');
+      const unread = dmUnreadFor(peerId);
+      const active = dmActivePeer === peerId;
+      return '<button type="button" class="dm-rail-user' + (active ? ' active' : '') + '"'
+        + ' data-rail-dm="' + escapeHtml(peerId) + '"'
+        + ' title="' + escapeHtml(name) + ' - open your private conversation"'
+        + ' aria-label="Open your private conversation with ' + escapeHtml(name) + '">'
+        + '<img class="avatar" src="' + escapeHtml(pfp || defaultAvatarDataUrl(name)) + '" alt="">'
+        + (rank ? rankBadgeHtml(rank) : '')
+        + (unread ? '<span class="dm-rail-unread">' + (unread > 99 ? '99+' : unread) + '</span>' : '')
+        + '</button>';
+    }).join('');
+    list.querySelectorAll('[data-rail-dm]').forEach(function(button){
+      button.addEventListener('click', function(event){
+        event.preventDefault();
+        event.stopPropagation();
+        openDmRailPeer(button.dataset.railDm);
+      });
+    });
+  }
+
+  /* Open a conversation from the rail. If the chat is not up yet, open it first
+     (literally the path the Chatcord auto-open uses) so the conversation has
+     somewhere to live, then hand off to the one shared DM opener. */
+  function openDmRailPeer(peerId){
+    const key = String(peerId || '');
+    if(!key || key === myId) return;
+    if(popupOverlay.style.display !== 'flex') window.openLiveChat();
+    const panel = document.getElementById('dmPanel');
+    if(!panel) return;                 // chat unavailable (for example, banned)
+    window.dmOpenConversation(key);
+    renderDmRail();
+  }
+
+  /* The rail's home entry: back to the PUBLIC chat. Never a DM with yourself. */
+  function dmRailHome(){
+    const panel = document.getElementById('dmPanel');
+    if(panel && !panel.hidden) dmCloseConversation();
+    renderDmRail();
+  }
+
   /* Repaint the ONLINE NOW popup from memory, but only while it is open. */
   function refreshRosterViews(){
     const titleEl = document.getElementById('popupTitle');
     if(popupOverlay.style.display === 'flex' && titleEl && titleEl.textContent === 'ONLINE NOW') renderRosterPopup();
+    renderChatSidebar();
   }
 
   /* Renders the ONLINE NOW popup from the roster already in memory. Split out
@@ -4844,6 +5484,20 @@ function clearDisguiseImg(){
 
   window.openLiveUsers = function(){
     refreshRoster().finally(renderRosterPopup);
+  };
+
+  /* Opens the moderation menu for a user by ID rather than by roster index.
+     The chat sidebar and the ONLINE NOW roster are both rebuilt wholesale, so
+     an index captured at render time can go stale; resolving the id against
+     the live roster at click time always targets the row that was clicked.
+     It then hands off to openModerationMenu, so the permission gate, the
+     owner-target refusal and every action behave exactly as they do when the
+     menu is opened from the roster. */
+  window.openModerationMenuForId = function(id){
+    if(!hasModPowers()) return;
+    const index = onlineUsers.findIndex(function(user){ return user.id === id; });
+    if(index < 0) return;
+    window.openModerationMenu(index);
   };
 
   window.openModerationMenu = function(index){
@@ -4971,7 +5625,7 @@ function clearDisguiseImg(){
     const toast = document.createElement('div');
     toast.className = 'chat-toast';
     toast.innerHTML =
-      `<div class="chat-toast-name"><span class="dot"></span>${avatarHtml(message.pfp, message.name, 18)}${escapeHtml(message.name)}${rankBadgeHtml(message.rank, 'margin-left:2px')}</div>`
+      `<div class="chat-toast-name"><span class="dot"></span>${avatarHtml(message.pfp, message.name, 18)}${escapeHtml(message.name)}${rankBadgeHtml(message.rank, 'margin-left:2px')}${chatStampHtml(message)}</div>`
       +`<div class="chat-toast-text">${message.fx === 'spoiler' ? '<em>[spoiler message — open chat to reveal]</em>' : escapeHtml(message.text || '')}</div>`
       +`${(typeof message.image === 'string' && message.image.indexOf('data:image/') === 0) ? `<img class="chat-toast-image" src="${escapeHtml(message.image)}" alt="">` : ''}`;
     toast.addEventListener('click', () => { toast.remove(); window.openLiveChat(); });
@@ -5046,6 +5700,20 @@ function clearDisguiseImg(){
   function toUpsideDown(text){
     return String(text || '').split('').reverse().map(function(ch){ return UPSIDE_MAP[ch] || ch; }).join('');
   }
+  /* ── CHAT TIMESTAMPS ──
+     A short local time ("3:47 PM") taken from the message's OWN sentAt, so the
+     value never depends on when this client happened to render it. Formatted
+     with toLocaleTimeString, which also applies the VIEWER's own timezone, so
+     every client shows the same moment in its own local time. Returns '' when a
+     message carries no usable send time, so a malformed payload degrades to no
+     stamp rather than throwing. */
+  function chatStampHtml(message){
+    const stamp = Number(message && message.sentAt);
+    if(!stamp || !isFinite(stamp)) return '';
+    const date = new Date(stamp);
+    if(isNaN(date.getTime())) return '';
+    return ` <span class="chat-time">${escapeHtml(date.toLocaleTimeString([], {hour:'numeric', minute:'2-digit'}))}</span>`;
+  }
   /* May THIS user use this effect? Public ones always; the gated ones only when
      the rank actually holds them. */
   function fxAllowed(fx){
@@ -5090,6 +5758,668 @@ function clearDisguiseImg(){
       if(toggle(event.target)){ event.preventDefault(); event.stopPropagation(); }
     });
   }
+
+  /* ══════════════════════════════════════════════════════════════════════════
+     DIRECT MESSAGES (DM)
+     A private conversation between exactly two people, started from a row in
+     the chat's online sidebar. Each PAIR gets its own deterministic PubNub
+     channel, derived from the two user ids SORTED, so both sides compute the
+     same name and a third client can never land in it. A DM is NEVER published
+     on the public chat channel, so it can never appear in the public feed.
+     Each user also has a personal "inbox" channel carrying only a tiny,
+     body-less nudge (who wrote, when) so a recipient who was offline still
+     learns about the message and can pull the backlog out of the pair
+     channel's retained history. Timestamps, the text effects, the slash-command
+     dropdown and image/GIF attachments all work here exactly as in the main
+     chat, under the same rank permissions.
+     ══════════════════════════════════════════════════════════════════════════ */
+
+  /* The deterministic channel for a pair. The two ids are SORTED before they
+     are joined, so both participants compute the SAME name and neither can
+     publish to a channel the other is not listening on. A third user's id is
+     not in the name at all, so they can never receive the thread. */
+  function dmChannelFor(a, b){
+    const pair = [String(a || ''), String(b || '')].sort();
+    return DM_CHANNEL_PREFIX + pair[0] + '--' + pair[1];
+  }
+  function dmInboxChannelFor(id){ return DM_INBOX_PREFIX + String(id || ''); }
+
+  function loadDmThreads(){
+    try{
+      const raw = localStorage.getItem(DM_THREADS_KEY);
+      const parsed = raw ? JSON.parse(raw) : {};
+      if(!parsed || typeof parsed !== 'object') return {};
+      const out = {};
+      Object.keys(parsed).forEach(function(key){
+        const t = parsed[key];
+        if(!t || typeof t !== 'object') return;
+        out[key] = {
+          peerId: String(t.peerId || key),
+          peerName: String(t.peerName || 'Guest'),
+          peerRank: String(t.peerRank || ''),
+          peerPfp: typeof t.peerPfp === 'string' ? t.peerPfp : '',
+          lastAt: Number(t.lastAt) || 0,
+          messages: Array.isArray(t.messages) ? t.messages.slice(-DM_MAX_MESSAGES) : []
+        };
+      });
+      return out;
+    }catch(e){ return {}; }
+  }
+  function saveDmThreads(){
+    try{
+      // Keep only the newest conversations so the store can never grow without
+      // bound, and cap each thread's message list.
+      const keys = Object.keys(dmThreads).sort(function(a,b){
+        return (dmThreads[b].lastAt || 0) - (dmThreads[a].lastAt || 0);
+      }).slice(0, DM_MAX_THREADS);
+      const out = {};
+      keys.forEach(function(k){
+        const t = dmThreads[k];
+        out[k] = {
+          peerId:t.peerId, peerName:t.peerName, peerRank:t.peerRank, peerPfp:t.peerPfp,
+          lastAt:t.lastAt, messages:(t.messages || []).slice(-DM_MAX_MESSAGES)
+        };
+      });
+      localStorage.setItem(DM_THREADS_KEY, JSON.stringify(out));
+    }catch(e){}
+  }
+  function loadDmUnread(){
+    try{
+      const raw = localStorage.getItem(DM_UNREAD_KEY);
+      const parsed = raw ? JSON.parse(raw) : {};
+      if(!parsed || typeof parsed !== 'object') return {};
+      const out = {};
+      Object.keys(parsed).forEach(function(k){
+        const n = Number(parsed[k]);
+        if(n > 0) out[k] = Math.min(999, Math.floor(n));
+      });
+      return out;
+    }catch(e){ return {}; }
+  }
+  function saveDmUnread(){
+    try{ localStorage.setItem(DM_UNREAD_KEY, JSON.stringify(dmUnread)); }catch(e){}
+  }
+  function dmUnreadFor(peerId){ return dmUnread[String(peerId || '')] || 0; }
+  function dmTotalUnread(){
+    return Object.keys(dmUnread).reduce(function(sum, k){ return sum + (dmUnread[k] || 0); }, 0);
+  }
+  function dmMarkRead(peerId){
+    const key = String(peerId || '');
+    if(!key || !dmUnread[key]) return;
+    delete dmUnread[key];
+    saveDmUnread();
+    renderChatSidebar();
+    dmRenderHeader();
+  }
+  function dmBumpUnread(peerId){
+    const key = String(peerId || '');
+    if(!key) return;
+    dmUnread[key] = Math.min(999, (dmUnread[key] || 0) + 1);
+    saveDmUnread();
+    renderChatSidebar();
+  }
+
+  /* Ensure a thread object exists for a peer, refreshing the cached identity
+     from the live roster when we have it. */
+  function dmEnsureThread(peerId, peerName, peerRank, peerPfp){
+    const key = String(peerId || '');
+    if(!key) return null;
+    let t = dmThreads[key];
+    if(!t){
+      t = dmThreads[key] = { peerId:key, peerName:'Guest', peerRank:'', peerPfp:'', lastAt:0, messages:[] };
+    }
+    if(peerName) t.peerName = normalizeName(peerName) || t.peerName;
+    if(typeof peerRank === 'string') t.peerRank = peerRank;
+    if(typeof peerPfp === 'string' && peerPfp) t.peerPfp = peerPfp;
+    return t;
+  }
+  /* The live roster is the freshest source for a peer's name / rank / avatar. */
+  function dmPeerFromRoster(peerId){
+    return onlineUsers.find(function(u){ return u.id === peerId; }) || null;
+  }
+  function dmRefreshPeer(peerId){
+    const t = dmThreads[String(peerId || '')];
+    if(!t) return;
+    const live = dmPeerFromRoster(peerId);
+    if(live){
+      t.peerName = live.name || t.peerName;
+      t.peerRank = live.rank || '';
+      t.peerPfp = live.pfp || t.peerPfp;
+    }
+    saveDmThreads();
+  }
+
+  /* Ingest one DM payload. De-duped by message id, so a replayed broadcast, a
+     history re-fetch and the sender's own echo all collapse into one entry. */
+  function dmIngest(message){
+    if(!message || typeof message !== 'object') return false;
+    const fromId = String(message.fromId || '');
+    const toId   = String(message.toId || '');
+    if(!fromId || !toId) return false;
+    // Only ever accept a message that belongs to a conversation THIS user is
+    // part of. A payload addressed to two other people is ignored outright.
+    if(fromId !== myId && toId !== myId) return false;
+    const peerId = (fromId === myId) ? toId : fromId;
+    if(!peerId || peerId === myId) return false;
+    const id = String(message.id || `${fromId}-${message.sentAt}-${message.text || 'image'}`);
+    const t = dmEnsureThread(peerId, message.name, message.rank, message.pfp);
+    if(!t) return false;
+    if(t.messages.some(function(m){ return m.id === id; })) return false;
+    const hasImage = typeof message.image === 'string' && message.image.indexOf('data:image/') === 0;
+    if(typeof message.text !== 'string' && !hasImage) return false;
+    t.messages.push({
+      id:id,
+      fromId:fromId,
+      name:normalizeName(message.name || 'Guest') || 'Guest',
+      rank:(message.rank && isValidRankId(message.rank)) ? message.rank : '',
+      pfp: typeof message.pfp === 'string' ? message.pfp : '',
+      text: typeof message.text === 'string' ? message.text.trim().slice(0, 300) : '',
+      fx: (typeof message.fx === 'string' && CHAT_FX_ALL.indexOf(message.fx) !== -1) ? message.fx : '',
+      image: hasImage ? message.image : '',
+      imageName: typeof message.imageName === 'string' ? message.imageName.slice(0, 80) : '',
+      sentAt: Number(message.sentAt) || Date.now()
+    });
+    if(t.messages.length > DM_MAX_MESSAGES) t.messages = t.messages.slice(-DM_MAX_MESSAGES);
+    t.lastAt = Math.max(t.lastAt || 0, Number(message.sentAt) || Date.now());
+    /* OWNER-ONLY METADATA LOG. Record WHO messaged WHOM and WHEN, built from an
+       explicit whitelist of fields - the message TEXT is never copied, so the
+       body cannot reach the log even though the full payload is in hand here.
+       The entry carries the message's OWN sentAt, so the logged time is when
+       it was actually sent, not when it was ingested. */
+    const dmLogToName = (toId === myId) ? (myName || 'You') : (function(){
+      const liveTo = onlineUsers.find(function(u){ return u.id === toId; });
+      if(liveTo && liveTo.name) return liveTo.name;
+      const thTo = dmThreads[toId];
+      return (thTo && thTo.peerName && thTo.peerName !== myName) ? thTo.peerName : '';
+    })();
+    appendDmLog({
+      id: id,
+      fromId: fromId,
+      toId: toId,
+      fromName: normalizeName(message.name || '') || 'Guest',
+      toName: dmLogToName,
+      at: Number(message.sentAt) || Date.now()
+    });
+    saveDmThreads();
+    const incoming = fromId !== myId;
+    // Unread only counts a message that arrived while this conversation was NOT
+    // the one on screen. Opening the conversation clears it.
+    if(incoming && dmActivePeer !== peerId) dmBumpUnread(peerId);
+    if(dmActivePeer === peerId){
+      dmRenderFeed();
+      dmRenderHeader();
+      if(incoming) dmMarkRead(peerId);
+    } else if(incoming){
+      dmNotify(message, peerId);
+    }
+    return true;
+  }
+
+  /* A DM that arrives while its conversation is not on screen is announced with
+     a toast (and a sound), and flagged with an unread badge on the sender's
+     sidebar row. Clicking the toast opens the conversation. */
+  function dmNotify(message, peerId){
+    if(!chatToastContainer) return;
+    if(typeof getNotifDisabled === 'function' && getNotifDisabled()) return;
+    if(dmActivePeer === peerId) return;
+    playChatNotifySound();
+    const toast = document.createElement('div');
+    toast.className = 'chat-toast chat-toast-dm';
+    toast.innerHTML =
+      `<div class="chat-toast-name"><span class="dot"></span>${avatarHtml(message.pfp, message.name, 18)}${escapeHtml(message.name)}${rankBadgeHtml(message.rank, 'margin-left:2px')}${chatStampHtml(message)}</div>`
+      +`<div class="chat-toast-text"><strong style="color:#9fe4ff">DM</strong> ${message.fx === 'spoiler' ? '<em>[spoiler message \u2014 open the conversation to reveal]</em>' : escapeHtml(message.text || '')}</div>`
+      +`${(typeof message.image === 'string' && message.image.indexOf('data:image/') === 0) ? `<img class="chat-toast-image" src="${escapeHtml(message.image)}" alt="">` : ''}`;
+    toast.addEventListener('click', function(){ toast.remove(); dmOpenConversation(peerId); });
+    chatToastContainer.appendChild(toast);
+    setTimeout(function(){ toast.remove(); }, 5200);
+  }
+
+  /* A tiny nudge on the recipient's personal inbox channel. It carries NO
+     message body \u2014 only who wrote and when \u2014 so the private text itself never
+     travels on a channel anyone else could be listening to. Its job is to make
+     an OFFLINE recipient aware of the message and to pull the backlog out of
+     the pair channel's retained history. */
+  function dmReceiveInbox(nudge){
+    if(!nudge || typeof nudge !== 'object') return;
+    const fromId = String(nudge.fromId || '');
+    if(!fromId || fromId === myId) return;
+    const peerId = fromId;
+    const msgId = String(nudge.msgId || '');
+    const existing = dmThreads[peerId];
+    // Already have this exact message (it arrived on the pair channel) \u2014 the
+    // nudge is redundant, so do not re-fetch.
+    if(msgId && existing && existing.messages.some(function(m){ return m.id === msgId; })) return;
+    dmEnsureThread(peerId, nudge.fromName, nudge.fromRank, nudge.fromPfp);
+    saveDmThreads();
+    dmFetchHistory(peerId).then(function(){
+      if(dmActivePeer === peerId){ dmRenderFeed(); dmRenderHeader(); dmMarkRead(peerId); }
+      else { renderChatSidebar(); }
+    });
+  }
+
+  /* Pull a conversation's retained history from its pair channel. Safe to call
+     repeatedly: dmIngest de-dupes by message id, so a re-fetch never doubles a
+     message. This is what makes an OFFLINE recipient still see the message when
+     they next open the conversation. */
+  function dmFetchHistory(peerId){
+    if(!client || typeof client.fetchMessages !== 'function' || !myId || !peerId) return Promise.resolve();
+    const channel = dmChannelFor(myId, peerId);
+    // NOTE: no `end` \u2014 PubNub's `end` is a timetoken, not a millisecond stamp.
+    return client.fetchMessages({channels:[channel], count:100})
+      .then(function(result){
+        const list = (result && result.channels && result.channels[channel]) || [];
+        list.forEach(function(entry){
+          const m = (entry && entry.message) ? entry.message : entry;
+          dmIngest(m);
+        });
+      }).catch(function(){});
+  }
+
+  /* Publish one DM. It goes ONLY to the pair channel (so the two participants
+     see it and nobody else), plus a body-less nudge on the recipient's inbox
+     channel so an offline recipient still learns about it. */
+  function dmPublish(message, peerId){
+    if(!client) return false;
+    client.publish({channel:dmChannelFor(myId, peerId), message:message}).catch(function(){});
+    client.publish({channel:dmInboxChannelFor(peerId), message:{
+      fromId:myId, fromName:myName, fromRank:myRank, fromPfp:myPfp,
+      msgId:message.id, sentAt:message.sentAt
+    }}).catch(function(){});
+    return true;
+  }
+
+  /* Subscribe to this user's own inbox channel so a nudge reaches them even
+     when the pair channel is not open. Idempotent. */
+  function dmSubscribeInbox(){
+    if(!client || !myId || dmInboxSubscribed) return;
+    try{ client.subscribe({channels:[dmInboxChannelFor(myId)]}); dmInboxSubscribed = true; }catch(e){}
+  }
+
+  /* ── DM CONVERSATION VIEW ────────────────────────────────────────────────
+     The private thread lives INSIDE the chat popup, as a clearly-labelled panel
+     that replaces the public feed while it is open. A BACK TO CHAT button
+     returns to the main chat. It reuses the chat's own renderers (chatTextHtml,
+     chatStampHtml, rankBadgeHtml, avatarHtml), so timestamps, every text effect
+     and the rank badge behave exactly as they do in the public feed. */
+  let dmSystemNotice = '';
+
+  /* Is the conversation actually on screen right now? Used to decide whether an
+     arriving DM counts as "read" or must raise an unread badge. */
+  function dmIsOpen(){
+    const panel = document.getElementById('dmPanel');
+    return !!(panel && !panel.hidden && popupOverlay.style.display === 'flex');
+  }
+  function dmIsMuted(){ return !!activeUntil('chatMuteUntil'); }
+  function dmScrollBottom(){
+    const feed = document.getElementById('dmFeed');
+    if(feed) feed.scrollTop = feed.scrollHeight;
+  }
+
+  function dmRenderHeader(){
+    const host = document.getElementById('dmHeaderName');
+    if(!host) return;
+    const peerId = dmActivePeer;
+    if(!peerId) return;
+    const t = dmThreads[peerId] || {peerName:'Guest', peerRank:'', peerPfp:''};
+    const live = dmPeerFromRoster(peerId);
+    dmPeerOnline = !!live;
+    const name = (live && live.name) || t.peerName || 'Guest';
+    const rank = (live ? live.rank : t.peerRank) || '';
+    const pfp  = (live && live.pfp) || t.peerPfp || '';
+    host.innerHTML = avatarHtml(pfp, name, 22)
+      + `<span class="dm-head-name">${escapeHtml(name)}</span>`
+      + rankBadgeHtml(rank);
+    const statusEl = document.getElementById('dmHeaderStatus');
+    if(statusEl){
+      statusEl.textContent = dmPeerOnline ? 'ONLINE' : 'OFFLINE \u2014 SAVED';
+      statusEl.className = 'dm-head-status' + (dmPeerOnline ? ' online' : '');
+    }
+  }
+
+  function dmRenderFeed(){
+    const feed = document.getElementById('dmFeed');
+    if(!feed) return;
+    const peerId = dmActivePeer;
+    const t = peerId ? dmThreads[peerId] : null;
+    const list = (t && t.messages) || [];
+    const rows = list.length
+      ? list.map(function(message){
+          const mine = message.fromId === myId;
+          const img = message.image
+            ? `<img class="chat-image" src="${escapeHtml(message.image)}" alt="${escapeHtml(message.imageName || 'image')}" loading="lazy">`
+            : '';
+          const txt = chatTextHtml(message);
+          const stamp = chatStampHtml(message);
+          return `<div class="chat-message dm-message${mine ? ' dm-mine' : ''}">`
+            + avatarHtml(message.pfp, message.name, 26)
+            + `<div class="chat-message-body"><span class="chat-message-name">${escapeHtml(mine ? 'You' : message.name)}</span>`
+            + rankBadgeHtml(message.rank) + stamp + txt + img + `</div></div>`;
+        }).join('')
+      : '<p class="dm-empty">No messages yet. Say hello \u2014 this conversation is private.</p>';
+    feed.innerHTML = rows
+      + (dmSystemNotice ? `<p class="chat-system">${escapeHtml(dmSystemNotice)}</p>` : '');
+    dmScrollBottom();
+  }
+
+  function dmSetSystemLine(text){
+    dmSystemNotice = text || '';
+    dmRenderFeed();
+    if(!dmSystemNotice) return;
+    setTimeout(function(){
+      if(dmSystemNotice === text){ dmSystemNotice = ''; dmRenderFeed(); }
+    }, 7000);
+  }
+
+  /* ── DM ATTACHMENTS ──
+     Reuses the chat's own prepareChatAttachment (downscale + compress), so a DM
+     image is subject to exactly the same size limits as a public one. */
+  function dmShowAttachError(text){
+    const el = document.getElementById('dmAttachError');
+    if(!el) return;
+    if(!text){ el.hidden = true; el.textContent = ''; return; }
+    el.hidden = false;
+    el.textContent = text;
+  }
+  function dmRenderAttachPreview(){
+    const box = document.getElementById('dmAttachPreview');
+    if(!box) return;
+    if(!dmAttachment){ box.hidden = true; return; }
+    box.hidden = false;
+    const thumb = document.getElementById('dmAttachThumb');
+    const nameEl = document.getElementById('dmAttachName');
+    const sizeEl = document.getElementById('dmAttachSize');
+    if(thumb) thumb.src = dmAttachment.dataUrl;
+    if(nameEl) nameEl.textContent = dmAttachment.name;
+    if(sizeEl) sizeEl.textContent = (dmAttachment.animated ? 'GIF \u00b7 ' : '') + formatBytes(dmAttachment.bytes);
+  }
+  function dmSetAttachment(att){
+    dmAttachment = att || null;
+    dmShowAttachError('');
+    dmRenderAttachPreview();
+  }
+  function dmClearAttachment(){
+    dmAttachment = null;
+    dmShowAttachError('');
+    dmRenderAttachPreview();
+  }
+  function dmWireAttach(){
+    const btn = document.getElementById('dmAttachBtn');
+    const fileInput = document.getElementById('dmAttachInput');
+    const removeBtn = document.getElementById('dmAttachRemove');
+    const input = document.getElementById('dmInput');
+    const accept = function(file){
+      prepareChatAttachment(file, function(att, err){
+        if(err){ dmShowAttachError(err); return; }
+        dmSetAttachment(att);
+      });
+    };
+    if(btn && fileInput && !btn._dmAttachWired){
+      btn._dmAttachWired = true;
+      btn.addEventListener('click', function(){ fileInput.click(); });
+    }
+    if(fileInput && !fileInput._dmAttachWired){
+      fileInput._dmAttachWired = true;
+      fileInput.addEventListener('change', function(ev){
+        const file = ev.target.files && ev.target.files[0];
+        ev.target.value = '';
+        if(file) accept(file);
+      });
+    }
+    if(removeBtn && !removeBtn._dmAttachWired){
+      removeBtn._dmAttachWired = true;
+      removeBtn.addEventListener('click', dmClearAttachment);
+    }
+    if(input && !input._dmAttachPasteWired){
+      input._dmAttachPasteWired = true;
+      input.addEventListener('paste', function(ev){
+        const items = (ev.clipboardData && ev.clipboardData.items) || [];
+        for(let i = 0; i < items.length; i++){
+          if(items[i].type && items[i].type.indexOf('image/') === 0){
+            const file = items[i].getAsFile();
+            if(file){ ev.preventDefault(); accept(file); }
+            return;
+          }
+        }
+      });
+    }
+  }
+
+  /* ── DM SLASH-COMMAND DROPDOWN ──
+     The same floating menu as the public chat, but offering only what makes
+     sense in a private thread: the text effects this user may use, plus /help.
+     It floats ABOVE the DM form, so it can never push the input or SEND away. */
+  function dmCmdMenuEl(){ return document.getElementById('dmCmdMenu'); }
+  function dmCommandCatalog(){
+    const out = [];
+    myAllowedFx().forEach(function(fx){
+      out.push({cmd:fx, usage:`/${fx} <message>`, desc:CHAT_FX_DESCS[fx]});
+    });
+    out.push({cmd:'help', usage:'/help', desc:'List the commands you can use'});
+    return out;
+  }
+  function dmHideCmdMenu(){
+    const menu = dmCmdMenuEl();
+    if(menu){ menu.hidden = true; menu.innerHTML = ''; }
+    dmCmdMenuItems = [];
+    dmCmdMenuIndex = 0;
+  }
+  function dmRenderCmdMenu(query){
+    const menu = dmCmdMenuEl();
+    if(!menu) return;
+    const q = String(query || '').toLowerCase();
+    const items = q
+      ? dmCommandCatalog().filter(function(i){ return i.cmd.indexOf(q) !== -1; })
+      : dmCommandCatalog();
+    dmCmdMenuItems = items;
+    if(dmCmdMenuIndex >= items.length) dmCmdMenuIndex = 0;
+    if(!items.length){
+      menu.innerHTML = `<div class="chat-cmd-empty">No command matches \u201c/${escapeHtml(q)}\u201d.</div>`;
+      menu.hidden = false;
+      return;
+    }
+    menu.innerHTML = items.map(function(item, i){
+      return `<button type="button" class="chat-cmd-item${i === dmCmdMenuIndex ? ' active' : ''}" data-cmd="${escapeHtml(item.cmd)}">`
+        + `<code>${escapeHtml(item.usage)}</code><span>${escapeHtml(item.desc)}</span></button>`;
+    }).join('');
+    menu.hidden = false;
+    const activeEl = menu.querySelector('.chat-cmd-item.active');
+    if(activeEl && activeEl.scrollIntoView) activeEl.scrollIntoView({block:'nearest'});
+    else menu.scrollTop = 0;
+  }
+  function dmInsertCmd(cmd){
+    const input = document.getElementById('dmInput');
+    if(!input) return;
+    input.value = `/${cmd} `;
+    dmHideCmdMenu();
+    input.focus();
+  }
+  function dmUpdateCmdMenu(){
+    const input = document.getElementById('dmInput');
+    if(!input){ dmHideCmdMenu(); return; }
+    const value = String(input.value || '');
+    if(value.charAt(0) !== '/'){ dmHideCmdMenu(); return; }
+    const body = value.slice(1);
+    if(/\s/.test(body)){ dmHideCmdMenu(); return; }
+    dmCmdMenuIndex = 0;
+    dmRenderCmdMenu(body);
+  }
+  function dmWireCmdMenu(){
+    const input = document.getElementById('dmInput');
+    const menu = dmCmdMenuEl();
+    if(!input || !menu) return;
+    input.addEventListener('input', dmUpdateCmdMenu);
+    input.addEventListener('keydown', function(event){
+      if(event.key === 'Escape'){
+        if(!menu.hidden){ event.preventDefault(); dmHideCmdMenu(); }
+        return;
+      }
+      const open = !menu.hidden && dmCmdMenuItems.length > 0;
+      if(!open) return;
+      if(event.key === 'ArrowDown'){
+        event.preventDefault();
+        dmCmdMenuIndex = (dmCmdMenuIndex + 1) % dmCmdMenuItems.length;
+        dmRenderCmdMenu(String(input.value || '').slice(1));
+      } else if(event.key === 'ArrowUp'){
+        event.preventDefault();
+        dmCmdMenuIndex = (dmCmdMenuIndex - 1 + dmCmdMenuItems.length) % dmCmdMenuItems.length;
+        dmRenderCmdMenu(String(input.value || '').slice(1));
+      } else if(event.key === 'Enter' || event.key === 'Tab'){
+        event.preventDefault();
+        const item = dmCmdMenuItems[dmCmdMenuIndex];
+        if(item) dmInsertCmd(item.cmd);
+      }
+    });
+    menu.addEventListener('mousedown', function(event){
+      const btn = event.target && event.target.closest ? event.target.closest('.chat-cmd-item') : null;
+      if(!btn) return;
+      event.preventDefault();
+      dmInsertCmd(btn.dataset.cmd || '');
+    });
+    if(!dmCmdAwayWired){
+      dmCmdAwayWired = true;
+      document.addEventListener('click', function(event){
+        const m = dmCmdMenuEl();
+        if(!m || m.hidden) return;
+        const t = event.target;
+        if(t && t.id === 'dmInput') return;
+        if(t && t.closest && t.closest('#dmCmdMenu')) return;
+        dmHideCmdMenu();
+      });
+    }
+  }
+
+  /* A typed "/effect" in a DM. Returns true when the text was a command and was
+     handled here (so it is never sent as literal text). The rank gate is the
+     SAME fxAllowed() the public chat uses, so a rank that cannot use /rainbow in
+     the public feed cannot use it in a DM either. */
+  function dmHandleCommand(raw){
+    const match = String(raw || '').trim().match(/^\/([a-z-]+)\s*([\s\S]*)$/i);
+    if(!match) return false;
+    const name = match[1].toLowerCase();
+    const arg = match[2].trim();
+    if(name === 'help' || name === 'commands'){
+      dmSetSystemLine('You can use: ' + myAllowedFx().map(function(f){ return '/' + f; }).join(', ') + '.');
+      return true;
+    }
+    if(CHAT_FX_ALL.indexOf(name) === -1) return false;
+    if(!fxAllowed(name)){ dmSetSystemLine("You don't have permission to use that command."); return true; }
+    if(!arg){ dmSetSystemLine(`Usage: /${name} <message>`); return true; }
+    if(dmIsMuted()){ dmSetSystemLine('You are muted in chat right now.'); return true; }
+    dmSendPayload(arg.slice(0, 300), name, null, null);
+    return true;
+  }
+
+  /* The one place a DM is actually sent. It is ingested locally first (so the
+     sender sees it immediately) and then published ONLY to the pair channel,
+     plus a body-less nudge on the recipient's inbox channel. */
+  function dmSendPayload(text, fx, image, imageName){
+    const peerId = dmActivePeer;
+    if(!peerId || !client) return false;
+    const message = {
+      id:`${myId}-${Date.now()}-${Math.random().toString(36).slice(2,7)}`,
+      fromId:myId, toId:peerId,
+      name:myName, rank:myRank, pfp:myPfp,
+      text: text || '',
+      fx: fx || '',
+      sentAt: Date.now()
+    };
+    if(image){ message.image = image; message.imageName = imageName || 'image'; }
+    dmIngest(message);
+    dmPublish(message, peerId);
+    return true;
+  }
+
+  function dmWireForm(){
+    const form = document.getElementById('dmForm');
+    const input = document.getElementById('dmInput');
+    if(!form || !input || form._dmWired) return;
+    form._dmWired = true;
+    form.addEventListener('submit', function(event){
+      event.preventDefault();
+      const text = input.value.trim();
+      if(dmIsMuted()){ dmSetSystemLine('You are muted in chat right now.'); return; }
+      if(!client){ dmSetSystemLine('The live service is unavailable, so nothing was sent.'); return; }
+      if(dmAttachment){
+        const att = dmAttachment;
+        input.value = '';
+        dmClearAttachment();
+        dmSendPayload(text, '', att.dataUrl, att.name);
+        return;
+      }
+      if(!text) return;
+      input.value = '';
+      if(dmHandleCommand(text)) return;
+      dmSendPayload(text, '', null, null);
+    });
+  }
+
+  /* Open (or switch to) a private conversation with one person. */
+  function dmOpenConversation(peerId){
+    const key = String(peerId || '');
+    if(!key || key === myId) return;
+    const live = dmPeerFromRoster(key);
+    dmEnsureThread(key, live && live.name, live && live.rank, live && live.pfp);
+    saveDmThreads();
+    dmActivePeer = key;
+    dmSystemNotice = '';
+    dmClearAttachment();
+    const panel = document.getElementById('dmPanel');
+    const popupEl = popupOverlay.querySelector('.popup');
+    if(panel) panel.hidden = false;
+    if(popupEl) popupEl.classList.add('dm-open');
+    dmRenderHeader();
+    dmRenderFeed();
+    dmRenderAttachPreview();
+    dmWireForm();
+    dmWireAttach();
+    dmWireCmdMenu();
+    dmMarkRead(key);
+    // Listen on the pair channel while the conversation is open, and pull the
+    // retained history so an OFFLINE recipient still sees what was sent.
+    if(client){
+      try{ client.subscribe({channels:[dmChannelFor(myId, key)]}); }catch(e){}
+      dmFetchHistory(key).then(function(){ dmRenderFeed(); dmRenderHeader(); });
+    }
+    const input = document.getElementById('dmInput');
+    if(input && !input.disabled) input.focus();
+    // Ring the conversation now on screen in the left rail, and clear its badge.
+    renderDmRail();
+  }
+
+  /* Return to the public chat. The pair channel is released again, so the set of
+     subscriptions stays bounded; the inbox nudge still delivers anything new. */
+  function dmCloseConversation(){
+    const peerId = dmActivePeer;
+    dmActivePeer = null;
+    dmSystemNotice = '';
+    dmHideCmdMenu();
+    dmClearAttachment();
+    const panel = document.getElementById('dmPanel');
+    const popupEl = popupOverlay.querySelector('.popup');
+    if(panel) panel.hidden = true;
+    if(popupEl) popupEl.classList.remove('dm-open');
+    if(peerId && client){
+      try{ client.unsubscribe({channels:[dmChannelFor(myId, peerId)]}); }catch(e){}
+    }
+    renderChatSidebar();
+    renderDmRail();
+  }
+  window.dmOpenConversation = dmOpenConversation;
+  window.dmCloseConversation = dmCloseConversation;
+
+  /* The chat popup is torn down by closePopup(), so the conversation view must
+     be reset with it \u2014 otherwise a later DM would be treated as "on screen"
+     and never raise an unread badge. */
+  window.__idkggDmOnPopupClose = function(){
+    const peerId = dmActivePeer;
+    dmActivePeer = null;
+    dmSystemNotice = '';
+    dmHideCmdMenu();
+    dmClearAttachment();
+    if(peerId && client){
+      try{ client.unsubscribe({channels:[dmChannelFor(myId, peerId)]}); }catch(e){}
+    }
+  };
 
   /* ══════════════════════════════════════════════════════════════════════════
      SLASH-COMMAND DROPDOWN
@@ -5306,13 +6636,16 @@ function clearDisguiseImg(){
             ? `<img class="chat-image" src="${escapeHtml(message.image)}" alt="${escapeHtml(message.imageName || 'image')}" loading="lazy">`
             : '';
           const txt = chatTextHtml(message);
+          // The stamp is built from the message's own sentAt, so a late arrival
+          // or a replay after a reload still shows the real send time.
+          const stamp = chatStampHtml(message);
           // The ✕ is only emitted for mods and owners, and never on an owner's
           // message — keeping the "no commands on owners" rule consistent.
           const canDelete = deletable && message.rank !== 'owner';
           const del = canDelete
             ? `<button class="chat-delete-btn" type="button" data-msg-id="${escapeHtml(message.id)}" title="Delete this message" aria-label="Delete this message">✕</button>`
             : '';
-          return `<div class="chat-message${canDelete ? ' has-delete' : ''}">${avatarHtml(message.pfp, message.name, 26)}<div class="chat-message-body"><span class="chat-message-name">${escapeHtml(message.name)}</span>${rankBadgeHtml(message.rank)}${txt}${img}</div>${del}</div>`;
+          return `<div class="chat-message${canDelete ? ' has-delete' : ''}">${avatarHtml(message.pfp, message.name, 26)}<div class="chat-message-body"><span class="chat-message-name">${escapeHtml(message.name)}</span>${rankBadgeHtml(message.rank)}${stamp}${txt}${img}</div>${del}</div>`;
         }).join('')
       : '<p style="color:rgba(255,255,255,.35);text-align:center;padding:2rem .5rem">No messages yet. Say hello.</p>';
     feed.innerHTML = listHtml
@@ -5469,7 +6802,11 @@ function clearDisguiseImg(){
       // on the message so every client renders it the same way.
       fx: (typeof message.fx === 'string' && CHAT_FX_ALL.indexOf(message.fx) !== -1) ? message.fx : '',
       image: hasImage ? message.image : '',
-      imageName: typeof message.imageName === 'string' ? message.imageName.slice(0, 80) : ''
+      imageName: typeof message.imageName === 'string' ? message.imageName.slice(0, 80) : '',
+      // The message's OWN send time, carried through so a late arrival, a
+      // retained-history replay or a re-render after a reload still shows when
+      // it was actually sent rather than when this client happened to paint it.
+      sentAt: Number(message.sentAt) || Date.now()
     });
     // Remember how far the feed has been read so a resume can ask PubNub for
     // exactly the messages that arrived while the tab was suspended.
@@ -5488,12 +6825,56 @@ function clearDisguiseImg(){
     }
     const chatMuteUntil = activeUntil('chatMuteUntil');
     showPopup('REAL-TIME CHAT',
-      `<div id="liveChatFeed" aria-live="polite"></div>`
+      // The feed and the online sidebar share one flex row, so the sidebar can
+      // never overlap the feed or push the input/SEND out of view.
+      // The DM rail sits OUTSIDE #liveChatMain so it stays docked to the left of
+      // the chat even while a private conversation is open and the public feed
+      // is hidden - exactly like Discord's server rail.
+      `<div id="chatCol">`
+      +`<aside id="dmRail" aria-label="Direct message conversations">`
+        +`<div class="dm-rail-label">DMS</div>`
+        +`<button type="button" class="dm-rail-home" id="chatRailHome" title="Back to the main chat" aria-label="Back to the main chat"></button>`
+        +`<div class="dm-rail-sep"></div>`
+        +`<div class="dm-rail-list" id="chatRailList"></div>`
+      +`</aside>`
+      +`<div id="liveChatMain">`
+        +`<div id="liveChatFeed" aria-live="polite"></div>`
+        +`<aside id="liveChatSide" aria-label="People online">`
+          +`<div class="chat-side-head">ONLINE \u2014<span class="chat-side-count" id="chatSideCount">0</span></div>`
+          +`<div class="chat-side-list" id="chatSideList"></div>`
+        +`</aside>`
+      +`</div>`
+      +`</div>`
       +`<div id="chatAttachError" hidden></div>`
       +`<div id="chatAttachPreview" hidden>`
         +`<img id="chatAttachThumb" alt="">`
         +`<div class="chat-attach-meta"><span id="chatAttachName"></span><span id="chatAttachSize"></span></div>`
         +`<button type="button" id="chatAttachRemove" title="Remove attachment" aria-label="Remove attachment">\u2715</button>`
+      +`</div>`
+      // ── PRIVATE DM CONVERSATION ──
+      // A clearly-labelled panel that replaces the public feed while a private
+      // conversation is open. It lives INSIDE the chat popup, so it is never a
+      // jarring separate page, and BACK TO CHAT returns to the public feed.
+      +`<div id="dmPanel" hidden>`
+        +`<div class="dm-head">`
+          +`<button type="button" id="dmBackBtn" title="Back to the public chat">\u2190 BACK TO CHAT</button>`
+          +`<div class="dm-head-who" id="dmHeaderName"></div>`
+          +`<span class="dm-head-status" id="dmHeaderStatus"></span>`
+        +`</div>`
+        +`<div id="dmFeed" aria-live="polite"></div>`
+        +`<div id="dmAttachError" hidden></div>`
+        +`<div id="dmAttachPreview" hidden>`
+          +`<img id="dmAttachThumb" alt="">`
+          +`<div class="chat-attach-meta"><span id="dmAttachName"></span><span id="dmAttachSize"></span></div>`
+          +`<button type="button" id="dmAttachRemove" title="Remove attachment" aria-label="Remove attachment">\u2715</button>`
+        +`</div>`
+        +`<form id="dmForm">`
+          +`<button type="button" id="dmAttachBtn" title="Attach an image or GIF" aria-label="Attach an image or GIF">+</button>`
+          +`<input id="dmAttachInput" type="file" accept="image/*" hidden>`
+          +`<input id="dmInput" type="text" maxlength="300" autocomplete="off" placeholder="Send a private message">`
+          +`<button id="dmSend" type="submit">SEND</button>`
+          +`<div id="dmCmdMenu" hidden></div>`
+        +`</form>`
       +`</div>`
       +`<form id="liveChatForm">`
         +`<button type="button" id="chatAttachBtn" title="Attach an image or GIF" aria-label="Attach an image or GIF" ${(client && !chatMuteUntil) ? '' : 'disabled'}>+</button>`
@@ -5514,11 +6895,20 @@ function clearDisguiseImg(){
       +`<div id="rankBuilderHost" hidden><div id="rankBuilderRoot"></div></div>`
     , 'chat');
     renderChat();
+    renderChatSidebar();
     renderOwnerPanel();
     wireChatAttach();
     wireChatDelete();
     wireChatSpoilers();
     wireChatCommandMenu();
+    // The DM panel is rebuilt with the popup, so reset it to the public chat
+    // and re-wire its controls on every open.
+    dmCloseConversation();
+    const dmBack = document.getElementById('dmBackBtn');
+    if(dmBack) dmBack.addEventListener('click', function(){ dmCloseConversation(); });
+    dmWireForm();
+    dmWireAttach();
+    dmWireCmdMenu();
     const chatForm = document.getElementById('liveChatForm');
     const chatInput = document.getElementById('liveChatInput');
     if(chatInput && !chatInput.disabled) chatInput.focus();
@@ -6043,6 +7433,174 @@ function clearDisguiseImg(){
     if(scrollToNewest) list.scrollTop = 0;
   }
 
+  /* ======================================================================
+     DM METADATA LOG - OWNER-ONLY, READ-ONLY
+     A record of WHO direct-messaged WHOM, and WHEN. It is deliberately
+     METADATA ONLY: every entry is built from an explicit whitelist of fields
+     (id / fromId / toId / names / at), so a message BODY can never reach this
+     log even though the full payload is in hand at append time. There is not
+     a single button, input or action in the list - it is purely a viewing log.
+     It is fed from the same data the DM system itself uses: the single ingest
+     funnel every DM passes through, plus the local per-pair thread store, so
+     messages restored from storage still appear with their ORIGINAL send
+     time. Kept in localStorage, capped, and rendered newest-first. Visible
+     ONLY to the owner: for every other rank the list is wiped and nothing is
+     rendered, and no entry is ever stored.
+     ====================================================================== */
+  const DM_LOG_KEY = 'idkgg_dm_log_v1';
+  const DM_LOG_MAX = 120;
+  const DM_LOG_OPEN_KEY = 'idkgg_dm_log_open';
+  let dmLog = loadDmLog();
+  let dmLogSeeded = false;
+
+  function loadDmLog(){
+    try{
+      const raw = localStorage.getItem(DM_LOG_KEY);
+      const parsed = raw ? JSON.parse(raw) : [];
+      if(!Array.isArray(parsed)) return [];
+      /* Re-project every stored row onto the metadata whitelist, so even an
+         older or tampered record can never carry a message body into the log. */
+      return parsed.map(function(e){
+        return {
+          id: String((e && e.id) || ''),
+          fromId: String((e && e.fromId) || ''),
+          toId: String((e && e.toId) || ''),
+          fromName: String((e && e.fromName) || ''),
+          toName: String((e && e.toName) || ''),
+          at: Number(e && e.at) || 0
+        };
+      }).filter(function(e){ return e.id && e.fromId && e.toId; }).slice(0, DM_LOG_MAX);
+    }catch(e){ return []; }
+  }
+  function saveDmLog(){
+    try{ localStorage.setItem(DM_LOG_KEY, JSON.stringify(dmLog.slice(0, DM_LOG_MAX))); }catch(e){}
+  }
+
+  /* The single writer. De-dupes by message id, so a replayed broadcast, the
+     sender's own echo and a history re-fetch all collapse into ONE entry. */
+  function appendDmLog(entry, skipSave){
+    if(!entry || !entry.id) return false;
+    if(!isOwnerRank()) return false;   // the log exists for the owner's device only
+    if(dmLog.some(function(e){ return e.id === entry.id; })) return false;
+    dmLog.push({
+      id: String(entry.id),
+      fromId: String(entry.fromId || ''),
+      toId: String(entry.toId || ''),
+      fromName: String(entry.fromName || ''),
+      toName: String(entry.toName || ''),
+      at: Number(entry.at) || Date.now()
+    });
+    if(dmLog.length > DM_LOG_MAX){
+      // Keep the NEWEST rows by send time, never the most recently appended.
+      dmLog.sort(function(a,b){ return (a.at || 0) - (b.at || 0); });
+      dmLog = dmLog.slice(-DM_LOG_MAX);
+    }
+    if(!skipSave){ saveDmLog(); renderDmLog(true); }
+    return true;
+  }
+
+  /* The best display name we hold for an id: the live roster first, then the
+     local thread, then whatever the payload carried. Your own id always reads
+     as your current name. */
+  function dmLogNameFor(id, fallback){
+    const key = String(id || '');
+    if(!key) return fallback || 'Unknown';
+    if(key === myId) return myName || 'You';
+    const live = onlineUsers.find(function(u){ return u.id === key; });
+    if(live && live.name) return live.name;
+    const t = dmThreads[key];
+    /* A thread's cached peerName can be polluted by an OUTGOING message (which
+       carries the SENDER's own name), so never echo our own name back as the
+       other party. */
+    if(t && t.peerName && t.peerName !== myName) return t.peerName;
+    return fallback || 'Unknown';
+  }
+
+  /* Absolute LOCAL time, e.g. "Oct 8, 2:41 AM". Compact enough for the row,
+     and the title carries the full date and seconds for anyone who needs it. */
+  function dmLogTime(ts){
+    const then = Number(ts) || 0;
+    if(!then) return '';
+    return new Date(then).toLocaleString([], {month:'short', day:'numeric', hour:'numeric', minute:'2-digit'});
+  }
+  function dmLogTimeFull(ts){
+    const then = Number(ts) || 0;
+    if(!then) return '';
+    return new Date(then).toLocaleString();
+  }
+
+  /* Rebuild any missing entries out of the local per-pair thread store, so a
+     DM that predates this log (or was restored from storage) still appears
+     with its ORIGINAL send time. Idempotent - de-duped by message id. */
+  function seedDmLogFromThreads(){
+    let added = 0;
+    Object.keys(dmThreads).forEach(function(peerId){
+      const t = dmThreads[peerId];
+      if(!t || !Array.isArray(t.messages)) return;
+      t.messages.forEach(function(m){
+        if(!m || !m.id) return;
+        const outgoing = String(m.fromId || '') === myId;
+        const fromId = String(m.fromId || (outgoing ? myId : peerId));
+        const toId   = outgoing ? String(peerId) : String(myId);
+        if(!fromId || !toId) return;
+        const ok = appendDmLog({
+          id: m.id,
+          fromId: fromId,
+          toId: toId,
+          fromName: outgoing ? (myName || 'You') : (m.name || (t.peerName || 'Guest')),
+          toName: outgoing ? (t.peerName || '') : (myName || 'You'),
+          at: Number(m.sentAt) || 0
+        }, true);
+        if(ok) added++;
+      });
+    });
+    if(added) saveDmLog();
+    return added;
+  }
+
+  /* Repaint the log. Newest-first by send time. READ-ONLY: the list renders
+     names and a time and nothing else - there is no control in it at all. */
+  function renderDmLog(scrollToNewest){
+    const list = document.getElementById('dmLogList');
+    if(!list) return;
+    /* OWNER-ONLY. For every other rank there is no list to fill, and this guard
+       wipes one defensively if it ever existed - so the entries are genuinely
+       absent from the DOM, never merely hidden by CSS. */
+    if(!isOwnerRank()){ list.innerHTML = ''; return; }
+    if(!dmLogSeeded){ dmLogSeeded = true; seedDmLogFromThreads(); }
+    const rows = dmLog.slice().sort(function(a,b){ return (b.at || 0) - (a.at || 0); });
+    list.innerHTML = rows.length
+      ? rows.slice(0, DM_LOG_MAX).map(function(e){
+          const from = dmLogNameFor(e.fromId, e.fromName);
+          const to   = dmLogNameFor(e.toId, e.toName);
+          return `<div class="dm-log-entry">`
+            +`<span class="dm-log-arrow">&#8594;</span>`
+            +`<span class="dm-log-body"><strong>${escapeHtml(from)}</strong>`
+              +` <span class="dm-log-to">to</span> `
+              +`<strong>${escapeHtml(to)}</strong></span>`
+            +`<span class="dm-log-time" title="${escapeHtml(dmLogTimeFull(e.at))}">${escapeHtml(dmLogTime(e.at))}</span>`
+          +`</div>`;
+        }).join('')
+      : `<p class="action-log-empty">No direct messages yet.</p>`;
+    if(scrollToNewest) list.scrollTop = 0;
+  }
+
+  /* Collapsible, like the action log and the panels around it. The state is
+     remembered per browser so the log stays the way the owner left it. */
+  function dmLogIsOpen(){
+    try{ return localStorage.getItem(DM_LOG_OPEN_KEY) !== '0'; }catch(e){ return true; }
+  }
+  function dmLogApplyOpen(){
+    const wrap = document.getElementById('dmLogWrap');
+    if(!wrap) return;
+    const open = dmLogIsOpen();
+    wrap.classList.toggle('collapsed', !open);
+    const body = document.getElementById('dmLogBody');
+    if(body) body.hidden = !open;
+    const tog = document.getElementById('dmLogToggle');
+    if(tog) tog.setAttribute('aria-expanded', open ? 'true' : 'false');
+  }
+
   /* ── COLLAPSIBLE PANEL ──
      The open/closed state is remembered per browser so the panel stays the way
      its owner left it. Collapsing hides the body outright (rather than leaving
@@ -6316,6 +7874,22 @@ function clearDisguiseImg(){
           +`</div>`
           +`<div class="action-log-list" id="actionLogList"></div>`
         +`</div>`
+        // == DM METADATA LOG (owner-only, read-only) ==
+        // Sits directly beside the action log, in the same collapsible style.
+        // Rendered ONLY for the owner; the list is wiped for every other rank.
+        +`<div class="owner-panel-log dm-log-wrap" id="dmLogWrap">`
+          +`<div class="action-log-head">`
+            +`<button class="dm-log-toggle" type="button" id="dmLogToggle" aria-expanded="true" aria-controls="dmLogBody" title="Collapse the DM metadata log">`
+              +`<span class="owner-panel-chevron" id="dmLogChevron">&#9662;</span>`
+              +`<span class="action-log-title">DM METADATA LOG</span>`
+            +`</button>`
+            +`<span class="action-log-filter" id="dmLogMeta">METADATA ONLY</span>`
+          +`</div>`
+          +`<div id="dmLogBody">`
+            +`<p class="dm-log-note">Metadata only &mdash; message contents are not shown. Who messaged whom, and when.</p>`
+            +`<div class="action-log-list" id="dmLogList"></div>`
+          +`</div>`
+        +`</div>`
         +`<div class="owner-panel-row" style="margin-top:.45rem">`
           +`<button class="owner-btn owner-btn-danger" type="button" id="ownerDeleteMsgBtn" title="Delete a chat message for everyone">DELETE MESSAGE\u2026</button>`
         +`</div>`
@@ -6460,6 +8034,16 @@ function clearDisguiseImg(){
 
     refreshOwnerTargets();
     if(select) select.value = actionLogFilter;
+    /* DM metadata log: repaint with the panel and wire its collapse toggle.
+       The markup is rebuilt on every open, so the listener is re-attached
+       here rather than once at startup. */
+    renderDmLog();
+    dmLogApplyOpen();
+    const dmLogToggle = document.getElementById('dmLogToggle');
+    if(dmLogToggle) dmLogToggle.addEventListener('click', function(){
+      try{ localStorage.setItem(DM_LOG_OPEN_KEY, dmLogIsOpen() ? '0' : '1'); }catch(e){}
+      dmLogApplyOpen();
+    });
     applyPanelOpen();
   }
 
@@ -6674,13 +8258,19 @@ function clearDisguiseImg(){
     {id:'setmodcode',   label:'SET MOD CODE'},
     {id:'matrix',       label:'MATRIX TEXT'},
     {id:'big',          label:'BIG TEXT'},
-    {id:'shout',        label:'SHOUT TEXT'}
+    {id:'shout',        label:'SHOUT TEXT'},
+    {id:'rainbow',      label:'RAINBOW TEXT'}
   ];
   const RANK_COLOR_PRESETS = ['#ff5a5a','#ffb347','#ffe066','#39e58c','#5ac8ff','#b98cff','#ff7ad9','#ffffff'];
   const DEFAULT_RANK_COLOR = '#5ac8ff';
 
   let customRanks = loadCustomRanks();
   let rankAssignments = loadRankAssignments();
+  /* The rank the shared assignment map last handed THIS user. It is what makes
+     a manual GIVE RANK take effect on the target's own page, and what lets a
+     CLEAR RANK take it away again, without ever touching a rank the user
+     unlocked themselves by typing a code. */
+  let myAssignedRank = '';
   let rankBuilderOpen = true;
   let lastRanksAt = 0;
 
@@ -6799,6 +8389,39 @@ function clearDisguiseImg(){
      Definitions and assignments travel together on the existing moderation
      channel, and are seeded from its retained history on load so a client that
      connects after a change still validates against the current codes. */
+  /* Move a shared rank assignment into THIS user's own rank. Without this a
+     manual GIVE RANK wrote the map and broadcast it, but the target's client
+     never picked it up, so the badge, the permissions and the saved rank all
+     stayed exactly as they were. */
+  function syncMyRankFromAssignments(allowClear){
+    // Never touch the rank before the user has joined: at that point myId is
+    // not the device id yet, so a leftover assignment could otherwise land on
+    // the wrong session.
+    if(!myId) return false;
+    const raw = rankAssignments[myId];
+    const assigned = (raw && isValidRankId(raw)) ? String(raw) : '';
+    // Nothing in the map for us and nothing we previously took from it: a rank
+    // held by typing a code belongs to the user and must not be disturbed.
+    if(!assigned && !myAssignedRank) return false;
+    // Only an explicit CLEAR RANK takes a rank away. A seeded snapshot with no
+    // entry for us must never strip the rank the user is already holding — a
+    // stale snapshot would otherwise resurrect every cleared rank.
+    if(!assigned && !allowClear) return false;
+    // The built-in ranks are unlocked by their own codes, never by the map.
+    if(myRank === 'owner' || myRank === 'mod'){ myAssignedRank = assigned; return false; }
+    const changed = (assigned !== myRank);
+    myAssignedRank = assigned;
+    if(!changed) return false;
+    myRank = assigned;
+    setSavedRank(assigned);
+    if(!assigned) clearRank();
+    updateIdentityView();
+    renderOwnerPanelForRank();
+    refreshRosterViews();
+    renderChat();
+    return true;
+  }
+
   function publishRanks(){
     if(!client) return;
     client.publish({channel:MODERATION_CHANNEL, message:{
@@ -6822,6 +8445,10 @@ function clearDisguiseImg(){
     if(payload.assign && typeof payload.assign === 'object' && !Array.isArray(payload.assign)){
       rankAssignments = payload.assign;
       saveRankAssignments();
+      // A rank given while we were connected must land on THIS client's own
+      // rank too, and be re-shared so every roster shows it. A snapshot that
+      // simply has no entry for us never clears anything.
+      if(syncMyRankFromAssignments(false) && myRank) publishIdentity();
     }
     if(typeof payload.modEnabled === 'boolean') setModRankEnabled(payload.modEnabled);
     // A rank that was disabled or deleted while we held it must stop working.
@@ -6834,7 +8461,11 @@ function clearDisguiseImg(){
     }
     refreshRosterViews();
     renderChat();
-    if(document.getElementById('rankBuilderRoot')) renderRankBuilder();
+    // Refresh only the panel's LIVE parts here. A full renderRankBuilder() would
+    // rebuild the status line too, so the "Gave X to Y." confirmation written a
+    // moment earlier was wiped by this client's own echo off the channel. It
+    // also preserves anything the owner is still typing into the create form.
+    if(document.getElementById('rankBuilderRoot')) refreshRankBuilderLive();
   }
   function seedRanksFromHistory(){
     if(!client || typeof client.fetchMessages !== 'function') return;
@@ -6868,6 +8499,9 @@ function clearDisguiseImg(){
     onlineUsers.forEach(function(user){ if(user.id === id) user.rank = rankId || ''; });
     if(id === myId){
       myRank = rankId || '';
+      // Stay in step with the shared map, so a later CLEAR RANK still takes
+      // this rank away instead of leaving it stranded.
+      myAssignedRank = rankId || '';
       setSavedRank(myRank);
       if(!myRank) clearRank();
       updateIdentityView();
@@ -7058,11 +8692,20 @@ function clearDisguiseImg(){
             // the moment somebody connects or drops off, and a stale entry is
             // pruned locally even if the follow-up hereNow() call is slow.
             const action = event.action;
-            if(action === 'leave' || action === 'timeout'){
+            // A `leave` is a genuine disconnect (the client unsubscribed or
+            // closed the page), so that user is pruned immediately. A `timeout`
+            // is NOT proof they are gone: it fires when a heartbeat lapses,
+            // which a throttled background tab can cause while the user is
+            // still connected. Pruning on a timeout is exactly the partial
+            // overwrite that dropped live users, so it is left to the full
+            // hereNow() reconcile below, which is the single source of truth
+            // for who is actually connected.
+            if(action === 'leave'){
               const gone = event.uuid || event.userId;
               if(gone){
                 onlineUsers = onlineUsers.filter(function(user){ return user.id !== gone; });
                 if(countEl) countEl.textContent = onlineUsers.length;
+                renderChatSidebar();
               }
             }
             refreshRoster();
@@ -7071,6 +8714,11 @@ function clearDisguiseImg(){
             if(event.channel === CHAT_CHANNEL) addChatMessage(event.message);
             if(event.channel === MODERATION_CHANNEL) receiveModeration(event.message);
             if(event.channel === ANNOUNCE_CHANNEL) receiveAnnouncement(event.message);
+            // A private message arrives on its own pair channel; the body-less
+            // nudge arrives on this user's personal inbox channel. Both are
+            // routed here, and neither ever touches the public feed.
+            if(event.channel && event.channel.indexOf(DM_CHANNEL_PREFIX) === 0) dmIngest(event.message);
+            if(event.channel && event.channel.indexOf(DM_INBOX_PREFIX) === 0) dmReceiveInbox(event.message);
           },
           status: function(statusEvent){
             const category = statusEvent && statusEvent.category;
@@ -7106,6 +8754,10 @@ function clearDisguiseImg(){
         // Apply every chat deletion already on the channel, so a message deleted
         // before this client connected is never shown from retained history.
         seedDeletedFromHistory();
+        // Join this user's personal DM inbox channel, so a private message sent
+        // while they were away still reaches them (as a body-less nudge that
+        // pulls the real thread out of the pair channel's history).
+        dmSubscribeInbox();
         // Baseline for missed-message recovery: anything published after this
         // instant is "new" and will be pulled back on the next resume.
         lastChatAt = Date.now();
@@ -7134,9 +8786,14 @@ function clearDisguiseImg(){
       return;
     }
     // Restore a previously unlocked rank instead of requiring the code every visit.
+    // A manual GIVE RANK survives a reload through the shared roster too, so a
+    // user who was handed a rank by the owner comes back with it.
     const saved = getSavedRank();
     if(saved) myRank = saved;
     else clearRank();
+    // The saved rank wins over the shared map; only a later explicit CLEAR
+    // RANK (or a fresh GIVE) may move it.
+    myAssignedRank = saved || '';
     myName = name;
     myId = getOrCreateDeviceId();
     updateIdentityView();
