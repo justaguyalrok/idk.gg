@@ -4479,6 +4479,8 @@ function clearDisguiseImg(){
   const RESTRICTIONS_KEY = 'idkgg_local_restrictions_v1';
   const DEVICE_ID_KEY = 'idkgg_device_id_v1';
   const PFP_KEY = 'idkgg_pfp_v1';
+  const NAME_KEY = 'idkgg_username_v1';
+  const IDENTITY_KEY = 'idkgg_identity_v1';
   const countEl = document.getElementById('liveNum');
   // Player count starts at 0 — never inherit a stale or inflated number.
   if(countEl) countEl.textContent = '0';
@@ -4503,7 +4505,23 @@ function clearDisguiseImg(){
   let myName = '';
   let myRank = '';
   let myPfp = '';
-  try{ myPfp = localStorage.getItem(PFP_KEY) || ''; }catch(e){ myPfp = ''; }
+  // Restore the complete local identity, while keeping compatibility with the
+  // older individual storage keys used by previous versions of the site.
+  try{
+    const identity = JSON.parse(localStorage.getItem(IDENTITY_KEY) || '{}');
+    myName = String(localStorage.getItem(NAME_KEY) || identity.name || '').slice(0,24);
+    myPfp = localStorage.getItem(PFP_KEY) || identity.pfp || '';
+    if(myName && input) input.value = myName;
+  }catch(e){
+    try{ myName = localStorage.getItem(NAME_KEY) || ''; }catch(_e){}
+    try{ myPfp = localStorage.getItem(PFP_KEY) || ''; }catch(_e){}
+  }
+  function saveLocalIdentity(){
+    try{
+      if(myName) localStorage.setItem(NAME_KEY, myName);
+      localStorage.setItem(IDENTITY_KEY, JSON.stringify({name:myName || '', rank:myRank || '', pfp:myPfp || '', savedAt:Date.now()}));
+    }catch(e){}
+  }
   let onlineUsers = [];
   let chatMessages = [];
   const seenChatIds = new Set();
@@ -4821,6 +4839,7 @@ function clearDisguiseImg(){
         if(!dataUrl) return;
         myPfp = dataUrl;
         try{ localStorage.setItem(PFP_KEY, dataUrl); }catch(e){}
+        saveLocalIdentity();
         refreshPfpViews();
         publishIdentity();
       });
@@ -4862,6 +4881,7 @@ function clearDisguiseImg(){
   window.clearPfp = function(){
     myPfp = '';
     try{ localStorage.removeItem(PFP_KEY); }catch(e){}
+    saveLocalIdentity();
     refreshPfpViews();
     publishIdentity();
     window.openProfile();
@@ -8120,6 +8140,7 @@ function clearDisguiseImg(){
       if(rank && isValidRankId(rank)) localStorage.setItem('idkgg_saved_rank', rank);
       else localStorage.removeItem('idkgg_saved_rank');
     }catch(e){}
+    saveLocalIdentity();
   }
 
   /* ══ MOD RANK ══
@@ -8795,6 +8816,8 @@ function clearDisguiseImg(){
     // RANK (or a fresh GIVE) may move it.
     myAssignedRank = saved || '';
     myName = name;
+    try{ localStorage.setItem(NAME_KEY, myName); }catch(e){}
+    saveLocalIdentity();
     myId = getOrCreateDeviceId();
     updateIdentityView();
     gate.classList.remove('visible');
@@ -8814,6 +8837,7 @@ function clearDisguiseImg(){
     }
     myRank = granted;
     setSavedRank(granted);
+    saveLocalIdentity();
     updateIdentityView();
     rankGate.classList.remove('visible');
     rankInput.value = '';
@@ -9194,6 +9218,12 @@ function clearDisguiseImg(){
   // Start the heartbeat on load too, so the 60s cycle is already running by the
   // time a username is entered (the immediate check is a no-op until then).
   startHeartbeat();
+  // Automatically sign back in with the locally saved name. This restores the
+  // saved rank and PFP without asking the user to re-enter them after a reload.
+  if(myName && normalizeName(myName).length >= 2){
+    input.value = myName;
+    submitName({preventDefault:function(){}});
+  }
 })();
 
 </script>
