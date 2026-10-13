@@ -4505,21 +4505,25 @@ function clearDisguiseImg(){
   let myName = '';
   let myRank = '';
   let myPfp = '';
-  // Restore the complete local identity, while keeping compatibility with the
-  // older individual storage keys used by previous versions of the site.
+  // Names are session-only: never restore a previous username from storage.
+  // Remove names saved by older versions while preserving unrelated identity settings.
   try{
+    localStorage.removeItem(NAME_KEY);
     const identity = JSON.parse(localStorage.getItem(IDENTITY_KEY) || '{}');
-    myName = String(localStorage.getItem(NAME_KEY) || identity.name || '').slice(0,24);
+    if(identity && Object.prototype.hasOwnProperty.call(identity, 'name')){
+      delete identity.name;
+      localStorage.setItem(IDENTITY_KEY, JSON.stringify(identity));
+    }
     myPfp = localStorage.getItem(PFP_KEY) || identity.pfp || '';
-    if(myName && input) input.value = myName;
   }catch(e){
-    try{ myName = localStorage.getItem(NAME_KEY) || ''; }catch(_e){}
+    try{ localStorage.removeItem(NAME_KEY); }catch(_e){}
     try{ myPfp = localStorage.getItem(PFP_KEY) || ''; }catch(_e){}
   }
+  myName = '';
   function saveLocalIdentity(){
+    // Keep rank/profile-picture settings, but never write the current name.
     try{
-      if(myName) localStorage.setItem(NAME_KEY, myName);
-      localStorage.setItem(IDENTITY_KEY, JSON.stringify({name:myName || '', rank:myRank || '', pfp:myPfp || '', savedAt:Date.now()}));
+      localStorage.setItem(IDENTITY_KEY, JSON.stringify({rank:myRank || '', pfp:myPfp || '', savedAt:Date.now()}));
     }catch(e){}
   }
   let onlineUsers = [];
@@ -8815,8 +8819,7 @@ function clearDisguiseImg(){
     // The saved rank wins over the shared map; only a later explicit CLEAR
     // RANK (or a fresh GIVE) may move it.
     myAssignedRank = saved || '';
-    myName = name;
-    try{ localStorage.setItem(NAME_KEY, myName); }catch(e){}
+    myName = name; // kept in memory for this visit only
     saveLocalIdentity();
     myId = getOrCreateDeviceId();
     updateIdentityView();
