@@ -2511,6 +2511,75 @@ button.chat-side-main:focus-visible{outline:2px solid var(--pulsar);outline-offs
   </div>
 </section>
 <script>
+/* Storage on ChromeOS can be disabled for locally-opened files, Guest mode,
+   or managed school profiles.  Never let that stop the whole app. */
+const siteStorage = (() => {
+  const nativeLocalStorage = window.localStorage;
+  let available = false;
+  try {
+    const key = '__idkgg_storage_test__';
+    nativeLocalStorage.setItem(key, '1');
+    nativeLocalStorage.removeItem(key);
+    available = true;
+  } catch (e) {}
+  const memory = Object.create(null);
+  function warn(){
+    if(!available) console.warn('IDK.GG cannot use browser storage in this profile.');
+  }
+  return {
+    get(key){ try { return available ? nativeLocalStorage.getItem(key) : (memory[key] || null); } catch(e){ return memory[key] || null; } },
+    set(key, value){
+      const text = String(value);
+      try { if(available){ nativeLocalStorage.setItem(key, text); return true; } }
+      catch(e){ console.warn('Could not save ' + key, e); }
+      memory[key] = text; warn(); return false;
+    },
+    remove(key){ try { if(available) nativeLocalStorage.removeItem(key); } catch(e){} delete memory[key]; },
+    snapshot(){
+      const result = {...memory};
+      try { if(available) for(let i=0;i<nativeLocalStorage.length;i++){ const k=nativeLocalStorage.key(i); if(k) result[k]=nativeLocalStorage.getItem(k); } }catch(e){}
+      return result;
+    },
+    get available(){ return available; }
+  };
+})();
+
+/* Keep existing save code working, but route every call through the guarded
+   layer above. This prevents one blocked localStorage call from killing the
+   script on managed Chromebooks. */
+const localStorage = Object.freeze({
+  getItem: key => siteStorage.get(key),
+  setItem: (key, value) => siteStorage.set(key, value),
+  removeItem: key => siteStorage.remove(key),
+  key: index => Object.keys(siteStorage.snapshot())[index] || null,
+  get length(){ return Object.keys(siteStorage.snapshot()).length; }
+});
+
+function storageWarning(){
+  alert('This browser is blocking site storage, so changes cannot survive a restart. Open this page from a normal HTTPS website (not the Chromebook Files app), turn off Guest/incognito mode, or ask your administrator to allow site data.');
+}
+
+function saveImageForStorage(file, done){
+  const reader = new FileReader();
+  reader.onerror = () => done('');
+  reader.onload = event => {
+    const image = new Image();
+    image.onerror = () => done(event.target.result);
+    image.onload = () => {
+      try {
+        const limit = 640, scale = Math.min(1, limit / Math.max(image.width, image.height));
+        const canvas = document.createElement('canvas');
+        canvas.width = Math.max(1, Math.round(image.width * scale));
+        canvas.height = Math.max(1, Math.round(image.height * scale));
+        canvas.getContext('2d').drawImage(image, 0, 0, canvas.width, canvas.height);
+        done(canvas.toDataURL('image/jpeg', 0.78));
+      } catch(e) { done(event.target.result); }
+    };
+    image.src = event.target.result;
+  };
+  reader.readAsDataURL(file);
+}
+
 // Intercept loader.classList.add('done') EARLY — before listZones() fires
 (function(){
   var ldr = document.getElementById('loader');
@@ -2879,8 +2948,12 @@ function clampCamY(){
    be visible simultaneously.
 ───────────────────────────────────────────────── */
 // ── FAVORITES ── persisted in localStorage
-const favorites = new Set(JSON.parse(localStorage.getItem('orion_favs')||'[]'));
-function saveFavorites(){ localStorage.setItem('orion_favs', JSON.stringify([...favorites])); }
+let savedFavorites = [];
+try { savedFavorites = JSON.parse(siteStorage.get('orion_favs') || '[]'); } catch(e) {}
+const favorites = new Set(Array.isArray(savedFavorites) ? savedFavorites : []);
+function saveFavorites(){
+  if(!siteStorage.set('orion_favs', JSON.stringify([...favorites]))) storageWarning();
+}
 let showFavsOnly = false;
 function toggleFavFilter(){
   showFavsOnly = !showFavsOnly;
@@ -3738,12 +3811,13 @@ function sanitize(o,ms=1000,ma=10000){
   return o;
 }
 async function saveData(){
-  alert("This might take a while. Don't touch anything other than this OK button.");
-  const result={cookies:document.cookie,localStorage:{...localStorage},sessionStorage:{...sessionStorage},indexedDB:{},caches:{}};
-  const dbs=await indexedDB.databases();
+  alert("Exporting your saved data. This can take a moment.");
+  const result={cookies:document.cookie,localStorage:siteStorage.snapshot(),sessionStorage:{},indexedDB:{},caches:{}};
+  try{ for(let i=0;i<sessionStorage.length;i++){ const k=sessionStorage.key(i); if(k) result.sessionStorage[k]=sessionStorage.getItem(k); } }catch(e){}
+  const dbs=(window.indexedDB && typeof indexedDB.databases==='function') ? await indexedDB.databases().catch(()=>[]) : [];
   for(const db of dbs){if(!db.name)continue;result.indexedDB[db.name]={};
     await new Promise((res,rej)=>{const req=indexedDB.open(db.name,db.version);req.onerror=()=>rej(req.error);req.onsuccess=()=>{const d=req.result,names=Array.from(d.objectStoreNames);if(!names.length){res();return;}const tx=d.transaction(names,'readonly');Promise.all(names.map(n=>{result.indexedDB[db.name][n]=[];return new Promise((rs,rj)=>{const r=tx.objectStore(n).getAll();r.onsuccess=()=>{result.indexedDB[db.name][n]=sanitize(r.result,1000,100);rs();};r.onerror=()=>rj(r.error);});})).then(res);};}); }
-  const cns=await caches.keys();
+  const cns=(window.caches && caches.keys) ? await caches.keys().catch(()=>[]) : [];
   for(const cn of cns){const cache=await caches.open(cn);result.caches[cn]=[];
     for(const req of await cache.keys()){const resp=await cache.match(req);if(!resp)continue;const ct=resp.headers.get('content-type')||'';let body;
       try{if(ct.includes('json'))body=await resp.clone().json();else if(ct.includes('text')||ct.includes('javascript'))body=await resp.clone().text();else{const b=await resp.clone().arrayBuffer();body=btoa(String.fromCharCode(...new Uint8Array(b)));}}catch(e){body='[unreadable]';}
@@ -3755,11 +3829,12 @@ async function loadData(event){
   const file=event.target.files[0];if(!file)return;
   alert("This might take a while.");
   const reader=new FileReader();
-  reader.onload=async e=>{const data=JSON.parse(e.target.result);
+  reader.onload=async e=>{try{const data=JSON.parse(e.target.result);
     if(data.cookies)data.cookies.split(';').forEach(c=>document.cookie=c.trim());
-    if(data.localStorage)for(const k in data.localStorage)localStorage.setItem(k,data.localStorage[k]);
-    if(data.sessionStorage)for(const k in data.sessionStorage)sessionStorage.setItem(k,data.sessionStorage[k]);
-    alert('Data loaded!');};
+    if(data.localStorage)for(const k in data.localStorage)siteStorage.set(k,data.localStorage[k]);
+    if(data.sessionStorage)for(const k in data.sessionStorage)try{sessionStorage.setItem(k,data.sessionStorage[k]);}catch(_e){}
+    alert(siteStorage.available ? 'Data loaded! Reload this page to use it.' : 'The data loaded for this session, but this Chromebook is blocking permanent storage.');
+  }catch(err){ alert('That file could not be imported. Please choose a valid .data export.'); }};
   reader.readAsText(file);
 }
 
@@ -3852,8 +3927,10 @@ listZones();
   window.shareModalCopy  = shareModalCopy;
 
   // 35% roll — show after loader is done (poll for it)
-  if(sessionStorage.getItem('sharePromptSeen')) return;
-  sessionStorage.setItem('sharePromptSeen','1');
+  try{
+    if(sessionStorage.getItem('sharePromptSeen')) return;
+    sessionStorage.setItem('sharePromptSeen','1');
+  }catch(e){}
   if(Math.random() >= 0.35) return;
   function tryShow(){
     const ldr = document.getElementById('loader');
@@ -4161,7 +4238,8 @@ window.addEventListener('offline', markJoinsAway);
 
 function showJoinGraph(){
   const total = (joinsTotal || 0).toLocaleString('en-US');
-  const snap  = JSON.parse(localStorage.getItem(JOINS_HOURLY_KEY)||'{}');
+  let snap = {};
+  try{ snap = JSON.parse(siteStorage.get(JOINS_HOURLY_KEY) || '{}') || {}; }catch(e){}
 
   // Build 24-hour series from hourly snapshots
   // Each point = global total at that hour. Diff between points = visits that hour.
@@ -4299,7 +4377,7 @@ document.addEventListener('keydown', e => {
   if(e.altKey && e.ctrlKey && e.key.toLowerCase() === 'r'){
     e.preventDefault();
     // Only toggle on if we have an image set
-    const img = localStorage.getItem('orion_disguise_img');
+    const img = siteStorage.get('orion_disguise_img');
     if(!img && !disguiseActive) return;
     toggleDisguise();
   }
@@ -4307,12 +4385,12 @@ document.addEventListener('keydown', e => {
 
 // Load saved image on startup
 (function loadDisguiseImg(){
-  const img = localStorage.getItem('orion_disguise_img');
+  const img = siteStorage.get('orion_disguise_img');
   if(img) disguiseOverlay.style.backgroundImage = `url(${img})`;
 })();
 
 function openDisguise(){
-  const saved = localStorage.getItem('orion_disguise_img');
+  const saved = siteStorage.get('orion_disguise_img');
   showPopup('DISGUISE SCREEN',
     `<p style="font-size:0.72rem;color:rgba(255,255,255,0.4);margin-bottom:1rem;line-height:1.6">`
       +`Upload an image to cover the screen. Press <strong style="color:var(--pulsar)">Alt + Ctrl + R</strong> to toggle it on/off instantly.`
@@ -4351,10 +4429,9 @@ function openDisguise(){
     inp.addEventListener('change', e=>{
       const file = e.target.files[0];
       if(!file) return;
-      const reader = new FileReader();
-      reader.onload = ev=>{
-        const dataUrl = ev.target.result;
-        localStorage.setItem('orion_disguise_img', dataUrl);
+      saveImageForStorage(file, dataUrl => {
+        if(!dataUrl){ alert('That image could not be read.'); return; }
+        if(!siteStorage.set('orion_disguise_img', dataUrl)) storageWarning();
         disguiseOverlay.style.backgroundImage = `url(${dataUrl})`;
         // Update preview in popup
         const prev = document.getElementById('disguisePreview');
@@ -4363,21 +4440,20 @@ function openDisguise(){
         if(prev){ prev.src = dataUrl; prev.classList.add('show'); }
         if(lbl)  lbl.textContent = '✓ IMAGE SAVED — CLICK TO CHANGE';
         if(dz)   dz.classList.add('has-img');
-      };
-      reader.readAsDataURL(file);
+      });
     });
   }, 100);
 }
 
 function activateDisguise(){
-  const img = localStorage.getItem('orion_disguise_img');
+  const img = siteStorage.get('orion_disguise_img');
   if(!img){ alert('Upload an image first.'); return; }
   closePopup();
   setTimeout(()=>{ disguiseActive = false; toggleDisguise(); }, 150);
 }
 
 function clearDisguiseImg(){
-  localStorage.removeItem('orion_disguise_img');
+  siteStorage.remove('orion_disguise_img');
   disguiseOverlay.style.backgroundImage = '';
   if(disguiseActive) toggleDisguise();
   openDisguise();
@@ -4838,7 +4914,7 @@ function clearDisguiseImg(){
       downscaleImage(file, 96, function(dataUrl){
         if(!dataUrl) return;
         myPfp = dataUrl;
-        try{ localStorage.setItem(PFP_KEY, dataUrl); }catch(e){}
+        if(!siteStorage.set(PFP_KEY, dataUrl)) storageWarning();
         saveLocalIdentity();
         refreshPfpViews();
         publishIdentity();
