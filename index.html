@@ -52,8 +52,14 @@ if(n instanceof HTMLMediaElement){harden(n)}else{sweep(n)}}}})
 .observe(document.documentElement,{childList:true,subtree:true});
 document.addEventListener("DOMContentLoaded",function(){sweep(document)});
 sweep(document)})();</script>
-  <base href="https://cdn.jsdelivr.net/gh/gn-math/gn-math-DONTDMCA@main/">
-  <link rel="icon" type="image/png" href="favicon.png">
+  <!-- PATCHED: this <base> pointed at cdn.jsdelivr.net/gh/gn-math/... which now
+       returns HTTP 403 (account blocked). Leaving it in made EVERY relative URL
+       on the page resolve to a dead host — the classic "file not seen" symptom.
+       Removed so relative paths resolve against the page itself. -->
+  <!-- <base href="https://cdn.jsdelivr.net/gh/gn-math/gn-math-DONTDMCA@main/"> -->
+  <!-- was href="favicon.png": resolved against the jsDelivr <base> (403) so it
+       always 404'd — replaced with an inline icon, no network request. -->
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%2301070a'/%3E%3Ctext x='16' y='22' font-family='monospace' font-size='13' font-weight='bold' fill='%2339e58c' text-anchor='middle'%3EIDK%3C/text%3E%3C/svg%3E">
   <script async src="https://www.googletagmanager.com/gtag/js?id=G-WX5VS54ZDW"></script>
   <script>window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments);}gtag('js',new Date());gtag('config','G-WX5VS54ZDW');</script>
   <meta charset="UTF-8">
@@ -3625,8 +3631,90 @@ function maybeAutoOpenChatForZone(file){
   if(typeof window.openLiveChat === 'function') window.openLiveChat();
 }
 
+/* ── ZONE LOAD GUARD (patch) ───────────────────────────────────────────
+   Every game tile points at a third-party host (jsDelivr, GitHub Pages,
+   S3, unpkg, raw lambdas). Those routinely 404, get rate-limited, or have
+   the whole account blocked by the CDN. Originally the iframe was created
+   with no error handling at all, so a dead source produced a silent blank
+   panel that looked like the launcher had crashed. These helpers make the
+   failure visible and recoverable. */
+let _lastZoneAttempt = null;
+
+function zoneErrorBanner(label, url, detail){
+  const host=(()=>{try{return new URL(url).host}catch(e){return url||'unknown source'}})();
+  const box=document.createElement('div');
+  box.id='zoneLoadError';
+  box.setAttribute('role','alert');
+  box.style.cssText='position:absolute;inset:0;z-index:60;display:flex;flex-direction:column;'
+    +'align-items:center;justify-content:center;gap:.6rem;padding:2rem;text-align:center;'
+    +'background:rgba(1,7,10,0.97);color:#fff;font-family:inherit;';
+  box.innerHTML='<div style="font-family:Orbitron,monospace;font-size:1rem;letter-spacing:.08em;color:#39e58c">GAME SOURCE UNAVAILABLE</div>'
+    +'<div style="max-width:34rem;font-size:.92rem;line-height:1.5;color:rgba(255,255,255,.75)">'
+    +'&ldquo;'+String(label||'This game').replace(/[<>]/g,'')+'&rdquo; could not be loaded from <strong>'
+    +String(host).replace(/[<>]/g,'')+'</strong>. '+(detail||'The remote host did not return a usable page.')+'</div>'
+    +'<div style="font-size:.72rem;color:rgba(255,255,255,.38);word-break:break-all;max-width:34rem">'+String(url||'').replace(/[<>]/g,'')+'</div>'
+    +'<div style="display:flex;gap:.5rem;margin-top:.4rem;flex-wrap:wrap;justify-content:center">'
+    +'<button type="button" data-act="retry" style="cursor:pointer;border:1px solid rgba(57,229,140,.45);background:rgba(57,229,140,.12);color:#39e58c;border-radius:999px;padding:.5rem 1.1rem;font:inherit">Retry</button>'
+    +'<button type="button" data-act="open" style="cursor:pointer;border:1px solid rgba(255,255,255,.16);background:rgba(255,255,255,.04);color:rgba(255,255,255,.8);border-radius:999px;padding:.5rem 1.1rem;font:inherit">Open in new tab</button>'
+    +'<button type="button" data-act="close" style="cursor:pointer;border:1px solid rgba(255,255,255,.16);background:rgba(255,255,255,.04);color:rgba(255,255,255,.8);border-radius:999px;padding:.5rem 1.1rem;font:inherit">Back to games</button>'
+    +'</div>';
+  box.addEventListener('click',function(ev){
+    const act=ev.target&&ev.target.getAttribute&&ev.target.getAttribute('data-act');
+    if(act==='retry'){ clearZoneError(); if(_lastZoneAttempt) openZone(_lastZoneAttempt); }
+    else if(act==='open'){ if(url) window.open(url,'_blank','noopener'); }
+    else if(act==='close'){ clearZoneError(); closeZone(); }
+  });
+  return box;
+}
+
+function clearZoneError(){
+  const old=document.getElementById('zoneLoadError');
+  if(old&&old.parentNode) old.parentNode.removeChild(old);
+}
+
+function showZoneError(label,url,detail){
+  clearZoneError();
+  const host=zoneViewer||document.body;
+  if(host&&host.appendChild) host.appendChild(zoneErrorBanner(label,url,detail));
+}
+
+/* Ask the host for the URL before we hand it to an iframe. A 403/404 here is
+   exactly the case that used to render as a permanently blank panel (a
+   blocked jsDelivr account, a deleted repo, an expired S3 object). When the
+   request is opaque to us (CORS) we treat it as "unknown" and let the iframe
+   try, never as a failure. */
+async function preflightZone(url,ms){
+  const ctrl=new AbortController();
+  const id=setTimeout(()=>ctrl.abort(), ms||8000);
+  try{
+    const r=await fetch(url,{method:'GET',mode:'cors',cache:'no-store',signal:ctrl.signal});
+    if(!r.ok) return {ok:false,status:r.status,detail:'The host answered HTTP '+r.status+' for this game.'};
+    return {ok:true};
+  }catch(e){
+    return {ok:true,unknown:true};
+  }finally{ clearTimeout(id); }
+}
+
+/* Attach a watchdog to an externally-sourced game iframe and a load listener
+   that clears any old banner. A cross-origin frame cannot be inspected, so a
+   slow frame only gets a non-destructive hint button rather than an error. */
+function watchZoneFrame(frame,label,url){
+  let done=false;
+  const timer=setTimeout(function(){
+    if(done||!frame||!frame.parentNode) return;
+    showZoneError(label,url,'The source is taking too long to respond. It may be slow, offline, or blocked on this network.');
+  },20000);
+  frame.addEventListener('load',function(){ done=true; clearTimeout(timer); });
+  frame.addEventListener('error',function(){
+    done=true; clearTimeout(timer);
+    showZoneError(label,url,'The browser could not reach this host.');
+  });
+  return frame;
+}
+
 function loadIntoViewer(html, file){
   if(zoneFrame&&zoneFrame.parentNode)zoneFrame.parentNode.removeChild(zoneFrame);
+  clearZoneError();
   zoneFrame=document.createElement('iframe');
   zoneFrame.id='zoneFrame';zoneFrame.style.cssText='flex:1;border:none;width:100%;';
   const blob=new Blob([html],{type:'text/html'});
@@ -3648,16 +3736,20 @@ function loadIntoViewer(html, file){
 const MINECRAFT_EDITOR_HTML = "<!DOCTYPE html>\n<html lang=\"en\">\n<head>\n<meta charset=\"UTF-8\">\n<meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">\n<title>Open XML</title>\n<style>\n.c-button { width:100%; font-family:inherit; border:0; border-radius:5px; background:#4682B4; color:#fff; padding:12px 46px; font-size:24px; cursor:pointer; transition:background 0.2s; }\n.c-button:hover { background:#B0C4DE; }\n.c-button:focus-visible { outline:3px solid #cbd6ee; outline-offset:3px; }\nbody { font-family:Arial,sans-serif; padding:24px; }\n</style>\n</head>\n<body>\n<button class=\"c-button\" onclick=\"openXMLAsHTML()\">Open Editor</button>\n<script>\nasync function openXMLAsHTML() {\n    const url = \"https://cdn.jsdelivr.net/gh/sd592g/editor@fb136339f5ed42fc946e43a6b485ad3dd78c5c69/src/utils%252Fmain.xml\";\n    const win = window.open(\"about:blank\", \"_blank\");\n    if (!win) { alert(\"Please allow pop-ups for this site.\"); return; }\n    try {\n        const decodedUrl = url.replace(/%252F/g, \"/\");\n        const response = await fetch(decodedUrl);\n        if (!response.ok) throw new Error(\"Could not retrieve the XML file.\");\n        let xmlText = await response.text();\n        const cdataStart = xmlText.indexOf(\"<![CDATA[\");\n        const cdataEnd = xmlText.lastIndexOf(\"]]>\");\n        if (cdataStart !== -1 && cdataEnd > cdataStart) xmlText = xmlText.substring(cdataStart + 9, cdataEnd);\n        win.document.open(); win.document.write(xmlText); win.document.close();\n    } catch (error) {\n        win.close(); console.error(error);\n        alert(\"Unable to load the file. It may be missing or unavailable.\");\n    }\n}\n<\/script>\n</body>\n</html>";
 
 function openZone(file){
+  // Remember the attempt so the error banner's Retry button can repeat it.
+  _lastZoneAttempt = file;
   // Show the Minecraft game hosted on GitHub Pages inside the launcher's built-in game viewer.
   // The published page loads the XML game content in the same iframe, without opening a new tab.
   if (String(file && file.name || "").trim().toLowerCase() === "minecraft") {
     const httpsUrl = "https://justaguyalrok.github.io/asdasdasdasd/";
     if (zoneFrame && zoneFrame.parentNode) zoneFrame.parentNode.removeChild(zoneFrame);
+    clearZoneError();
     zoneFrame = document.createElement('iframe');
     zoneFrame.id = 'zoneFrame';
     zoneFrame.style.cssText = 'flex:1;border:none;width:100%;';
     zoneFrame.src = httpsUrl;
     zoneViewer.appendChild(zoneFrame);
+    watchZoneFrame(zoneFrame, file.name, httpsUrl);
     document.getElementById('zoneName').textContent = file.name;
     document.getElementById('zoneId').textContent = file.id;
     setNewTabVisibility(file);
@@ -3675,28 +3767,46 @@ function openZone(file){
     ? file.url  // already a full URL (custom game or external)
     : file.url.replace('{COVER_URL}',coverURL).replace('{HTML_URL}',htmlURL);
 
+  // Never hand a dead URL to the iframe and leave the panel blank.
+  if(!file.url){ showZoneError(file.name,'','This game has no source URL configured.'); return; }
+
   fetch(url+'?nocache='+Date.now())
     .then(r=>{ if(!r.ok) throw new Error('HTTP '+r.status); return r.text(); })
-    .then(html=>loadIntoViewer(html, file))
-    .catch(()=>{
-      // CORS block or network error — open in iframe by src directly
-      if(zoneFrame&&zoneFrame.parentNode)zoneFrame.parentNode.removeChild(zoneFrame);
-      zoneFrame=document.createElement('iframe');
-      zoneFrame.id='zoneFrame';zoneFrame.style.cssText='flex:1;border:none;width:100%;';
-      zoneFrame.src=url;
-      zoneViewer.appendChild(zoneFrame);
-      document.getElementById('zoneName').textContent=file.name;
-      document.getElementById('zoneId').textContent=file.id;
-      setNewTabVisibility(file);
-      const authorEl=document.getElementById('zoneAuthor');
-      authorEl.textContent='by '+(file.author||'Unknown');
-      authorEl.href=file.authorLink||'#';
-      hideMenu();zoneViewer.style.display='flex';
-      try{const u=new URL(location);u.searchParams.set('id',file.id);history.pushState(null,'',u);}catch(e){}
-      maybeAutoOpenChatForZone(file);
+    .then(html=>{
+      // An HTML error page (CDN block notice, 404 body) is not a game.
+      if(!html || !html.trim() || /^\s*(user\s+\S+\s+is\s+blocked|couldn't find the requested file|failed to fetch)/i.test(html)){
+        throw new Error('bad payload');
+      }
+      loadIntoViewer(html, file);
+    })
+    .catch(err=>{
+      // CORS block, 4xx/5xx or an HTML error body — open in iframe by src directly
+      preflightZone(url,8000).then(function(pre){
+        if(pre && pre.ok===false){
+          showZoneError(file.name, url, pre.detail || ('The host answered HTTP '+pre.status+' for this game.'));
+          return;
+        }
+        if(zoneFrame&&zoneFrame.parentNode)zoneFrame.parentNode.removeChild(zoneFrame);
+        clearZoneError();
+        zoneFrame=document.createElement('iframe');
+        zoneFrame.id='zoneFrame';zoneFrame.style.cssText='flex:1;border:none;width:100%;';
+        zoneFrame.src=url;
+        zoneViewer.appendChild(zoneFrame);
+        watchZoneFrame(zoneFrame, file.name, url);
+        document.getElementById('zoneName').textContent=file.name;
+        document.getElementById('zoneId').textContent=file.id;
+        setNewTabVisibility(file);
+        const authorEl=document.getElementById('zoneAuthor');
+        authorEl.textContent='by '+(file.author||'Unknown');
+        authorEl.href=file.authorLink||'#';
+        hideMenu();zoneViewer.style.display='flex';
+        try{const u=new URL(location);u.searchParams.set('id',file.id);history.pushState(null,'',u);}catch(e){}
+        maybeAutoOpenChatForZone(file);
+      });
     });
 }
 function closeZone(){
+  clearZoneError();
   if(zoneFrame&&zoneFrame.parentNode)zoneFrame.parentNode.removeChild(zoneFrame);
   zoneFrame=null;zoneViewer.style.display='none';showMenu();
   try{const u=new URL(location);u.searchParams.delete('id');history.pushState(null,'',u);}catch(e){}
