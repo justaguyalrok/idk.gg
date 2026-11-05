@@ -1138,6 +1138,20 @@ body::after{
     flex-wrap:wrap;
     padding:.48rem .6rem !important;
   }
+  /* The button row was 418px wide in a 390px viewport, so its last button was
+     cut off with no way to scroll to it (the body is overflow:hidden). Let it
+     wrap and shrink so every control stays reachable on a phone. */
+  .hud-btns{
+    flex-wrap:wrap;
+    flex-shrink:1;
+    min-width:0;
+    justify-content:flex-end;
+    row-gap:.3rem;
+  }
+  #idkWalletChip{
+    flex-shrink:1;
+    min-width:0;
+  }
   #searchWrap{
     order:10;
     flex-basis:100%;
@@ -3675,6 +3689,9 @@ let zoneFrame=document.getElementById('zoneFrame');
 const menuEls=['hud','footer','statusBar','stage'];
 function hideMenu(){menuEls.forEach(id=>{const el=document.getElementById(id);if(el)el.style.display='none';});canvas.style.display='none';}
 function showMenu(){menuEls.forEach(id=>{const el=document.getElementById(id);if(el)el.style.display='';});canvas.style.display='';}
+/* The casino module lives in its own IIFE, so it cannot call showMenu()
+   directly. This hook is how it restores the launcher shell on close. */
+window.__idkggRestoreShell = function(){ try{ showMenu(); }catch(e){} };
 
 function setNewTabVisibility(file){
   const btn=document.getElementById('newTabBtn');
@@ -3819,7 +3836,15 @@ function openZone(file){
     if (typeof window.__neonCasinoOpen === 'function') {
       hideMenu();
       window.__neonCasinoOpen();
-      try { const u = new URL(location); u.searchParams.set('id', file.id); history.pushState(null, '', u); } catch (e) {}
+      try {
+        const u = new URL(location);
+        // Only record a real id. Writing an undefined id produced the literal
+        // "?id=undefined", which then matched no zone on reload.
+        if (file.id !== undefined && file.id !== null && file.id !== '') {
+          u.searchParams.set('id', file.id);
+        }
+        history.pushState({ idkggCasino: true }, '', u);
+      } catch (e) {}
     }
     return;
   }
@@ -3891,12 +3916,73 @@ function openZone(file){
     });
 }
 function closeZone(){
-  if (typeof window.__neonCasinoClose === 'function') window.__neonCasinoClose();
+  // One defensive close path for every way out of a zone. It restores the app
+  // shell even if the casino's own state is missing, and it never throws.
+  if (typeof window.__idkggCloseCasino === 'function') {
+    window.__idkggCloseCasino();
+    return;
+  }
   clearZoneError();
   if(zoneFrame&&zoneFrame.parentNode)zoneFrame.parentNode.removeChild(zoneFrame);
   zoneFrame=null;zoneViewer.style.display='none';showMenu();
   try{const u=new URL(location);u.searchParams.delete('id');history.pushState(null,'',u);}catch(e){}
 }
+
+/* ── The single, defensive way to leave the neon casino ──────────────────────
+   The casino is a full-screen overlay and openZone() hides the app shell with
+   hideMenu(). Every close path (✕ button, browser back, Escape, closeZone)
+   funnels through here so the shell is ALWAYS restored. Each step is guarded:
+   a missing element or a half-torn-down casino can never leave a blank page. */
+window.__idkggCloseCasino = function(opts){
+  var fromHistory = !!(opts && opts.fromHistory);
+
+  // 1. hide the overlay (guarded: ncRoot may be gone)
+  try{
+    if (typeof window.__neonCasinoClose === 'function') window.__neonCasinoClose();
+  }catch(e){}
+
+  // 2. restore the app shell that hideMenu() hid -- this is the actual fix
+  try{ showMenu(); }catch(e){}
+
+  // 3. tear down any zone iframe / viewer left behind
+  try{
+    if (zoneFrame && zoneFrame.parentNode) zoneFrame.parentNode.removeChild(zoneFrame);
+    zoneFrame = null;
+  }catch(e){}
+  try{ if (zoneViewer) zoneViewer.style.display = 'none'; }catch(e){}
+  try{ clearZoneError(); }catch(e){}
+
+  // 4. drop the ?id= marker, unless we are already handling a history pop
+  if (!fromHistory) {
+    try{
+      var u = new URL(location);
+      u.searchParams.delete('id');
+      history.pushState(null, '', u);
+    }catch(e){}
+  }
+};
+
+/* Escape leaves the casino, but only when it is actually open, so it cannot
+   interfere with the app's other Escape handlers. */
+document.addEventListener('keydown', function(e){
+  if (e.key !== 'Escape' && e.key !== 'Esc') return;
+  /* the leaderboard owns Escape while it is open */
+  try{ if (window.__idkggLeaderboardIsOpen && window.__idkggLeaderboardIsOpen()) return; }catch(err){}
+  try{
+    if (typeof window.__neonCasinoIsOpen === 'function' && window.__neonCasinoIsOpen()){
+      window.__idkggCloseCasino();
+    }
+  }catch(err){}
+});
+
+/* Browser back closes the casino instead of leaving it stuck open. */
+window.addEventListener('popstate', function(){
+  try{
+    if (typeof window.__neonCasinoIsOpen === 'function' && window.__neonCasinoIsOpen()){
+      window.__idkggCloseCasino({ fromHistory: true });
+    }
+  }catch(err){}
+});
 function fullscreenZone(){if(!zoneFrame)return;(zoneFrame.requestFullscreen||zoneFrame.webkitRequestFullscreen).call(zoneFrame);}
 function aboutBlank(){
   if(!zoneFrame)return;
@@ -3938,7 +4024,7 @@ function closePopup(){
 }
 function overlayClick(e){if(e.target===popupOverlay)closePopup();}
 function cloakName(v){document.title=(v+'').trim()||'IDK.GG';}
-function cloakIcon(url){const l=document.querySelector("link[rel~='icon']");l.href=(url+'').trim()||'favicon.png';document.head.appendChild(l);}
+function cloakIcon(url){const l=document.querySelector("link[rel~='icon']");l.href=(url+'').trim()||"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%2301070a'/%3E%3C/svg%3E";document.head.appendChild(l);}
 function applyPreset(title,icon){cloakName(title);cloakIcon(icon);const t=document.getElementById('ct');if(t)t.value=title;const i=document.getElementById('ci');if(i)i.value=icon;}
 function openSettings(){showPopup('SETTINGS',
   `<div class="settings-slider-row">`
@@ -5271,8 +5357,24 @@ function clearDisguiseImg(){
     }
   }
 
+  /* The leaderboard module lives in its own IIFE and cannot reach this
+     client, so publishing is exposed here. It reuses the moderation channel
+     the app already subscribes to, which is what makes the board live. */
+  window.__idkggLbPublish = function(payload){
+    try{ if(client) client.publish({channel:MODERATION_CHANNEL, message:payload}).catch(function(){}); }catch(e){}
+  };
+
   function receiveModeration(command){
     if(!command || typeof command.action !== 'string') return;
+    /* A leaderboard balance broadcast is about ANOTHER user, so it is handled
+       here before the targetId gate below. */
+    if(command.action === 'lb'){
+      try{
+        if(typeof window.__idkggLeaderboardReceive === 'function')
+          window.__idkggLeaderboardReceive(command);
+      }catch(e){}
+      return;
+    }
     // /clear is a broadcast, not a targeted action — handle it before the
     // targetId check so every client wipes its feed.
     if(command.action === 'clear'){
@@ -5323,9 +5425,13 @@ function clearDisguiseImg(){
       // Mirror the change into the assignment map, so the same source of truth
       // drives the roster and this user's own rank.
       if(command.targetId){
-        if(command.rank) rankAssignments[command.targetId] = command.rank;
-        else delete rankAssignments[command.targetId];
-        saveRankAssignments();
+        const stamp = Number(command.issuedAt) || Date.now();
+        if(stamp >= (rankAssignAt[command.targetId] || 0)){
+          rankAssignAt[command.targetId] = stamp;
+          if(command.rank) rankAssignments[command.targetId] = command.rank;
+          else delete rankAssignments[command.targetId];
+          saveRankAssignments();
+        }
       }
       applyRosterRank(command.targetId, command.rank);
       // A targeted rank change is explicit: give OR take away.
@@ -8835,6 +8941,155 @@ function clearDisguiseImg(){
   const RANK_COLOR_PRESETS = ['#ff5a5a','#ffb347','#ffe066','#39e58c','#5ac8ff','#b98cff','#ff7ad9','#ffffff'];
   const DEFAULT_RANK_COLOR = '#5ac8ff';
 
+  /* ── RANK PERSISTENCE ────────────────────────────────────────────────
+     The stored rank definitions are the SINGLE SOURCE OF TRUTH. Two bugs
+     used to make a new rank vanish and deleted ranks come back:
+
+       1. saveCustomRanks() wrote a bare array to localStorage with no
+          timestamp, so the resilient chain had nothing to compare and a
+          stale cookie / sessionStorage copy could win.
+       2. applyRanksPayload() REPLACED the whole list with whatever snapshot
+          arrived. Any client that reconnected republished its own (possibly
+          stale) list with a FRESH issuedAt, so an old list could beat a new
+          one — and on reload lastRanksAt reset to 0, so the oldest retained
+          history snapshot was accepted.
+
+     The fix is a per-rank merge with tombstones: every definition carries
+     its own updatedAt, a delete leaves a tombstone instead of vanishing,
+     and the higher updatedAt always wins. Merging is therefore
+     order-independent — a stale snapshot can never resurrect a deleted
+     rank or drop a new one, no matter when it arrives.
+     ─────────────────────────────────────────────────────────────────── */
+  const RANK_STORE_KINDS = ['ls', 'ss', 'ck', 'mem'];
+  const rankMem = Object.create(null);
+  let rankTombstones = Object.create(null);   // rank id -> updatedAt of the delete
+  let rankAssignAt = Object.create(null);     // user id -> ms of the last change
+
+  function rankCookieWrite(name, val){
+    try{
+      document.cookie = name + '=' + encodeURIComponent(val) +
+        ';path=/;max-age=' + (60 * 60 * 24 * 365 * 2) + ';SameSite=Lax';
+      return true;
+    }catch(e){ return false; }
+  }
+  function rankCookieRead(name){
+    try{
+      const parts = String(document.cookie || '').split(';');
+      for(let i = 0; i < parts.length; i++){
+        const p = parts[i].replace(/^\s+/, '');
+        if(p.indexOf(name + '=') === 0) return decodeURIComponent(p.slice(name.length + 1));
+      }
+    }catch(e){}
+    return null;
+  }
+  function rankStoreGet(kind, key){
+    try{
+      if(kind === 'ls') return window.localStorage.getItem(key);
+      if(kind === 'ss') return window.sessionStorage.getItem(key);
+      if(kind === 'ck') return rankCookieRead(key);
+      if(kind === 'mem') return Object.prototype.hasOwnProperty.call(rankMem, key) ? rankMem[key] : null;
+    }catch(e){}
+    return null;
+  }
+  function rankStoreSet(kind, key, val){
+    try{
+      if(kind === 'ls'){ window.localStorage.setItem(key, val); return true; }
+      if(kind === 'ss'){ window.sessionStorage.setItem(key, val); return true; }
+      if(kind === 'ck') return rankCookieWrite(key, val);
+      if(kind === 'mem'){ rankMem[key] = val; return true; }
+    }catch(e){}
+    return false;
+  }
+  /* Read EVERY store and keep the newest blob, so a save written by another
+     tab is never masked by an older copy sitting in this one. */
+  function rankStoreRead(key){
+    let best = null;
+    for(let i = 0; i < RANK_STORE_KINDS.length; i++){
+      const raw = rankStoreGet(RANK_STORE_KINDS[i], key);
+      if(!raw) continue;
+      let parsed = null;
+      try{ parsed = JSON.parse(raw); }catch(e){ parsed = null; }
+      if(!parsed || typeof parsed !== 'object') continue;
+      const t = Number(parsed.t) || 0;
+      if(!best || t > best.t) best = {t: t, data: parsed};
+    }
+    return best ? best.data : null;
+  }
+  function rankStoreWrite(key, obj){
+    obj.t = Date.now();
+    let raw;
+    try{ raw = JSON.stringify(obj); }catch(e){ return false; }
+    let ok = false;
+    for(let i = 0; i < RANK_STORE_KINDS.length; i++){
+      if(rankStoreSet(RANK_STORE_KINDS[i], key, raw)) ok = true;
+    }
+    return ok;
+  }
+
+  /* A definition is valid when it has an id. `updatedAt` is what the merge
+     compares; a legacy definition without one is treated as epoch 0 so any
+     real edit beats it. */
+  function rankDefStamp(r){
+    const t = Number(r && r.updatedAt);
+    return isFinite(t) && t > 0 ? t : 0;
+  }
+  function sanitizeRankDef(r){
+    if(!r || typeof r.id !== 'string' || !r.id) return null;
+    return {
+      id: r.id,
+      name: String(r.name || '').slice(0, RANK_NAME_MAX),
+      color: /^#[0-9a-fA-F]{6}$/.test(String(r.color || '')) ? String(r.color) : DEFAULT_RANK_COLOR,
+      commands: Array.isArray(r.commands) ? r.commands.filter(function(c){
+        return RANK_COMMANDS.some(function(rc){ return rc.id === c; });
+      }) : [],
+      code: String(r.code || '').slice(0, RANK_CODE_MAX),
+      enabled: r.enabled !== false,
+      createdAt: Number(r.createdAt) || 0,
+      updatedAt: rankDefStamp(r),
+      deleted: r.deleted === true
+    };
+  }
+  /* Merge two definition lists by id, newest updatedAt winning. A tombstone
+     (deleted:true) is kept in the stored list so a stale snapshot that still
+     carries the rank cannot bring it back. */
+  function mergeRankDefs(a, b){
+    const byId = Object.create(null);
+    const order = [];
+    function take(list){
+      (Array.isArray(list) ? list : []).forEach(function(raw){
+        const def = sanitizeRankDef(raw);
+        if(!def) return;
+        const prev = byId[def.id];
+        if(!prev){ byId[def.id] = def; order.push(def.id); return; }
+        if(def.updatedAt > prev.updatedAt) byId[def.id] = def;
+      });
+    }
+    take(a); take(b);
+    return order.map(function(id){ return byId[id]; });
+  }
+  /* Split a merged list into the live ranks this app uses and the tombstones
+     that keep deleted ranks dead. */
+  /* Returns the live ranks and records any tombstones it saw. It deliberately
+     does NOT assign customRanks: it is called from loadCustomRanks(), which
+     runs inside customRanks' own initializer, so assigning there would hit the
+     temporal dead zone and throw. */
+  function adoptRankDefs(list){
+    const merged = mergeRankDefs(list, []);
+    const live = [];
+    merged.forEach(function(def){
+      if(def.deleted){
+        if(!rankTombstones[def.id] || def.updatedAt > rankTombstones[def.id]){
+          rankTombstones[def.id] = def.updatedAt;
+        }
+        return;
+      }
+      // A live definition older than its own tombstone stays dead.
+      if(rankTombstones[def.id] && rankTombstones[def.id] >= def.updatedAt) return;
+      live.push(def);
+    });
+    return live.slice(0, RANK_MAX);
+  }
+
   let customRanks = loadCustomRanks();
   let rankAssignments = loadRankAssignments();
   /* The rank the shared assignment map last handed THIS user. It is what makes
@@ -8846,25 +9101,58 @@ function clearDisguiseImg(){
   let lastRanksAt = 0;
 
   function loadCustomRanks(){
-    try{
-      const raw = localStorage.getItem(CUSTOM_RANKS_KEY);
-      const parsed = raw ? JSON.parse(raw) : [];
-      if(!Array.isArray(parsed)) return [];
-      return parsed.filter(function(r){ return r && typeof r.id === 'string' && r.id; }).slice(0, RANK_MAX);
-    }catch(e){ return []; }
+    const blob = rankStoreRead(CUSTOM_RANKS_KEY);
+    if(!blob) return [];
+    const list = Array.isArray(blob) ? blob : (Array.isArray(blob.defs) ? blob.defs : []);
+    return adoptRankDefs(list);
   }
   function saveCustomRanks(){
-    try{ localStorage.setItem(CUSTOM_RANKS_KEY, JSON.stringify(customRanks.slice(0, RANK_MAX))); }catch(e){}
+    const defs = customRanks.map(function(r){
+      return Object.assign({}, r, {updatedAt: rankDefStamp(r) || Date.now()});
+    });
+    Object.keys(rankTombstones).forEach(function(id){
+      defs.push({
+        id: id, name: '', color: DEFAULT_RANK_COLOR, commands: [], code: '',
+        enabled: false, createdAt: 0, updatedAt: rankTombstones[id], deleted: true
+      });
+    });
+    rankStoreWrite(CUSTOM_RANKS_KEY, {defs: defs});
   }
   function loadRankAssignments(){
-    try{
-      const raw = localStorage.getItem(RANK_ASSIGN_KEY);
-      const parsed = raw ? JSON.parse(raw) : {};
-      return (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) ? parsed : {};
-    }catch(e){ return {}; }
+    const blob = rankStoreRead(RANK_ASSIGN_KEY);
+    if(!blob) return {};
+    const map = (blob.assign && typeof blob.assign === 'object' && !Array.isArray(blob.assign))
+      ? blob.assign
+      : (Array.isArray(blob) ? {} : blob);
+    const out = {};
+    Object.keys(map).forEach(function(uid){
+      const v = map[uid];
+      if(v && typeof v === 'object'){
+        const at = Number(v.t) || 0;
+        if(!rankAssignAt[uid] || at > rankAssignAt[uid]) rankAssignAt[uid] = at;
+        if(v.r) out[uid] = String(v.r);
+      }else if(typeof v === 'string' && v){
+        // legacy flat map: no timestamp, so any real change beats it
+        if(!rankAssignAt[uid]) rankAssignAt[uid] = 0;
+        out[uid] = v;
+      }
+    });
+    return out;
   }
   function saveRankAssignments(){
-    try{ localStorage.setItem(RANK_ASSIGN_KEY, JSON.stringify(rankAssignments)); }catch(e){}
+    const assign = {};
+    Object.keys(rankAssignments).forEach(function(uid){
+      const r = rankAssignments[uid];
+      if(!r) return;
+      assign[uid] = {r: String(r), t: rankAssignAt[uid] || Date.now()};
+    });
+    // An explicit clear is kept as a tombstone, so a stale snapshot cannot
+    // hand the rank back to a user the owner already cleared.
+    Object.keys(rankAssignAt).forEach(function(uid){
+      if(assign[uid]) return;
+      assign[uid] = {r: '', t: rankAssignAt[uid]};
+    });
+    rankStoreWrite(RANK_ASSIGN_KEY, {assign: assign});
   }
   function modRankEnabled(){
     try{ return localStorage.getItem(MOD_RANK_ENABLED_KEY) !== '0'; }catch(e){ return true; }
@@ -8993,13 +9281,41 @@ function clearDisguiseImg(){
     return true;
   }
 
+  /* The snapshot we broadcast carries every definition WITH its own
+     updatedAt, plus the tombstones, so a receiver can merge per rank instead
+     of trusting the whole list. */
+  function rankSnapshotDefs(){
+    const defs = customRanks.map(function(r){
+      return Object.assign({}, r, {updatedAt: rankDefStamp(r) || Date.now()});
+    });
+    Object.keys(rankTombstones).forEach(function(id){
+      defs.push({
+        id: id, name: '', color: DEFAULT_RANK_COLOR, commands: [], code: '',
+        enabled: false, createdAt: 0, updatedAt: rankTombstones[id], deleted: true
+      });
+    });
+    return defs;
+  }
+  function rankSnapshotAssign(){
+    const assign = {};
+    Object.keys(rankAssignments).forEach(function(uid){
+      const r = rankAssignments[uid];
+      if(!r) return;
+      assign[uid] = {r: String(r), t: rankAssignAt[uid] || Date.now()};
+    });
+    Object.keys(rankAssignAt).forEach(function(uid){
+      if(assign[uid]) return;
+      assign[uid] = {r: '', t: rankAssignAt[uid]};
+    });
+    return assign;
+  }
   function publishRanks(){
     if(!client) return;
     client.publish({channel:MODERATION_CHANNEL, message:{
       id:`ranks-${myId}-${Date.now()}-${Math.random().toString(36).slice(2,7)}`,
       action:'ranks',
-      defs:customRanks,
-      assign:rankAssignments,
+      defs:rankSnapshotDefs(),
+      assign:rankSnapshotAssign(),
       modEnabled:modRankEnabled(),
       issuedAt:Date.now()
     }}).catch(function(){});
@@ -9009,13 +9325,32 @@ function clearDisguiseImg(){
     const at = Number(payload.issuedAt) || 0;
     if(at && at < lastRanksAt) return;   // an older snapshot never overwrites a newer one
     if(at) lastRanksAt = at;
+    /* MERGE, never replace. A snapshot is only ever a set of claims about
+       individual ranks; the per-rank updatedAt decides which claim wins, so
+       an old list arriving late cannot drop a new rank or resurrect a
+       deleted one. */
     if(Array.isArray(payload.defs)){
-      customRanks = payload.defs.filter(function(r){ return r && typeof r.id === 'string' && r.id; }).slice(0, RANK_MAX);
-      saveCustomRanks();
+      const before = customRanks.map(function(r){ return r.id + ':' + rankDefStamp(r); }).join('|');
+      customRanks = adoptRankDefs(mergeRankDefs(customRanks, payload.defs));
+      const after = customRanks.map(function(r){ return r.id + ':' + rankDefStamp(r); }).join('|');
+      if(before !== after) saveCustomRanks();
     }
     if(payload.assign && typeof payload.assign === 'object' && !Array.isArray(payload.assign)){
-      rankAssignments = payload.assign;
-      saveRankAssignments();
+      let changed = false;
+      Object.keys(payload.assign).forEach(function(uid){
+        const v = payload.assign[uid];
+        const incoming = (v && typeof v === 'object') ? {r: String(v.r || ''), t: Number(v.t) || 0}
+                                                     : {r: String(v || ''), t: 0};
+        const mine = rankAssignAt[uid] || 0;
+        // Newest change per user wins; a tie keeps what we already hold.
+        if(incoming.t > mine){
+          rankAssignAt[uid] = incoming.t;
+          if(incoming.r) rankAssignments[uid] = incoming.r;
+          else delete rankAssignments[uid];
+          changed = true;
+        }
+      });
+      if(changed) saveRankAssignments();
       // A rank given while we were connected must land on THIS client's own
       // rank too, and be re-shared so every roster shows it. A snapshot that
       // simply has no entry for us never clears anything.
@@ -9062,6 +9397,8 @@ function clearDisguiseImg(){
   function applyRankToUser(userId, rankId){
     const id = String(userId || '');
     if(!id) return;
+    // Stamp the change so a stale snapshot can never undo it.
+    rankAssignAt[id] = Date.now();
     if(rankId) rankAssignments[id] = rankId;
     else delete rankAssignments[id];
     saveRankAssignments();
@@ -9148,7 +9485,8 @@ function clearDisguiseImg(){
       }),
       code: cleanCode,
       enabled: true,
-      createdAt: Date.now()
+      createdAt: Date.now(),
+      updatedAt: Date.now()
     };
     customRanks.push(rank);
     saveCustomRanks();
@@ -9176,6 +9514,8 @@ function clearDisguiseImg(){
     if(Array.isArray(p.commands)){
       rank.commands = p.commands.filter(function(c){ return RANK_COMMANDS.some(function(rc){ return rc.id === c; }); });
     }
+    // Every edit bumps the definition's own stamp, so it beats any older copy.
+    rank.updatedAt = Date.now();
     saveCustomRanks();
     publishRanks();
     // A rank that was just disabled must stop working for whoever holds it.
@@ -9196,10 +9536,16 @@ function clearDisguiseImg(){
     const rank = findCustomRank(rankId);
     if(!rank) return {ok:false, message:'That rank no longer exists.'};
     customRanks = customRanks.filter(function(r){ return r.id !== rank.id; });
+    /* Leave a TOMBSTONE, not just an absence. Without it a stale "ranks"
+       snapshot that still carries this rank would merge it straight back in. */
+    rankTombstones[rank.id] = Date.now();
     saveCustomRanks();
     // Anyone holding it loses it, everywhere.
     Object.keys(rankAssignments).forEach(function(uid){
-      if(rankAssignments[uid] === rank.id) delete rankAssignments[uid];
+      if(rankAssignments[uid] === rank.id){
+        delete rankAssignments[uid];
+        rankAssignAt[uid] = Date.now();
+      }
     });
     saveRankAssignments();
     onlineUsers.forEach(function(user){ if(user.rank === rank.id) user.rank = ''; });
@@ -9844,6 +10190,131 @@ function clearDisguiseImg(){
 }
 </style>
 
+
+<style id="idk-leaderboard-style">
+/* ── Money leaderboard + save code ────────────────────────────────────────
+   Opened by clicking the HUD balance chip. Neon look, matching the casino. */
+#idkLbOverlay{
+  position:fixed;inset:0;z-index:12500;display:none;
+  align-items:center;justify-content:center;padding:1rem;
+  background:rgba(2,6,10,.82);backdrop-filter:blur(6px);
+}
+#idkLbOverlay.visible{display:flex;}
+#idkLbPanel{
+  width:100%;max-width:520px;max-height:88vh;display:flex;flex-direction:column;
+  border-radius:16px;overflow:hidden;
+  background:linear-gradient(160deg,rgba(10,18,26,.98),rgba(6,11,16,.99));
+  border:1px solid rgba(34,230,255,.34);
+  box-shadow:0 0 60px -18px rgba(34,230,255,.75),0 24px 60px -20px rgba(0,0,0,.9);
+  font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+}
+#idkLbHead{
+  display:flex;align-items:center;gap:.6rem;padding:.85rem 1rem;
+  border-bottom:1px solid rgba(34,230,255,.2);
+  background:rgba(34,230,255,.05);
+}
+#idkLbTitle{
+  flex:1;min-width:0;font-size:.82rem;font-weight:800;letter-spacing:.14em;
+  color:#22e6ff;text-shadow:0 0 14px rgba(34,230,255,.6);
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+}
+#idkLbClose{
+  flex-shrink:0;width:30px;height:30px;border-radius:8px;cursor:pointer;
+  border:1px solid rgba(34,230,255,.3);background:rgba(34,230,255,.08);
+  color:#9fe4ff;font-size:.9rem;line-height:1;display:grid;place-items:center;
+}
+#idkLbClose:hover{background:rgba(34,230,255,.2);border-color:rgba(34,230,255,.7);color:#fff;}
+#idkLbBody{overflow-y:auto;padding:.85rem 1rem 1rem;flex:1;min-height:0;}
+#idkLbMeta{
+  display:flex;align-items:center;justify-content:space-between;gap:.5rem;
+  font-size:.62rem;letter-spacing:.08em;color:rgba(255,255,255,.42);
+  margin-bottom:.6rem;text-transform:uppercase;
+}
+#idkLbLive{display:flex;align-items:center;gap:.3rem;color:#39ff88;}
+#idkLbLive::before{
+  content:"";width:5px;height:5px;border-radius:50%;background:#39ff88;
+  box-shadow:0 0 8px #39ff88;animation:idkLbPulse 1.6s ease-in-out infinite;
+}
+@keyframes idkLbPulse{0%,100%{opacity:1}50%{opacity:.35}}
+#idkLbList{display:flex;flex-direction:column;gap:.35rem;}
+.idk-lb-row{
+  display:flex;align-items:center;gap:.6rem;padding:.5rem .6rem;border-radius:9px;
+  border:1px solid rgba(255,255,255,.07);background:rgba(255,255,255,.025);
+  font-size:.76rem;
+}
+.idk-lb-row.me{
+  border-color:rgba(34,230,255,.6);background:rgba(34,230,255,.1);
+  box-shadow:0 0 22px -10px rgba(34,230,255,.9) inset;
+}
+.idk-lb-pos{
+  flex-shrink:0;width:1.9rem;text-align:center;font-weight:800;
+  color:rgba(255,255,255,.5);font-variant-numeric:tabular-nums;
+}
+.idk-lb-row.me .idk-lb-pos{color:#22e6ff;}
+.idk-lb-row.top1 .idk-lb-pos{color:#ffd66b;text-shadow:0 0 10px rgba(255,214,107,.7);}
+.idk-lb-row.top2 .idk-lb-pos{color:#d8e6f2;}
+.idk-lb-row.top3 .idk-lb-pos{color:#e0a06a;}
+.idk-lb-name{
+  flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+  color:rgba(255,255,255,.88);
+}
+.idk-lb-row.me .idk-lb-name{color:#c9f6ff;font-weight:700;}
+.idk-lb-you{
+  flex-shrink:0;font-size:.55rem;letter-spacing:.1em;padding:.1rem .3rem;
+  border-radius:4px;background:rgba(34,230,255,.2);color:#9fe4ff;
+}
+.idk-lb-bal{
+  flex-shrink:0;font-weight:800;color:#39ff88;font-variant-numeric:tabular-nums;
+  text-shadow:0 0 10px rgba(57,255,136,.45);
+}
+.idk-lb-empty{
+  padding:1.4rem .8rem;text-align:center;font-size:.72rem;line-height:1.6;
+  color:rgba(255,255,255,.4);border:1px dashed rgba(255,255,255,.12);border-radius:10px;
+}
+/* ── SAVE CODE ── */
+#idkSaveWrap{
+  margin-top:1rem;padding-top:.9rem;border-top:1px solid rgba(34,230,255,.18);
+}
+#idkSaveTitle{
+  font-size:.68rem;font-weight:800;letter-spacing:.14em;color:#b98cff;
+  text-shadow:0 0 12px rgba(185,140,255,.5);margin-bottom:.5rem;
+}
+#idkSaveNote{
+  font-size:.6rem;line-height:1.5;color:rgba(255,255,255,.4);margin-bottom:.6rem;
+}
+#idkSaveNote b{color:#ffb347;}
+.idk-save-row{display:flex;gap:.4rem;margin-bottom:.5rem;}
+.idk-save-btn{
+  flex:1;padding:.55rem .5rem;border-radius:8px;cursor:pointer;
+  font-family:inherit;font-size:.66rem;font-weight:800;letter-spacing:.08em;
+  border:1px solid rgba(185,140,255,.4);background:rgba(185,140,255,.12);color:#d9c2ff;
+}
+.idk-save-btn:hover{background:rgba(185,140,255,.24);border-color:rgba(185,140,255,.8);color:#fff;}
+.idk-save-btn.alt{border-color:rgba(34,230,255,.4);background:rgba(34,230,255,.1);color:#9fe4ff;}
+.idk-save-btn.alt:hover{background:rgba(34,230,255,.22);border-color:rgba(34,230,255,.8);color:#fff;}
+#idkSaveCode{
+  width:100%;box-sizing:border-box;min-height:4.2rem;resize:vertical;
+  padding:.5rem .6rem;border-radius:8px;
+  border:1px solid rgba(185,140,255,.28);background:rgba(0,0,0,.45);
+  color:#d9c2ff;font-family:inherit;font-size:.6rem;line-height:1.45;
+  word-break:break-all;
+}
+#idkSaveCode:focus{outline:none;border-color:rgba(185,140,255,.75);}
+#idkSaveStatus{
+  min-height:1.1rem;margin-top:.45rem;font-size:.64rem;line-height:1.45;
+  color:rgba(255,255,255,.5);
+}
+#idkSaveStatus.ok{color:#8ff0b8;}
+#idkSaveStatus.error{color:#ff9b9b;}
+@media(max-width:520px){
+  #idkLbPanel{max-height:92vh;}
+  #idkLbBody{padding:.7rem .7rem .85rem;}
+  .idk-lb-row{font-size:.72rem;gap:.45rem;padding:.45rem .5rem;}
+  .idk-lb-pos{width:1.5rem;}
+  #idkLbTitle{font-size:.72rem;letter-spacing:.1em;}
+}
+</style>
+
 <style id="neon-casino-style">
 /* ── Neon Casino, embedded in IDK.GG ──────────────────────────────────────
    Every rule below is scoped to #ncRoot so the casino's neon palette can
@@ -10176,8 +10647,48 @@ body.nc-locked{overflow:hidden}
      Hidden until the CASINO card in the game list is opened. It shares the
      app's wallet (idkgg_wallet_v1) and its $50 / 10 min income clock.
      ══════════════════════════════════════════════════════════════════════ -->
+
+<!-- ══ MONEY LEADERBOARD + SAVE CODE ══════════════════════════════════════
+     Opened by clicking the HUD balance chip. Every client publishes its own
+     balance on the moderation channel, so the board is a live merge of what
+     each device actually holds. -->
+<div id="idkLbOverlay" role="dialog" aria-modal="true" aria-labelledby="idkLbTitle">
+  <div id="idkLbPanel">
+    <div id="idkLbHead">
+      <span id="idkLbTitle">◈ MONEY LEADERBOARD</span>
+      <button id="idkLbClose" type="button" aria-label="Close leaderboard">✕</button>
+    </div>
+    <div id="idkLbBody">
+      <div id="idkLbMeta">
+        <span id="idkLbCount">0 players</span>
+        <span id="idkLbLive">LIVE</span>
+      </div>
+      <div id="idkLbList"></div>
+
+      <div id="idkSaveWrap">
+        <div id="idkSaveTitle">◈ SAVE CODE</div>
+        <p id="idkSaveNote">
+          Your code holds your balance, rank and progress. <b>Keep it private</b> —
+          anyone who has it can load your save. Paste it back here on a new device
+          to restore everything.
+        </p>
+        <div class="idk-save-row">
+          <button class="idk-save-btn" type="button" id="idkSaveBtn">SAVE — MAKE CODE</button>
+          <button class="idk-save-btn alt" type="button" id="idkSaveCopyBtn">COPY</button>
+        </div>
+        <textarea id="idkSaveCode" spellcheck="false" autocomplete="off"
+          placeholder="Your save code appears here. Paste one in and press LOAD to restore."></textarea>
+        <div class="idk-save-row" style="margin-top:.5rem">
+          <button class="idk-save-btn alt" type="button" id="idkSaveLoadBtn">LOAD — RESTORE SAVE</button>
+        </div>
+        <div id="idkSaveStatus"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
 <div id="ncRoot" class="nc-hidden">
-  <button class="nc-close" type="button" onclick="window.__neonCasinoClose()">✕ Back to IDK.GG</button>
+  <button class="nc-close" type="button" onclick="window.__idkggCloseCasino()">✕ Back to IDK.GG</button>
 <div class="bg" aria-hidden="true">
   <div class="bg-glow a"></div>
   <div class="bg-glow b"></div>
@@ -10580,6 +11091,10 @@ function walletWrite(w){
     try{ window.dispatchEvent(new CustomEvent("idkgg-wallet", { detail: { balance: w.balance } })); }catch(e){}
   }
   walletBroadcast(w);
+  /* keep the money leaderboard live: every balance change re-announces */
+  try{
+    if(typeof window.__idkggLeaderboardPublish === "function") window.__idkggLeaderboardPublish(true);
+  }catch(e){}
   return ok;
 }
 
@@ -11831,16 +12346,27 @@ boot();
    IDK.GG opens the casino from its own game list, so the host needs a way
    to show and hide the floor without reloading the page. */
 window.__neonCasinoOpen = function(){
-  ncRoot.classList.remove("nc-hidden");
-  document.body.classList.add("nc-locked");
+  // Idempotent and defensive: reopening must never degrade, and a missing
+  // element must not abort the open half-way.
+  try{ if (typeof window.__idkggLeaderboardClose === "function") window.__idkggLeaderboardClose(); }catch(e){}
+  try{ ncRoot.classList.remove("nc-hidden"); }catch(e){}
+  try{ document.body.classList.add("nc-locked"); }catch(e){}
   try{ showScreen("app"); }catch(e){}
-  renderBalance(); renderStats(); renderHistory();
+  try{ renderBalance(); }catch(e){}
+  try{ renderStats(); }catch(e){}
+  try{ renderHistory(); }catch(e){}
   try{ incomeTick(); }catch(e){}
-  window.scrollTo(0, 0);
+  try{ window.scrollTo(0, 0); }catch(e){}
 };
 window.__neonCasinoClose = function(){
-  ncRoot.classList.add("nc-hidden");
-  document.body.classList.remove("nc-locked");
+  // Defensive: hide the overlay and unlock the body, then make sure the host
+  // app shell is visible again. Without the restore step a direct call left
+  // the launcher hidden behind a closed overlay -- a blank screen.
+  try{ ncRoot.classList.add("nc-hidden"); }catch(e){}
+  try{ document.body.classList.remove("nc-locked"); }catch(e){}
+  try{
+    if (typeof window.__idkggRestoreShell === "function") window.__idkggRestoreShell();
+  }catch(e){}
 };
 window.__neonCasinoIsOpen = function(){
   return !ncRoot.classList.contains("nc-hidden");
@@ -11905,6 +12431,536 @@ window.__casino = {
   _evaluate: evaluateSlots,
   _setGrid: function(g){ reelGrid = g; }
 };
+})();
+</script>
+
+
+<script id="idk-leaderboard-script">
+/* ══════════════════════════════════════════════════════════════════════════
+   MONEY LEADERBOARD + SAVE CODE
+   ──────────────────────────────────────────────────────────────────────────
+   The leaderboard is a LIVE MERGE of what each device actually holds. A
+   player's balance lives on their own device, so no client can read another's
+   wallet directly. Instead every client publishes its own balance on the
+   existing moderation channel (the same one /kick, /mute and the owner money
+   admin already use) and each client merges what it hears into a local board.
+
+   The save code is a self-contained snapshot of everything this player owns:
+   the shared wallet, the rank, the rank assignments and the identity. It is
+   versioned and checksummed, so a mistyped or corrupted code is REJECTED
+   rather than silently wiping the player's data.
+   ══════════════════════════════════════════════════════════════════════════ */
+(function(){
+  "use strict";
+
+  var overlay = document.getElementById("idkLbOverlay");
+  var listEl  = document.getElementById("idkLbList");
+  var countEl = document.getElementById("idkLbCount");
+  var closeBtn= document.getElementById("idkLbClose");
+  if(!overlay || !listEl || !countEl) return;
+
+  var WALLET_KEY = "idkgg_wallet_v1";
+  var LB_CHANNEL = "idkgg-moderation-v1";   /* reuse the existing channel */
+  var LB_MSG     = "idkgg-lb-v1";
+  var LB_TTL     = 5 * 60 * 1000;           /* a peer is stale after 5 min */
+  var LB_PUB_MS  = 20000;                   /* re-announce every 20s */
+
+  /* ── storage chain (same shape as the rest of the app) ─────────────────── */
+  function ckRead(name){
+    try{
+      var parts = String(document.cookie || "").split(";");
+      for(var i = 0; i < parts.length; i++){
+        var p = parts[i].replace(/^\s+/, "");
+        if(p.indexOf(name + "=") === 0) return decodeURIComponent(p.slice(name.length + 1));
+      }
+    }catch(e){}
+    return null;
+  }
+  function ckWrite(name, val, maxAge){
+    try{
+      document.cookie = name + "=" + encodeURIComponent(val) +
+        ";path=/;max-age=" + maxAge + ";SameSite=Lax";
+      return true;
+    }catch(e){ return false; }
+  }
+  function storeGet(kind, key){
+    try{
+      if(kind === "ls") return window.localStorage.getItem(key);
+      if(kind === "ss") return window.sessionStorage.getItem(key);
+      if(kind === "ck") return ckRead(key);
+    }catch(e){}
+    return null;
+  }
+  function storeSet(kind, key, val, maxAge){
+    try{
+      if(kind === "ls"){ window.localStorage.setItem(key, val); return true; }
+      if(kind === "ss"){ window.sessionStorage.setItem(key, val); return true; }
+      if(kind === "ck") return ckWrite(key, val, maxAge || 63072000);
+    }catch(e){}
+    return false;
+  }
+  /* Read EVERY store, keep the newest blob — the same newest-wins rule the
+     wallet and the rank store use. */
+  function readNewest(key){
+    var best = null, kinds = ["ls","ss","ck"];
+    for(var i = 0; i < kinds.length; i++){
+      var raw = storeGet(kinds[i], key);
+      if(!raw) continue;
+      var o = null;
+      try{ o = JSON.parse(raw); }catch(e){ continue; }
+      if(!o || typeof o !== "object") continue;
+      var t = typeof o.t === "number" ? o.t : 0;
+      if(!best || t > best.t) best = o;
+    }
+    return best;
+  }
+  function writeAll(key, obj){
+    var raw;
+    try{ raw = JSON.stringify(obj); }catch(e){ return false; }
+    var ok = false;
+    if(storeSet("ls", key, raw)) ok = true;
+    if(storeSet("ss", key, raw)) ok = true;
+    if(storeSet("ck", key, raw)) ok = true;
+    return ok;
+  }
+
+  function money(n){
+    n = Math.round(Number(n) || 0);
+    return "$" + String(n).replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+  }
+
+  /* ── identity ──────────────────────────────────────────────────────────── */
+  function myIdentity(){
+    var name = "", id = "";
+    try{ name = String(window.localStorage.getItem("idkgg_username_v1") || ""); }catch(e){}
+    try{
+      var ident = JSON.parse(window.localStorage.getItem("idkgg_identity_v1") || "{}");
+      if(!name) name = String(ident.name || "");
+    }catch(e){}
+    try{ id = String(window.localStorage.getItem("idkgg_device_id_v1") || ""); }catch(e){}
+    if(!id){
+      /* a stable per-device id, so two tabs of one player are ONE row */
+      id = "dev-" + Math.random().toString(36).slice(2, 10) + Date.now().toString(36);
+      storeSet("ls", "idkgg_device_id_v1", id);
+    }
+    return { id: id, name: name || "Player" };
+  }
+
+  function myBalance(){
+    var w = readNewest(WALLET_KEY);
+    if(!w) return 0;
+    return Math.max(0, Math.round(Number(w.balance) || 0));
+  }
+
+  /* ── the board ─────────────────────────────────────────────────────────── */
+  var peers = Object.create(null);   /* id -> {id,name,balance,at} */
+  var me = myIdentity();
+  var lastPub = 0;
+  var pubTimer = null;
+
+  function prune(){
+    var now = Date.now();
+    for(var id in peers){
+      if(now - (peers[id].at || 0) > LB_TTL) delete peers[id];
+    }
+  }
+
+  function rows(){
+    prune();
+    var out = [];
+    for(var id in peers) out.push(peers[id]);
+    /* Always show ourselves, even before any broadcast lands. */
+    var mine = peers[me.id];
+    if(!mine){
+      mine = { id: me.id, name: me.name, balance: myBalance(), at: Date.now(), self: true };
+      out.push(mine);
+    }
+    out.sort(function(a, b){
+      if(b.balance !== a.balance) return b.balance - a.balance;
+      return String(a.name).localeCompare(String(b.name));
+    });
+    return out;
+  }
+
+  function render(){
+    if(!overlay.classList.contains("visible")) return;
+    var data = rows();
+    countEl.textContent = data.length + (data.length === 1 ? " player" : " players");
+    if(!data.length){
+      listEl.innerHTML = '<div class="idk-lb-empty">No players yet.<br>'
+        + 'Balances appear here as people connect.</div>';
+      return;
+    }
+    var html = "";
+    for(var i = 0; i < data.length; i++){
+      var r = data[i];
+      var isMe = (r.id === me.id);
+      var cls = "idk-lb-row" + (isMe ? " me" : "") +
+                (i === 0 ? " top1" : (i === 1 ? " top2" : (i === 2 ? " top3" : "")));
+      html += '<div class="' + cls + '">'
+        + '<span class="idk-lb-pos">' + (i + 1) + '</span>'
+        + '<span class="idk-lb-name">' + esc(r.name) + '</span>'
+        + (isMe ? '<span class="idk-lb-you">YOU</span>' : '')
+        + '<span class="idk-lb-bal">' + money(r.balance) + '</span>'
+        + '</div>';
+    }
+    listEl.innerHTML = html;
+  }
+
+  function esc(s){
+    return String(s == null ? "" : s)
+      .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;").replace(/'/g, "&#39;");
+  }
+
+  /* ── broadcast ─────────────────────────────────────────────────────────── */
+  function publish(force){
+    var now = Date.now();
+    if(!force && now - lastPub < LB_PUB_MS) return;
+    lastPub = now;
+    var payload = {
+      id: "lb-" + me.id + "-" + now,
+      action: "lb",
+      lb: LB_MSG,
+      peerId: me.id,
+      peerName: me.name,
+      balance: myBalance(),
+      issuedAt: now
+    };
+    try{
+      if(window.__idkggLbPublish) window.__idkggLbPublish(payload);
+    }catch(e){}
+  }
+
+  function receive(msg){
+    if(!msg || msg.action !== "lb" || msg.lb !== LB_MSG) return;
+    var id = String(msg.peerId || "");
+    if(!id) return;
+    var bal = Math.round(Number(msg.balance));
+    if(!isFinite(bal) || bal < 0) return;
+    var at = Number(msg.issuedAt) || Date.now();
+    var prev = peers[id];
+    /* newest wins, so a late-arriving stale broadcast cannot undo a fresh one */
+    if(prev && (prev.at || 0) > at) return;
+    peers[id] = {
+      id: id,
+      name: String(msg.peerName || "Player").slice(0, 24),
+      balance: bal,
+      at: at
+    };
+    render();
+  }
+
+  /* ── open / close ──────────────────────────────────────────────────────── */
+  var isOpen = false;
+
+  function open(){
+    isOpen = true;
+    overlay.classList.add("visible");
+    /* refresh our own row from the live wallet, then announce */
+    me = myIdentity();
+    peers[me.id] = { id: me.id, name: me.name, balance: myBalance(), at: Date.now() };
+    render();
+    publish(true);
+    if(pubTimer) clearInterval(pubTimer);
+    pubTimer = setInterval(function(){ publish(false); render(); }, 5000);
+  }
+
+  function close(){
+    isOpen = false;
+    overlay.classList.remove("visible");
+    if(pubTimer){ clearInterval(pubTimer); pubTimer = null; }
+  }
+
+  window.__idkggLeaderboardOpen  = open;
+  window.__idkggLeaderboardClose = close;
+  window.__idkggLeaderboardIsOpen= function(){ return isOpen; };
+  window.__idkggLeaderboardReceive = receive;
+  window.__idkggLeaderboardPublish = publish;
+  window.__idkggLeaderboardRows = rows;
+
+  if(closeBtn) closeBtn.addEventListener("click", close);
+  /* outside-click: only a click on the backdrop itself closes it */
+  overlay.addEventListener("click", function(ev){
+    if(ev.target === overlay) close();
+  });
+  document.addEventListener("keydown", function(ev){
+    if(ev.key !== "Escape" && ev.key !== "Esc") return;
+    if(!isOpen) return;
+    ev.stopPropagation();
+    close();
+  }, true);
+
+  /* ── the chip opens it ─────────────────────────────────────────────────── */
+  var chip = document.getElementById("idkWalletChip");
+  if(chip){
+    chip.style.cursor = "pointer";
+    chip.setAttribute("role", "button");
+    chip.setAttribute("tabindex", "0");
+    chip.setAttribute("title", "Your IDK.GG balance — click for the money leaderboard");
+    chip.addEventListener("click", function(ev){
+      ev.preventDefault();
+      if(isOpen) close(); else open();
+    });
+    chip.addEventListener("keydown", function(ev){
+      if(ev.key === "Enter" || ev.key === " "){
+        ev.preventDefault();
+        if(isOpen) close(); else open();
+      }
+    });
+  }
+
+  /* keep our own row honest as the balance moves (casino, income, admin) */
+  window.addEventListener("idkgg-wallet", function(){
+    if(!isOpen) return;
+    me = myIdentity();
+    peers[me.id] = { id: me.id, name: me.name, balance: myBalance(), at: Date.now() };
+    render();
+    publish(true);
+  });
+  window.addEventListener("storage", function(ev){
+    if(ev && ev.key === WALLET_KEY && isOpen){
+      peers[me.id] = { id: me.id, name: me.name, balance: myBalance(), at: Date.now() };
+      render();
+    }
+  });
+
+  /* announce on load so other clients see us without opening the board */
+  setTimeout(function(){ publish(true); }, 2500);
+  setInterval(function(){ publish(false); }, LB_PUB_MS);
+
+  /* ══════════════════════════════════════════════════════════════════════
+     SAVE CODE
+     ──────────────────────────────────────────────────────────────────────
+     A compact, self-contained snapshot. Format:
+
+       IDK1.<base64url payload>.<checksum>
+
+     The version marker lets a future format be rejected cleanly, and the
+     checksum catches a mistyped or truncated code BEFORE anything is written
+     — a bad code must never wipe a player's data.
+     ══════════════════════════════════════════════════════════════════════ */
+  var SAVE_PREFIX  = "IDK1";
+  var RANKS_KEY    = "idkgg_custom_ranks_v1";
+  var ASSIGN_KEY   = "idkgg_rank_assign_v1";
+  var SAVED_RANK   = "idkgg_saved_rank";
+  var IDENTITY_KEY = "idkgg_identity_v1";
+  var NAME_KEY     = "idkgg_username_v1";
+  var PFP_KEY      = "idkgg_pfp_v1";
+
+  var codeEl   = document.getElementById("idkSaveCode");
+  var statusEl = document.getElementById("idkSaveStatus");
+
+  function status(text, tone){
+    if(!statusEl) return;
+    statusEl.textContent = text || "";
+    statusEl.className = tone || "";
+  }
+
+  /* FNV-1a, 32-bit, rendered as 8 hex chars. Not a security hash — it exists
+     to catch a typo, which is exactly what a save code needs. */
+  function checksum(str){
+    var h = 0x811c9dc5;
+    for(var i = 0; i < str.length; i++){
+      h ^= str.charCodeAt(i);
+      h = (h + ((h << 1) + (h << 4) + (h << 7) + (h << 8) + (h << 24))) >>> 0;
+    }
+    return ("0000000" + h.toString(16)).slice(-8);
+  }
+
+  function b64urlEncode(str){
+    var b64 = btoa(unescape(encodeURIComponent(str)));
+    return b64.replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+  }
+  function b64urlDecode(str){
+    var b64 = String(str).replace(/-/g, "+").replace(/_/g, "/");
+    while(b64.length % 4) b64 += "=";
+    return decodeURIComponent(escape(atob(b64)));
+  }
+
+  function collectState(){
+    var w = readNewest(WALLET_KEY) || {};
+    var ranks = readNewest(RANKS_KEY) || {};
+    var assign = readNewest(ASSIGN_KEY) || {};
+    var ident = null;
+    try{ ident = JSON.parse(storeGet("ls", IDENTITY_KEY) || "null"); }catch(e){}
+    var name = storeGet("ls", NAME_KEY) || (ident && ident.name) || "";
+    var pfp  = storeGet("ls", PFP_KEY)  || (ident && ident.pfp)  || "";
+    var rank = storeGet("ls", SAVED_RANK) || (ident && ident.rank) || "";
+    return {
+      v: 1,
+      at: Date.now(),
+      wallet: {
+        balance:  Math.max(0, Math.round(Number(w.balance)  || 0)),
+        incomeAt: Math.max(0, Math.round(Number(w.incomeAt) || 0)),
+        wagered:  Math.max(0, Math.round(Number(w.wagered)  || 0)),
+        won:      Math.max(0, Math.round(Number(w.won)      || 0)),
+        biggest:  Math.max(0, Math.round(Number(w.biggest)  || 0)),
+        rounds:   Math.max(0, Math.round(Number(w.rounds)   || 0)),
+        wins:     Math.max(0, Math.round(Number(w.wins)     || 0))
+      },
+      rank: String(rank || "").slice(0, 40),
+      name: String(name || "").slice(0, 24),
+      pfp:  String(pfp  || "").slice(0, 400000),
+      ranks:  ranks,
+      assign: assign
+    };
+  }
+
+  function makeCode(){
+    var state = collectState();
+    var json;
+    try{ json = JSON.stringify(state); }catch(e){
+      status("Could not build the save code.", "error");
+      return null;
+    }
+    var body = b64urlEncode(json);
+    return SAVE_PREFIX + "." + body + "." + checksum(body);
+  }
+
+  /* Parse a code. Returns {ok, state} or {ok:false, message}. NEVER writes. */
+  function parseCode(raw){
+    var text = String(raw == null ? "" : raw).trim().replace(/\s+/g, "");
+    if(!text) return { ok:false, message:"Paste a save code first." };
+    var parts = text.split(".");
+    if(parts.length !== 3) return { ok:false, message:"That is not a valid save code." };
+    if(parts[0] !== SAVE_PREFIX){
+      return { ok:false, message:"That save code is from a different version and cannot be loaded." };
+    }
+    var body = parts[1], sum = parts[2].toLowerCase();
+    if(!body) return { ok:false, message:"That save code is incomplete." };
+    if(checksum(body) !== sum){
+      return { ok:false, message:"That save code is damaged or mistyped — nothing was changed." };
+    }
+    var json;
+    try{ json = b64urlDecode(body); }catch(e){
+      return { ok:false, message:"That save code is damaged or mistyped — nothing was changed." };
+    }
+    var state;
+    try{ state = JSON.parse(json); }catch(e){
+      return { ok:false, message:"That save code is damaged or mistyped — nothing was changed." };
+    }
+    if(!state || typeof state !== "object" || state.v !== 1){
+      return { ok:false, message:"That save code is from a different version and cannot be loaded." };
+    }
+    if(!state.wallet || typeof state.wallet !== "object"){
+      return { ok:false, message:"That save code is missing its balance — nothing was changed." };
+    }
+    return { ok:true, state: state };
+  }
+
+  /* Write a parsed state into the SAME keys the app already uses, so the
+     casino, the income clock and the owner money admin all pick it up. */
+  function applyState(state){
+    var w = state.wallet;
+    var wallet = {
+      t: Date.now(),
+      balance:  Math.max(0, Math.round(Number(w.balance)  || 0)),
+      incomeAt: Math.max(0, Math.round(Number(w.incomeAt) || 0)),
+      wagered:  Math.max(0, Math.round(Number(w.wagered)  || 0)),
+      won:      Math.max(0, Math.round(Number(w.won)      || 0)),
+      biggest:  Math.max(0, Math.round(Number(w.biggest)  || 0)),
+      rounds:   Math.max(0, Math.round(Number(w.rounds)   || 0)),
+      wins:     Math.max(0, Math.round(Number(w.wins)     || 0)),
+      history:  []
+    };
+    writeAll(WALLET_KEY, wallet);
+
+    if(state.ranks && typeof state.ranks === "object"){
+      var r = state.ranks;
+      writeAll(RANKS_KEY, { t: Date.now(), defs: r.defs || [], tombstones: r.tombstones || {} });
+    }
+    if(state.assign && typeof state.assign === "object"){
+      var a = state.assign;
+      writeAll(ASSIGN_KEY, { t: Date.now(), assign: a.assign || {}, at: a.at || {} });
+    }
+    if(state.rank) storeSet("ls", SAVED_RANK, String(state.rank));
+    if(state.name) storeSet("ls", NAME_KEY, String(state.name));
+    if(state.pfp)  storeSet("ls", PFP_KEY,  String(state.pfp));
+    try{
+      storeSet("ls", IDENTITY_KEY, JSON.stringify({
+        name: String(state.name || ""), rank: String(state.rank || ""),
+        pfp: String(state.pfp || ""), savedAt: Date.now()
+      }));
+    }catch(e){}
+
+    /* tell every module the wallet moved */
+    try{
+      window.dispatchEvent(new CustomEvent("idkgg-wallet", { detail: { balance: wallet.balance } }));
+    }catch(e){}
+    return wallet.balance;
+  }
+
+  var saveBtn = document.getElementById("idkSaveBtn");
+  var copyBtn = document.getElementById("idkSaveCopyBtn");
+  var loadBtn = document.getElementById("idkSaveLoadBtn");
+
+  if(saveBtn) saveBtn.addEventListener("click", function(){
+    var code = makeCode();
+    if(!code) return;
+    if(codeEl) codeEl.value = code;
+    status("Save code created. Keep it private — it is your whole save.", "ok");
+  });
+
+  if(copyBtn) copyBtn.addEventListener("click", function(){
+    var text = codeEl ? codeEl.value.trim() : "";
+    if(!text){
+      var made = makeCode();
+      if(!made) return;
+      text = made;
+      if(codeEl) codeEl.value = made;
+    }
+    var done = function(){
+      status("Copied to the clipboard. Keep it private.", "ok");
+    };
+    try{
+      if(navigator.clipboard && navigator.clipboard.writeText){
+        navigator.clipboard.writeText(text).then(done, function(){ fallbackCopy(text, done); });
+        return;
+      }
+    }catch(e){}
+    fallbackCopy(text, done);
+  });
+
+  function fallbackCopy(text, done){
+    try{
+      if(!codeEl) return;
+      codeEl.value = text;
+      codeEl.focus();
+      codeEl.select();
+      var ok = document.execCommand && document.execCommand("copy");
+      if(ok) done();
+      else status("Select the code and copy it manually.", "error");
+    }catch(e){
+      status("Select the code and copy it manually.", "error");
+    }
+  }
+
+  if(loadBtn) loadBtn.addEventListener("click", function(){
+    var raw = codeEl ? codeEl.value : "";
+    var parsed = parseCode(raw);
+    if(!parsed.ok){
+      /* A bad code changes NOTHING — the existing save is left untouched. */
+      status(parsed.message, "error");
+      return;
+    }
+    var bal = applyState(parsed.state);
+    status("Save restored. Your balance is now " + money(bal) + ".", "ok");
+    /* refresh our own leaderboard row from the restored wallet */
+    me = myIdentity();
+    peers[me.id] = { id: me.id, name: me.name, balance: myBalance(), at: Date.now() };
+    render();
+    publish(true);
+  });
+
+  /* expose a tiny probe for automated verification */
+  window.__idkggSaveCode = {
+    make: makeCode,
+    parse: parseCode,
+    apply: applyState,
+    collect: collectState,
+    checksum: checksum
+  };
 })();
 </script>
 
