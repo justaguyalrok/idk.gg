@@ -1138,6 +1138,20 @@ body::after{
     flex-wrap:wrap;
     padding:.48rem .6rem !important;
   }
+  /* The button row was 418px wide in a 390px viewport, so its last button was
+     cut off with no way to scroll to it (the body is overflow:hidden). Let it
+     wrap and shrink so every control stays reachable on a phone. */
+  .hud-btns{
+    flex-wrap:wrap;
+    flex-shrink:1;
+    min-width:0;
+    justify-content:flex-end;
+    row-gap:.3rem;
+  }
+  #idkWalletChip{
+    flex-shrink:1;
+    min-width:0;
+  }
   #searchWrap{
     order:10;
     flex-basis:100%;
@@ -2520,14 +2534,22 @@ button.chat-side-main:focus-visible{outline:2px solid var(--pulsar);outline-offs
 /* Storage on ChromeOS can be disabled for locally-opened files, Guest mode,
    or managed school profiles.  Never let that stop the whole app. */
 const siteStorage = (() => {
-  const nativeLocalStorage = window.localStorage;
+  /* Reading window.localStorage can itself THROW on a managed Chromebook or in
+     Guest mode. It must never be read outside a try, or the whole script dies
+     and the app never boots. */
+  let nativeLocalStorage = null;
+  try { nativeLocalStorage = window.localStorage; } catch (e) { nativeLocalStorage = null; }
   let available = false;
   try {
-    const key = '__idkgg_storage_test__';
-    nativeLocalStorage.setItem(key, '1');
-    nativeLocalStorage.removeItem(key);
-    available = true;
-  } catch (e) {}
+    if (nativeLocalStorage) {
+      const key = '__idkgg_storage_test__';
+      nativeLocalStorage.setItem(key, '1');
+      nativeLocalStorage.removeItem(key);
+      available = true;
+    }
+  } catch (e) { available = false; }
+  /* Honest verdict for the rest of the page: a memory stand-in is NOT storage. */
+  window.__idkggLSBlocked = !available;
   const memory = Object.create(null);
   function warn(){
     if(!available) console.warn('IDK.GG cannot use browser storage in this profile.');
@@ -2560,6 +2582,33 @@ const localStorage = Object.freeze({
   key: index => Object.keys(siteStorage.snapshot())[index] || null,
   get length(){ return Object.keys(siteStorage.snapshot()).length; }
 });
+
+/* sessionStorage is read bare in a few places too. Wrap it once, up front, so
+   a blocked store degrades to memory instead of throwing. */
+(function(){
+  let nativeSS = null;
+  try { nativeSS = window.sessionStorage; } catch (e) { nativeSS = null; }
+  let ok = false;
+  try {
+    if (nativeSS) { nativeSS.setItem('__idkgg_ss_test__', '1'); nativeSS.removeItem('__idkgg_ss_test__'); ok = true; }
+  } catch (e) { ok = false; }
+  window.__idkggSSBlocked = !ok;
+  if (!ok) {
+    const mem = Object.create(null);
+    try {
+      Object.defineProperty(window, 'sessionStorage', {
+        configurable: true,
+        value: {
+          getItem: k => (k in mem ? mem[k] : null),
+          setItem: (k, v) => { mem[k] = String(v); },
+          removeItem: k => { delete mem[k]; },
+          key: i => Object.keys(mem)[i] || null,
+          get length() { return Object.keys(mem).length; }
+        }
+      });
+    } catch (e) {}
+  }
+})();
 
 function storageWarning(){
   alert('This browser is blocking site storage, so changes cannot survive a restart. Open this page from a normal HTTPS website (not the Chromebook Files app), turn off Guest/incognito mode, or ask your administrator to allow site data.');
@@ -2644,6 +2693,7 @@ function saveImageForStorage(file, done){
   </select>
   <button class="fav-pill" id="favPill" onclick="toggleFavFilter()">⭐ Favorites</button>
   <div class="hud-btns">
+    <div id="idkWalletChip" title="Your IDK.GG balance — shared with the casino"><span class="w-bal" id="idkWalletBal">$1,000</span><span class="w-inc" id="idkWalletInc">10:00</span></div>
     <button class="hud-btn" title="Refresh" onclick="refreshZones()">
       <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
         <polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/>
@@ -3316,6 +3366,35 @@ let zonesURL=zonesurls[Math.random()*zonesurls.length|0];
 // { name, url, cover, author, authorLink, special, featured }
 const CUSTOM_GAMES = [
   {
+    // The neon casino is not an external page: it is embedded in this file and
+    // opened by openZone() below. The "#neon-casino" url is the marker.
+    name: "Neon Casino",
+    url: "#neon-casino",
+    cover: "data:image/svg+xml;charset=utf-8," + encodeURIComponent(
+      '<svg xmlns="http://www.w3.org/2000/svg" width="300" height="300">'
+      + '<defs><radialGradient id="g" cx="50%" cy="35%" r="75%">'
+      + '<stop offset="0%" stop-color="#12203a"/><stop offset="100%" stop-color="#05060a"/>'
+      + '</radialGradient></defs>'
+      + '<rect width="300" height="300" fill="url(#g)"/>'
+      + '<g fill="none" stroke="#22e6ff" stroke-width="2" opacity=".35">'
+      + '<rect x="34" y="96" width="70" height="108" rx="10"/>'
+      + '<rect x="115" y="96" width="70" height="108" rx="10"/>'
+      + '<rect x="196" y="96" width="70" height="108" rx="10"/></g>'
+      + '<g font-family="monospace" font-size="34" text-anchor="middle">'
+      + '<text x="69" y="166" fill="#39ff88">&#9827;</text>'
+      + '<text x="150" y="166" fill="#ff3d8b">&#9829;</text>'
+      + '<text x="231" y="166" fill="#ffd93d">7</text></g>'
+      + '<text x="150" y="60" font-family="monospace" font-size="26" font-weight="bold"'
+      + ' text-anchor="middle" fill="#22e6ff">NEON</text>'
+      + '<text x="150" y="252" font-family="monospace" font-size="20" font-weight="bold"'
+      + ' text-anchor="middle" fill="#ff3d8b">CASINO</text></svg>'
+    ),
+    author: "justaguy",
+    authorLink: "",
+    special: ["games"],
+    featured: true
+  },
+  {
     name: "Minecraft",
     // Loads the repository's browser entry file through jsDelivr.
     url: "https://cdn.jsdelivr.net/gh/justaguyalrok/minecraftXDDD@main/index",
@@ -3338,7 +3417,7 @@ const CUSTOM_GAMES = [
   {
     name: "orAIn",
     url: "https://cdn.jsdelivr.net/gh/Wakefield-coolbean/Orion-Games@latest/orAIn.html?v=",
-    cover: "data:image/jpeg;base64,PLACEHOLDER_COVER_IMAGE_DATA",
+    cover: "",
     author: "Orion",
     authorLink: "",
     special: [],
@@ -3478,6 +3557,33 @@ const CUSTOM_GAMES = [
     special: ["social"],
     featured: false
   },
+     {
+    name: "rhythm tap",
+    url: "https://justaguyalrok.github.io/rythim-tap/",
+    cover: "",
+    author: "justaguy",
+    authorLink: "",
+    special: ["social"],
+    featured: false
+  },
+   {
+    name: "space",
+    url: "https://justaguyalrok.github.io/woooowlookscool/",
+    cover: "",
+    author: "justaguy",
+    authorLink: "",
+    special: ["social"],
+    featured: true
+  },
+   {
+    name: "space 2.0",
+    url: "https://justaguyalrok.github.io/spacelol/",
+    cover: "",
+    author: "justaguy",
+    authorLink: "",
+    special: ["social"],
+    featured: false
+  },
 ];
 // Assign negative IDs to custom games so they don't clash with gn-math IDs
 // and prepend them to the zones list so they appear first.
@@ -3610,6 +3716,9 @@ let zoneFrame=document.getElementById('zoneFrame');
 const menuEls=['hud','footer','statusBar','stage'];
 function hideMenu(){menuEls.forEach(id=>{const el=document.getElementById(id);if(el)el.style.display='none';});canvas.style.display='none';}
 function showMenu(){menuEls.forEach(id=>{const el=document.getElementById(id);if(el)el.style.display='';});canvas.style.display='';}
+/* The casino module lives in its own IIFE, so it cannot call showMenu()
+   directly. This hook is how it restores the launcher shell on close. */
+window.__idkggRestoreShell = function(){ try{ showMenu(); }catch(e){} };
 
 function setNewTabVisibility(file){
   const btn=document.getElementById('newTabBtn');
@@ -3748,6 +3857,24 @@ const MINECRAFT_EDITOR_HTML = "<!DOCTYPE html>\n<html lang=\"en\">\n<head>\n<met
 function openZone(file){
   // Remember the attempt so the error banner's Retry button can repeat it.
   _lastZoneAttempt = file;
+  // The neon casino lives inside this file, so it is shown as an overlay
+  // instead of being loaded into the iframe like an external game.
+  if (file && String(file.url || '') === '#neon-casino') {
+    if (typeof window.__neonCasinoOpen === 'function') {
+      hideMenu();
+      window.__neonCasinoOpen();
+      try {
+        const u = new URL(location);
+        // Only record a real id. Writing an undefined id produced the literal
+        // "?id=undefined", which then matched no zone on reload.
+        if (file.id !== undefined && file.id !== null && file.id !== '') {
+          u.searchParams.set('id', file.id);
+        }
+        history.pushState({ idkggCasino: true }, '', u);
+      } catch (e) {}
+    }
+    return;
+  }
   // Show the Minecraft game hosted on GitHub Pages inside the launcher's built-in game viewer.
   // The published page loads the XML game content in the same iframe, without opening a new tab.
   if (String(file && file.name || "").trim().toLowerCase() === "minecraft") {
@@ -3816,11 +3943,73 @@ function openZone(file){
     });
 }
 function closeZone(){
+  // One defensive close path for every way out of a zone. It restores the app
+  // shell even if the casino's own state is missing, and it never throws.
+  if (typeof window.__idkggCloseCasino === 'function') {
+    window.__idkggCloseCasino();
+    return;
+  }
   clearZoneError();
   if(zoneFrame&&zoneFrame.parentNode)zoneFrame.parentNode.removeChild(zoneFrame);
   zoneFrame=null;zoneViewer.style.display='none';showMenu();
   try{const u=new URL(location);u.searchParams.delete('id');history.pushState(null,'',u);}catch(e){}
 }
+
+/* ── The single, defensive way to leave the neon casino ──────────────────────
+   The casino is a full-screen overlay and openZone() hides the app shell with
+   hideMenu(). Every close path (✕ button, browser back, Escape, closeZone)
+   funnels through here so the shell is ALWAYS restored. Each step is guarded:
+   a missing element or a half-torn-down casino can never leave a blank page. */
+window.__idkggCloseCasino = function(opts){
+  var fromHistory = !!(opts && opts.fromHistory);
+
+  // 1. hide the overlay (guarded: ncRoot may be gone)
+  try{
+    if (typeof window.__neonCasinoClose === 'function') window.__neonCasinoClose();
+  }catch(e){}
+
+  // 2. restore the app shell that hideMenu() hid -- this is the actual fix
+  try{ showMenu(); }catch(e){}
+
+  // 3. tear down any zone iframe / viewer left behind
+  try{
+    if (zoneFrame && zoneFrame.parentNode) zoneFrame.parentNode.removeChild(zoneFrame);
+    zoneFrame = null;
+  }catch(e){}
+  try{ if (zoneViewer) zoneViewer.style.display = 'none'; }catch(e){}
+  try{ clearZoneError(); }catch(e){}
+
+  // 4. drop the ?id= marker, unless we are already handling a history pop
+  if (!fromHistory) {
+    try{
+      var u = new URL(location);
+      u.searchParams.delete('id');
+      history.pushState(null, '', u);
+    }catch(e){}
+  }
+};
+
+/* Escape leaves the casino, but only when it is actually open, so it cannot
+   interfere with the app's other Escape handlers. */
+document.addEventListener('keydown', function(e){
+  if (e.key !== 'Escape' && e.key !== 'Esc') return;
+  /* the leaderboard owns Escape while it is open */
+  try{ if (window.__idkggLeaderboardIsOpen && window.__idkggLeaderboardIsOpen()) return; }catch(err){}
+  try{
+    if (typeof window.__neonCasinoIsOpen === 'function' && window.__neonCasinoIsOpen()){
+      window.__idkggCloseCasino();
+    }
+  }catch(err){}
+});
+
+/* Browser back closes the casino instead of leaving it stuck open. */
+window.addEventListener('popstate', function(){
+  try{
+    if (typeof window.__neonCasinoIsOpen === 'function' && window.__neonCasinoIsOpen()){
+      window.__idkggCloseCasino({ fromHistory: true });
+    }
+  }catch(err){}
+});
 function fullscreenZone(){if(!zoneFrame)return;(zoneFrame.requestFullscreen||zoneFrame.webkitRequestFullscreen).call(zoneFrame);}
 function aboutBlank(){
   if(!zoneFrame)return;
@@ -3862,7 +4051,7 @@ function closePopup(){
 }
 function overlayClick(e){if(e.target===popupOverlay)closePopup();}
 function cloakName(v){document.title=(v+'').trim()||'IDK.GG';}
-function cloakIcon(url){const l=document.querySelector("link[rel~='icon']");l.href=(url+'').trim()||'favicon.png';document.head.appendChild(l);}
+function cloakIcon(url){const l=document.querySelector("link[rel~='icon']");l.href=(url+'').trim()||"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%2301070a'/%3E%3C/svg%3E";document.head.appendChild(l);}
 function applyPreset(title,icon){cloakName(title);cloakIcon(icon);const t=document.getElementById('ct');if(t)t.value=title;const i=document.getElementById('ci');if(i)i.value=icon;}
 function openSettings(){showPopup('SETTINGS',
   `<div class="settings-slider-row">`
@@ -4752,6 +4941,8 @@ function clearDisguiseImg(){
   // True while the owner panel is showing its "remove my rank?" confirm row.
   // Reset on every panel render so the destructive step is never pre-armed.
   let ownerDropConfirm = false;
+  // Repaints the OWNER panel's live balance readout while the panel is open.
+  let ownerMoneyTimer = null;
   // Timestamp of the last owner /clear. Messages older than this are dropped
   // so a cleared feed stays cleared for everyone, including late joiners.
   let chatClearedAt = 0;
@@ -5193,8 +5384,24 @@ function clearDisguiseImg(){
     }
   }
 
+  /* The leaderboard module lives in its own IIFE and cannot reach this
+     client, so publishing is exposed here. It reuses the moderation channel
+     the app already subscribes to, which is what makes the board live. */
+  window.__idkggLbPublish = function(payload){
+    try{ if(client) client.publish({channel:MODERATION_CHANNEL, message:payload}).catch(function(){}); }catch(e){}
+  };
+
   function receiveModeration(command){
     if(!command || typeof command.action !== 'string') return;
+    /* A leaderboard balance broadcast is about ANOTHER user, so it is handled
+       here before the targetId gate below. */
+    if(command.action === 'lb'){
+      try{
+        if(typeof window.__idkggLeaderboardReceive === 'function')
+          window.__idkggLeaderboardReceive(command);
+      }catch(e){}
+      return;
+    }
     // /clear is a broadcast, not a targeted action — handle it before the
     // targetId check so every client wipes its feed.
     if(command.action === 'clear'){
@@ -5207,6 +5414,35 @@ function clearDisguiseImg(){
       renderChat();
       return;
     }
+    // A money change is a broadcast about ANOTHER user, so it is handled here
+    // before the targetId gate below. Only the TARGET applies it, to its own
+    // wallet — that is what keeps one player's balance on their own device.
+    if(command.action === 'money'){
+      /* Our OWN action: the actor already applied it locally (self-target) or
+         it was aimed at someone else. Either way the echo must not re-apply,
+         or a self-target would be counted twice. */
+      if(command.actorId === myId) return;
+      const moneyId = String(command.id || `money-${command.targetId}-${command.issuedAt || ''}`);
+      if(seenModerationIds.has(moneyId)) return;
+      seenModerationIds.add(moneyId);
+      if(command.targetId !== myId) return;
+      const mode = String(command.mode || '');
+      const amount = Math.round(Number(command.amount));
+      if(['give','take','set'].indexOf(mode) === -1) return;
+      if(!isFinite(amount) || amount < 0) return;
+      const applied = (typeof window.__idkggApplyWalletChange === 'function')
+        ? window.__idkggApplyWalletChange(mode, amount)
+        : null;
+      if(applied && applied.ok){
+        const verb = mode === 'give' ? 'received' : (mode === 'take' ? 'had money removed' : 'balance set');
+        const from = command.actorName ? ` by ${command.actorName}` : '';
+        showPopup('BALANCE UPDATED',
+          `<p style="text-align:center;padding:.9rem .3rem;color:#8ff0b8">You ${verb}${from}.`
+          + `<br>Your balance is now <strong>${money(applied.balance)}</strong>.</p>`);
+      }
+      return;
+    }
+
     // A rank change is a broadcast about ANOTHER user, so it is handled here
     // before the targetId gate below (which drops anything not aimed at me).
     if(command.action === 'rank'){
@@ -5216,9 +5452,13 @@ function clearDisguiseImg(){
       // Mirror the change into the assignment map, so the same source of truth
       // drives the roster and this user's own rank.
       if(command.targetId){
-        if(command.rank) rankAssignments[command.targetId] = command.rank;
-        else delete rankAssignments[command.targetId];
-        saveRankAssignments();
+        const stamp = Number(command.issuedAt) || Date.now();
+        if(stamp >= (rankAssignAt[command.targetId] || 0)){
+          rankAssignAt[command.targetId] = stamp;
+          if(command.rank) rankAssignments[command.targetId] = command.rank;
+          else delete rankAssignments[command.targetId];
+          saveRankAssignments();
+        }
       }
       applyRosterRank(command.targetId, command.rank);
       // A targeted rank change is explicit: give OR take away.
@@ -7202,6 +7442,10 @@ function clearDisguiseImg(){
     {usage:'/matrix <message>',       desc:'Neon-green matrix text'},
     {usage:'/big <message>',          desc:'Big text'},
     {usage:'/shout <message>',        desc:'Big highlighted shout text'},
+    {usage:'/give <user> <amount>',   desc:'Add money to a player\u2019s balance'},
+    {usage:'/take <user> <amount>',   desc:'Remove money from a player\u2019s balance'},
+    {usage:'/setmoney <user> <amount>', desc:'Set a player\u2019s balance to an exact amount'},
+    {usage:'/balance [user]',         desc:'Show your balance, or another player\u2019s'},
     {usage:'/setmodcode <newcode>',   desc:'Change the shared mod access code'},
     {usage:'/dropowner confirm',      desc:'Remove your own OWNER rank'},
     {usage:'/help',                   desc:'List these commands'}
@@ -7371,6 +7615,156 @@ function clearDisguiseImg(){
     return {ok:true, message:msg, tone:'ok'};
   }
 
+  /* ══════════════════════════════════════════════════════════════
+     OWNER MONEY ADMIN
+     /give, /take, /setmoney and /balance. The money itself lives in the
+     SHARED wallet (idkgg_wallet_v1) that the casino and the $50 income
+     already use, so a change here is the same money everywhere.
+
+     A player's balance is stored on their OWN device, so an owner cannot
+     write it directly. The change is therefore broadcast on the existing
+     moderation channel and the TARGET's client applies it to its own
+     wallet when it arrives — the same mechanism /kick and /mute use.
+     ══════════════════════════════════════════════════════════════ */
+  const MONEY_COMMANDS = ['give','take','setmoney','balance'];
+  const MONEY_MAX = 1000000000;   /* $1,000,000,000 — a sane ceiling */
+
+  /* The casino module owns its own money() formatter, and this IIFE cannot see
+     it, so the money admin carries its own. Same output: $1,234. */
+  function money(n){
+    n = Math.round(Number(n) || 0);
+    return '$' + String(n).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+  }
+
+  /* Parse a money amount. Rejects NaN, Infinity, negatives, zero and
+     anything above the ceiling, so a typo can never mint a fortune. */
+  function parseMoneyAmount(raw){
+    const text = String(raw == null ? '' : raw).trim().replace(/^\$/, '').replace(/,/g, '');
+    if(!text) return { ok:false, message:'Enter an amount.' };
+    if(!/^\d+(\.\d+)?$/.test(text)) return { ok:false, message:'That is not a valid amount — use a positive number.' };
+    const value = Math.round(Number(text));
+    if(!isFinite(value)) return { ok:false, message:'That is not a valid amount.' };
+    if(value <= 0) return { ok:false, message:'The amount must be at least $1.' };
+    if(value > MONEY_MAX) return { ok:false, message:'That amount is too large.' };
+    return { ok:true, value:value };
+  }
+
+  /* Resolve a money target. Unlike a moderation target this may be the owner
+     themselves, and it may be someone who is not currently online — the
+     broadcast is addressed by id, so an offline player simply applies it the
+     next time they are connected. */
+  function resolveMoneyTarget(query){
+    const q = String(query || '').trim();
+    if(!q) return null;
+    const lower = q.toLowerCase();
+    if(myName && lower === String(myName).toLowerCase()) return { id:myId, name:myName, rank:myRank, self:true };
+    const exact = onlineUsers.find(function(u){ return String(u.name).toLowerCase() === lower; });
+    if(exact) return exact;
+    const prefix = onlineUsers.find(function(u){ return String(u.name).toLowerCase().indexOf(lower) === 0; });
+    if(prefix) return prefix;
+    return onlineUsers.find(function(u){ return String(u.name).toLowerCase().indexOf(lower) !== -1; }) || null;
+  }
+
+  function moneyLabel(mode, amount){
+    if(mode === 'give') return 'Gave ' + money(amount);
+    if(mode === 'take') return 'Took ' + money(amount);
+    return 'Set balance to ' + money(amount);
+  }
+
+  /* Apply a money change to THIS client's own wallet. Used when the owner
+     targets themselves, and when a broadcast arrives for this user. */
+  function applyMoneyLocally(mode, amount){
+    if(typeof window.__idkggApplyWalletChange !== 'function') return null;
+    return window.__idkggApplyWalletChange(mode, amount);
+  }
+
+  /* Broadcast a money change to the target's client. The target applies it to
+     its own wallet; the owner's own client applies it locally when the target
+     is the owner. */
+  function sendMoneyCommand(mode, target, amount){
+    const payload = {
+      id: `money-${myId}-${Date.now()}-${Math.random().toString(36).slice(2,7)}`,
+      action: 'money',
+      mode: mode,
+      amount: amount,
+      targetId: target.id,
+      targetName: target.name,
+      actorId: myId,
+      actorName: myName || 'Owner',
+      issuedAt: Date.now()
+    };
+    if(target.id === myId){
+      /* The owner is the target: apply it here and now, and still broadcast so
+         any other tab of the same owner stays in step. */
+      const applied = applyMoneyLocally(mode, amount);
+      if(client) client.publish({channel:MODERATION_CHANNEL, message:payload}).catch(function(){});
+      return applied;
+    }
+    if(client) client.publish({channel:MODERATION_CHANNEL, message:payload}).catch(function(){});
+    return null;
+  }
+
+  function executeMoneyCommand(name, arg, opts){
+    opts = opts || {};
+    const report = function(text, tone){
+      if(opts.report) opts.report(text, tone);
+      else if(!opts.silent) commandReply(text, tone);
+    };
+    const fail = function(text){ report(text, 'error'); return {ok:false, message:text, tone:'error'}; };
+    const done = function(text){ report(text, 'ok'); return {ok:true, message:text, tone:'ok'}; };
+
+    /* ── /balance ── the sender's own balance, or (owner only) another's.
+       A non-owner asking about someone else is refused; a non-owner asking
+       about themselves is allowed, because it is their own money. */
+    if(name === 'balance'){
+      const who = String(arg || '').trim();
+      if(!who){
+        const w = (typeof window.__idkggWalletRead === 'function') ? window.__idkggWalletRead() : null;
+        const bal = w ? Math.max(0, Math.round(Number(w.balance) || 0)) : 0;
+        return done(`Your balance is ${money(bal)}.`);
+      }
+      if(!isOwnerRank()) return fail("You don't have permission to use that command.");
+      const target = resolveMoneyTarget(who);
+      if(!target) return fail(`No one online matches "${who}".`);
+      if(target.id === myId){
+        const w = (typeof window.__idkggWalletRead === 'function') ? window.__idkggWalletRead() : null;
+        const bal = w ? Math.max(0, Math.round(Number(w.balance) || 0)) : 0;
+        return done(`Your balance is ${money(bal)}.`);
+      }
+      /* Another player's balance lives on their device. The owner's own client
+         cannot read it, so report what is actually knowable rather than
+         inventing a number. */
+      return done(`${target.name}'s balance is stored on their own device, so it cannot be read from here. Use /give, /take or /setmoney to change it.`);
+    }
+
+    /* ── /give, /take, /setmoney ── need a target and an amount. */
+    const parts = String(arg || '').trim().split(/\s+/).filter(Boolean);
+    if(!parts.length) return fail(`Usage: /${name} <user> <amount>`);
+    if(parts.length < 2) return fail(`Usage: /${name} <user> <amount>`);
+
+    const amountText = parts[parts.length - 1];
+    const whoText = parts.slice(0, parts.length - 1).join(' ');
+    const parsed = parseMoneyAmount(amountText);
+    if(!parsed.ok) return fail(parsed.message);
+
+    const target = opts.target || resolveMoneyTarget(whoText);
+    if(!target) return fail(`No one online matches "${whoText}".`);
+
+    const mode = name === 'give' ? 'give' : (name === 'take' ? 'take' : 'set');
+    const applied = sendMoneyCommand(mode, target, parsed.value);
+
+    /* Record it in the shared action log, exactly like a moderation action. */
+    logModerationAction('money-' + mode, { id:target.id, name:target.name }, myName || 'Owner');
+
+    if(target.id === myId){
+      const bal = applied && applied.ok ? applied.balance : parsed.value;
+      return done(`${moneyLabel(mode, parsed.value)} — your balance is now ${money(bal)}.`);
+    }
+    const verb = mode === 'give' ? 'Gave' : (mode === 'take' ? 'Took' : 'Set');
+    const prep = mode === 'set' ? ' to ' : ' from ';
+    return done(`${verb} ${money(parsed.value)}${mode === 'set' ? '' : prep}${target.name}. The change is applied on their device.`);
+  }
+
   function executeOwnerCommand(name, arg, opts){
     opts = opts || {};
     const report = function(text, tone){
@@ -7410,13 +7804,24 @@ function clearDisguiseImg(){
     }
 
     // Unknown command → not ours. The typed path falls through to chat.
-    if(['announcement','announce','clear','kick','mute','unmute','dropowner','drop-owner','resign','unowner','chat-kick','chat-mute','setmodcode','delmsg','delete'].concat(CHAT_FX_ALL).indexOf(name) === -1){
+    if(['announcement','announce','clear','kick','mute','unmute','dropowner','drop-owner','resign','unowner','chat-kick','chat-mute','setmodcode','delmsg','delete'].concat(MONEY_COMMANDS).concat(CHAT_FX_ALL).indexOf(name) === -1){
       return {ok:false, message:'', tone:'error', unknown:true};
     }
 
     // ── RANK GATE ── owners get everything; every other rank gets exactly
     // the commands its definition grants (mods: chat kick, chat mute, delete).
     // Anything else gets a reply and nothing is broadcast.
+    /* -- MONEY -- /balance is open to everyone for their OWN balance; every
+       command that MOVES money is owner-only. Handled BEFORE the generic rank
+       gate below, because that gate would refuse /balance for a plain user. */
+    if(name === 'balance'){
+      return executeMoneyCommand(name, arg, opts);
+    }
+    if(name === 'give' || name === 'take' || name === 'setmoney'){
+      if(!isOwnerRank()) return fail("You don't have permission to use that command.");
+      return executeMoneyCommand(name, arg, opts);
+    }
+
     if(!myRankHasCommand(name)){
       return fail("You don't have permission to use that command.");
     }
@@ -7548,6 +7953,7 @@ function clearDisguiseImg(){
     'kick':'KICK', 'mute':'MUTE', 'unmute':'UNMUTE', 'ban':'BAN',
     'chat-ban':'CHAT BAN', 'chat-kick':'CHAT KICK', 'chat-mute':'CHAT MUTE', 'dropowner':'DROP OWNER',
     'chat-delete':'DELETED MSG',
+    'money-give':'MONEY GIVE', 'money-take':'MONEY TAKE', 'money-set':'MONEY SET',
     'rank-give':'RANK GIVE', 'rank-clear':'RANK CLEAR', 'rank-create':'RANK NEW', 'rank-delete':'RANK DEL'
   };
   /* Colour accent per action type: red for the severe ones, amber for the
@@ -7556,6 +7962,7 @@ function clearDisguiseImg(){
     'kick':'severe', 'ban':'severe', 'chat-ban':'severe', 'chat-kick':'severe',
     'mute':'warn', 'chat-mute':'warn', 'dropowner':'warn', 'unmute':'ok',
     'chat-delete':'severe',
+    'money-give':'ok', 'money-take':'warn', 'money-set':'warn',
     'rank-give':'ok', 'rank-clear':'warn', 'rank-create':'ok', 'rank-delete':'severe'
   };
   let actionLog = loadActionLog();
@@ -8131,6 +8538,22 @@ function clearDisguiseImg(){
             +`<div class="action-log-list" id="dmLogList"></div>`
           +`</div>`
         +`</div>`
+        +`<div class="owner-panel-money" id="ownerMoneySection">`
+          +`<div class="owner-money-head">`
+            +`<span class="owner-money-title">\u25c8 MONEY</span>`
+            +`<span class="owner-money-bal" id="ownerMoneyBal">$0</span>`
+          +`</div>`
+          +`<div class="owner-panel-row">`
+            +`<input id="ownerMoneyUser" type="text" maxlength="24" autocomplete="off" placeholder="Username\u2026">`
+            +`<input id="ownerMoneyAmount" type="text" inputmode="numeric" maxlength="12" autocomplete="off" placeholder="Amount">`
+          +`</div>`
+          +`<div class="owner-panel-row">`
+            +`<button class="owner-btn owner-btn-ok" type="button" id="ownerMoneyGiveBtn">GIVE</button>`
+            +`<button class="owner-btn owner-btn-warn" type="button" id="ownerMoneyTakeBtn">TAKE</button>`
+            +`<button class="owner-btn owner-btn-primary" type="button" id="ownerMoneySetBtn">SET</button>`
+          +`</div>`
+          +`<p class="moderation-note">Give adds, Take removes (never below $0), Set replaces the balance. The change is applied on the target\u2019s own device.</p>`
+        +`</div>`
         +`<div class="owner-panel-row" style="margin-top:.45rem">`
           +`<button class="owner-btn owner-btn-danger" type="button" id="ownerDeleteMsgBtn" title="Delete a chat message for everyone">DELETE MESSAGE\u2026</button>`
         +`</div>`
@@ -8166,6 +8589,45 @@ function clearDisguiseImg(){
     if(helpBtn) helpBtn.addEventListener('click', function(){ runOwnerPanelCommand('help', ''); });
     const delMsgBtn = document.getElementById('ownerDeleteMsgBtn');
     if(delMsgBtn) delMsgBtn.addEventListener('click', function(){ openDeleteMessageDialog(); });
+
+    /* ── MONEY section ──
+       The panel never re-implements the money logic: every button calls the
+       same executeMoneyCommand() the typed commands use, so the two entry
+       points can never drift apart. */
+    const moneyUser = document.getElementById('ownerMoneyUser');
+    const moneyAmount = document.getElementById('ownerMoneyAmount');
+    const moneyBal = document.getElementById('ownerMoneyBal');
+
+    function paintOwnerMoney(){
+      if(!moneyBal) return;
+      const w = (typeof window.__idkggWalletRead === 'function') ? window.__idkggWalletRead() : null;
+      const bal = w ? Math.max(0, Math.round(Number(w.balance) || 0)) : 0;
+      moneyBal.textContent = money(bal);
+    }
+    paintOwnerMoney();
+    if(ownerMoneyTimer) clearInterval(ownerMoneyTimer);
+    ownerMoneyTimer = setInterval(paintOwnerMoney, 1000);
+
+    function runMoney(mode){
+      const who = moneyUser ? moneyUser.value.trim() : '';
+      const amt = moneyAmount ? moneyAmount.value.trim() : '';
+      if(!who){ ownerPanelStatus('Type a username first.', 'error'); if(moneyUser) moneyUser.focus(); return; }
+      if(!amt){ ownerPanelStatus('Type an amount first.', 'error'); if(moneyAmount) moneyAmount.focus(); return; }
+      const result = executeMoneyCommand(mode, who + ' ' + amt, { report: ownerPanelStatus });
+      if(result && result.ok){
+        if(moneyAmount) moneyAmount.value = '';
+        paintOwnerMoney();
+      }
+    }
+    const giveBtn = document.getElementById('ownerMoneyGiveBtn');
+    const takeBtn = document.getElementById('ownerMoneyTakeBtn');
+    const setBtn  = document.getElementById('ownerMoneySetBtn');
+    if(giveBtn) giveBtn.addEventListener('click', function(){ runMoney('give'); });
+    if(takeBtn) takeBtn.addEventListener('click', function(){ runMoney('take'); });
+    if(setBtn)  setBtn.addEventListener('click',  function(){ runMoney('setmoney'); });
+    if(moneyAmount) moneyAmount.addEventListener('keydown', function(ev){
+      if(ev.key === 'Enter'){ ev.preventDefault(); runMoney('give'); }
+    });
 
     function selectedTarget(){
       if(!select || !select.value) return null;
@@ -8506,6 +8968,155 @@ function clearDisguiseImg(){
   const RANK_COLOR_PRESETS = ['#ff5a5a','#ffb347','#ffe066','#39e58c','#5ac8ff','#b98cff','#ff7ad9','#ffffff'];
   const DEFAULT_RANK_COLOR = '#5ac8ff';
 
+  /* ── RANK PERSISTENCE ────────────────────────────────────────────────
+     The stored rank definitions are the SINGLE SOURCE OF TRUTH. Two bugs
+     used to make a new rank vanish and deleted ranks come back:
+
+       1. saveCustomRanks() wrote a bare array to localStorage with no
+          timestamp, so the resilient chain had nothing to compare and a
+          stale cookie / sessionStorage copy could win.
+       2. applyRanksPayload() REPLACED the whole list with whatever snapshot
+          arrived. Any client that reconnected republished its own (possibly
+          stale) list with a FRESH issuedAt, so an old list could beat a new
+          one — and on reload lastRanksAt reset to 0, so the oldest retained
+          history snapshot was accepted.
+
+     The fix is a per-rank merge with tombstones: every definition carries
+     its own updatedAt, a delete leaves a tombstone instead of vanishing,
+     and the higher updatedAt always wins. Merging is therefore
+     order-independent — a stale snapshot can never resurrect a deleted
+     rank or drop a new one, no matter when it arrives.
+     ─────────────────────────────────────────────────────────────────── */
+  const RANK_STORE_KINDS = ['ls', 'ss', 'ck', 'mem'];
+  const rankMem = Object.create(null);
+  let rankTombstones = Object.create(null);   // rank id -> updatedAt of the delete
+  let rankAssignAt = Object.create(null);     // user id -> ms of the last change
+
+  function rankCookieWrite(name, val){
+    try{
+      document.cookie = name + '=' + encodeURIComponent(val) +
+        ';path=/;max-age=' + (60 * 60 * 24 * 365 * 2) + ';SameSite=Lax';
+      return true;
+    }catch(e){ return false; }
+  }
+  function rankCookieRead(name){
+    try{
+      const parts = String(document.cookie || '').split(';');
+      for(let i = 0; i < parts.length; i++){
+        const p = parts[i].replace(/^\s+/, '');
+        if(p.indexOf(name + '=') === 0) return decodeURIComponent(p.slice(name.length + 1));
+      }
+    }catch(e){}
+    return null;
+  }
+  function rankStoreGet(kind, key){
+    try{
+      if(kind === 'ls') return window.localStorage.getItem(key);
+      if(kind === 'ss') return window.sessionStorage.getItem(key);
+      if(kind === 'ck') return rankCookieRead(key);
+      if(kind === 'mem') return Object.prototype.hasOwnProperty.call(rankMem, key) ? rankMem[key] : null;
+    }catch(e){}
+    return null;
+  }
+  function rankStoreSet(kind, key, val){
+    try{
+      if(kind === 'ls'){ window.localStorage.setItem(key, val); return true; }
+      if(kind === 'ss'){ window.sessionStorage.setItem(key, val); return true; }
+      if(kind === 'ck') return rankCookieWrite(key, val);
+      if(kind === 'mem'){ rankMem[key] = val; return true; }
+    }catch(e){}
+    return false;
+  }
+  /* Read EVERY store and keep the newest blob, so a save written by another
+     tab is never masked by an older copy sitting in this one. */
+  function rankStoreRead(key){
+    let best = null;
+    for(let i = 0; i < RANK_STORE_KINDS.length; i++){
+      const raw = rankStoreGet(RANK_STORE_KINDS[i], key);
+      if(!raw) continue;
+      let parsed = null;
+      try{ parsed = JSON.parse(raw); }catch(e){ parsed = null; }
+      if(!parsed || typeof parsed !== 'object') continue;
+      const t = Number(parsed.t) || 0;
+      if(!best || t > best.t) best = {t: t, data: parsed};
+    }
+    return best ? best.data : null;
+  }
+  function rankStoreWrite(key, obj){
+    obj.t = Date.now();
+    let raw;
+    try{ raw = JSON.stringify(obj); }catch(e){ return false; }
+    let ok = false;
+    for(let i = 0; i < RANK_STORE_KINDS.length; i++){
+      if(rankStoreSet(RANK_STORE_KINDS[i], key, raw)) ok = true;
+    }
+    return ok;
+  }
+
+  /* A definition is valid when it has an id. `updatedAt` is what the merge
+     compares; a legacy definition without one is treated as epoch 0 so any
+     real edit beats it. */
+  function rankDefStamp(r){
+    const t = Number(r && r.updatedAt);
+    return isFinite(t) && t > 0 ? t : 0;
+  }
+  function sanitizeRankDef(r){
+    if(!r || typeof r.id !== 'string' || !r.id) return null;
+    return {
+      id: r.id,
+      name: String(r.name || '').slice(0, RANK_NAME_MAX),
+      color: /^#[0-9a-fA-F]{6}$/.test(String(r.color || '')) ? String(r.color) : DEFAULT_RANK_COLOR,
+      commands: Array.isArray(r.commands) ? r.commands.filter(function(c){
+        return RANK_COMMANDS.some(function(rc){ return rc.id === c; });
+      }) : [],
+      code: String(r.code || '').slice(0, RANK_CODE_MAX),
+      enabled: r.enabled !== false,
+      createdAt: Number(r.createdAt) || 0,
+      updatedAt: rankDefStamp(r),
+      deleted: r.deleted === true
+    };
+  }
+  /* Merge two definition lists by id, newest updatedAt winning. A tombstone
+     (deleted:true) is kept in the stored list so a stale snapshot that still
+     carries the rank cannot bring it back. */
+  function mergeRankDefs(a, b){
+    const byId = Object.create(null);
+    const order = [];
+    function take(list){
+      (Array.isArray(list) ? list : []).forEach(function(raw){
+        const def = sanitizeRankDef(raw);
+        if(!def) return;
+        const prev = byId[def.id];
+        if(!prev){ byId[def.id] = def; order.push(def.id); return; }
+        if(def.updatedAt > prev.updatedAt) byId[def.id] = def;
+      });
+    }
+    take(a); take(b);
+    return order.map(function(id){ return byId[id]; });
+  }
+  /* Split a merged list into the live ranks this app uses and the tombstones
+     that keep deleted ranks dead. */
+  /* Returns the live ranks and records any tombstones it saw. It deliberately
+     does NOT assign customRanks: it is called from loadCustomRanks(), which
+     runs inside customRanks' own initializer, so assigning there would hit the
+     temporal dead zone and throw. */
+  function adoptRankDefs(list){
+    const merged = mergeRankDefs(list, []);
+    const live = [];
+    merged.forEach(function(def){
+      if(def.deleted){
+        if(!rankTombstones[def.id] || def.updatedAt > rankTombstones[def.id]){
+          rankTombstones[def.id] = def.updatedAt;
+        }
+        return;
+      }
+      // A live definition older than its own tombstone stays dead.
+      if(rankTombstones[def.id] && rankTombstones[def.id] >= def.updatedAt) return;
+      live.push(def);
+    });
+    return live.slice(0, RANK_MAX);
+  }
+
   let customRanks = loadCustomRanks();
   let rankAssignments = loadRankAssignments();
   /* The rank the shared assignment map last handed THIS user. It is what makes
@@ -8517,25 +9128,58 @@ function clearDisguiseImg(){
   let lastRanksAt = 0;
 
   function loadCustomRanks(){
-    try{
-      const raw = localStorage.getItem(CUSTOM_RANKS_KEY);
-      const parsed = raw ? JSON.parse(raw) : [];
-      if(!Array.isArray(parsed)) return [];
-      return parsed.filter(function(r){ return r && typeof r.id === 'string' && r.id; }).slice(0, RANK_MAX);
-    }catch(e){ return []; }
+    const blob = rankStoreRead(CUSTOM_RANKS_KEY);
+    if(!blob) return [];
+    const list = Array.isArray(blob) ? blob : (Array.isArray(blob.defs) ? blob.defs : []);
+    return adoptRankDefs(list);
   }
   function saveCustomRanks(){
-    try{ localStorage.setItem(CUSTOM_RANKS_KEY, JSON.stringify(customRanks.slice(0, RANK_MAX))); }catch(e){}
+    const defs = customRanks.map(function(r){
+      return Object.assign({}, r, {updatedAt: rankDefStamp(r) || Date.now()});
+    });
+    Object.keys(rankTombstones).forEach(function(id){
+      defs.push({
+        id: id, name: '', color: DEFAULT_RANK_COLOR, commands: [], code: '',
+        enabled: false, createdAt: 0, updatedAt: rankTombstones[id], deleted: true
+      });
+    });
+    rankStoreWrite(CUSTOM_RANKS_KEY, {defs: defs});
   }
   function loadRankAssignments(){
-    try{
-      const raw = localStorage.getItem(RANK_ASSIGN_KEY);
-      const parsed = raw ? JSON.parse(raw) : {};
-      return (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) ? parsed : {};
-    }catch(e){ return {}; }
+    const blob = rankStoreRead(RANK_ASSIGN_KEY);
+    if(!blob) return {};
+    const map = (blob.assign && typeof blob.assign === 'object' && !Array.isArray(blob.assign))
+      ? blob.assign
+      : (Array.isArray(blob) ? {} : blob);
+    const out = {};
+    Object.keys(map).forEach(function(uid){
+      const v = map[uid];
+      if(v && typeof v === 'object'){
+        const at = Number(v.t) || 0;
+        if(!rankAssignAt[uid] || at > rankAssignAt[uid]) rankAssignAt[uid] = at;
+        if(v.r) out[uid] = String(v.r);
+      }else if(typeof v === 'string' && v){
+        // legacy flat map: no timestamp, so any real change beats it
+        if(!rankAssignAt[uid]) rankAssignAt[uid] = 0;
+        out[uid] = v;
+      }
+    });
+    return out;
   }
   function saveRankAssignments(){
-    try{ localStorage.setItem(RANK_ASSIGN_KEY, JSON.stringify(rankAssignments)); }catch(e){}
+    const assign = {};
+    Object.keys(rankAssignments).forEach(function(uid){
+      const r = rankAssignments[uid];
+      if(!r) return;
+      assign[uid] = {r: String(r), t: rankAssignAt[uid] || Date.now()};
+    });
+    // An explicit clear is kept as a tombstone, so a stale snapshot cannot
+    // hand the rank back to a user the owner already cleared.
+    Object.keys(rankAssignAt).forEach(function(uid){
+      if(assign[uid]) return;
+      assign[uid] = {r: '', t: rankAssignAt[uid]};
+    });
+    rankStoreWrite(RANK_ASSIGN_KEY, {assign: assign});
   }
   function modRankEnabled(){
     try{ return localStorage.getItem(MOD_RANK_ENABLED_KEY) !== '0'; }catch(e){ return true; }
@@ -8664,13 +9308,41 @@ function clearDisguiseImg(){
     return true;
   }
 
+  /* The snapshot we broadcast carries every definition WITH its own
+     updatedAt, plus the tombstones, so a receiver can merge per rank instead
+     of trusting the whole list. */
+  function rankSnapshotDefs(){
+    const defs = customRanks.map(function(r){
+      return Object.assign({}, r, {updatedAt: rankDefStamp(r) || Date.now()});
+    });
+    Object.keys(rankTombstones).forEach(function(id){
+      defs.push({
+        id: id, name: '', color: DEFAULT_RANK_COLOR, commands: [], code: '',
+        enabled: false, createdAt: 0, updatedAt: rankTombstones[id], deleted: true
+      });
+    });
+    return defs;
+  }
+  function rankSnapshotAssign(){
+    const assign = {};
+    Object.keys(rankAssignments).forEach(function(uid){
+      const r = rankAssignments[uid];
+      if(!r) return;
+      assign[uid] = {r: String(r), t: rankAssignAt[uid] || Date.now()};
+    });
+    Object.keys(rankAssignAt).forEach(function(uid){
+      if(assign[uid]) return;
+      assign[uid] = {r: '', t: rankAssignAt[uid]};
+    });
+    return assign;
+  }
   function publishRanks(){
     if(!client) return;
     client.publish({channel:MODERATION_CHANNEL, message:{
       id:`ranks-${myId}-${Date.now()}-${Math.random().toString(36).slice(2,7)}`,
       action:'ranks',
-      defs:customRanks,
-      assign:rankAssignments,
+      defs:rankSnapshotDefs(),
+      assign:rankSnapshotAssign(),
       modEnabled:modRankEnabled(),
       issuedAt:Date.now()
     }}).catch(function(){});
@@ -8680,13 +9352,32 @@ function clearDisguiseImg(){
     const at = Number(payload.issuedAt) || 0;
     if(at && at < lastRanksAt) return;   // an older snapshot never overwrites a newer one
     if(at) lastRanksAt = at;
+    /* MERGE, never replace. A snapshot is only ever a set of claims about
+       individual ranks; the per-rank updatedAt decides which claim wins, so
+       an old list arriving late cannot drop a new rank or resurrect a
+       deleted one. */
     if(Array.isArray(payload.defs)){
-      customRanks = payload.defs.filter(function(r){ return r && typeof r.id === 'string' && r.id; }).slice(0, RANK_MAX);
-      saveCustomRanks();
+      const before = customRanks.map(function(r){ return r.id + ':' + rankDefStamp(r); }).join('|');
+      customRanks = adoptRankDefs(mergeRankDefs(customRanks, payload.defs));
+      const after = customRanks.map(function(r){ return r.id + ':' + rankDefStamp(r); }).join('|');
+      if(before !== after) saveCustomRanks();
     }
     if(payload.assign && typeof payload.assign === 'object' && !Array.isArray(payload.assign)){
-      rankAssignments = payload.assign;
-      saveRankAssignments();
+      let changed = false;
+      Object.keys(payload.assign).forEach(function(uid){
+        const v = payload.assign[uid];
+        const incoming = (v && typeof v === 'object') ? {r: String(v.r || ''), t: Number(v.t) || 0}
+                                                     : {r: String(v || ''), t: 0};
+        const mine = rankAssignAt[uid] || 0;
+        // Newest change per user wins; a tie keeps what we already hold.
+        if(incoming.t > mine){
+          rankAssignAt[uid] = incoming.t;
+          if(incoming.r) rankAssignments[uid] = incoming.r;
+          else delete rankAssignments[uid];
+          changed = true;
+        }
+      });
+      if(changed) saveRankAssignments();
       // A rank given while we were connected must land on THIS client's own
       // rank too, and be re-shared so every roster shows it. A snapshot that
       // simply has no entry for us never clears anything.
@@ -8733,6 +9424,8 @@ function clearDisguiseImg(){
   function applyRankToUser(userId, rankId){
     const id = String(userId || '');
     if(!id) return;
+    // Stamp the change so a stale snapshot can never undo it.
+    rankAssignAt[id] = Date.now();
     if(rankId) rankAssignments[id] = rankId;
     else delete rankAssignments[id];
     saveRankAssignments();
@@ -8819,7 +9512,8 @@ function clearDisguiseImg(){
       }),
       code: cleanCode,
       enabled: true,
-      createdAt: Date.now()
+      createdAt: Date.now(),
+      updatedAt: Date.now()
     };
     customRanks.push(rank);
     saveCustomRanks();
@@ -8847,6 +9541,8 @@ function clearDisguiseImg(){
     if(Array.isArray(p.commands)){
       rank.commands = p.commands.filter(function(c){ return RANK_COMMANDS.some(function(rc){ return rc.id === c; }); });
     }
+    // Every edit bumps the definition's own stamp, so it beats any older copy.
+    rank.updatedAt = Date.now();
     saveCustomRanks();
     publishRanks();
     // A rank that was just disabled must stop working for whoever holds it.
@@ -8867,10 +9563,16 @@ function clearDisguiseImg(){
     const rank = findCustomRank(rankId);
     if(!rank) return {ok:false, message:'That rank no longer exists.'};
     customRanks = customRanks.filter(function(r){ return r.id !== rank.id; });
+    /* Leave a TOMBSTONE, not just an absence. Without it a stale "ranks"
+       snapshot that still carries this rank would merge it straight back in. */
+    rankTombstones[rank.id] = Date.now();
     saveCustomRanks();
     // Anyone holding it loses it, everywhere.
     Object.keys(rankAssignments).forEach(function(uid){
-      if(rankAssignments[uid] === rank.id) delete rankAssignments[uid];
+      if(rankAssignments[uid] === rank.id){
+        delete rankAssignments[uid];
+        rankAssignAt[uid] = Date.now();
+      }
     });
     saveRankAssignments();
     onlineUsers.forEach(function(user){ if(user.rank === rank.id) user.rank = ''; });
@@ -9464,5 +10166,2909 @@ function clearDisguiseImg(){
 /* Chatcord cover upgrade: keeps the identity, adds a custom cyber-social artwork */
 .gcard[data-name="Chatcord"] .gcard-inner img{ }
 </style>
+
+<style id="owner-money-style">
+.owner-panel-money{margin-top:.5rem;padding:.55rem .6rem;border:1px solid rgba(57,229,140,.22);
+  border-radius:9px;background:rgba(57,229,140,.05);}
+.owner-money-head{display:flex;align-items:center;justify-content:space-between;gap:.5rem;margin-bottom:.45rem;}
+.owner-money-title{font:900 .6rem 'Orbitron',monospace;letter-spacing:.16em;color:#8ff0b8;
+  text-shadow:0 0 12px rgba(57,229,140,.45);}
+.owner-money-bal{font:900 .82rem 'Orbitron',monospace;color:#ffd66b;letter-spacing:.04em;
+  text-shadow:0 0 12px rgba(255,214,107,.4);}
+#ownerMoneyUser,#ownerMoneyAmount{min-width:0;flex:1;padding:.5rem .6rem;border:1px solid rgba(57,229,140,.22);
+  border-radius:8px;background:rgba(6,20,14,.92);color:#d8ffe9;font:600 .8rem 'Rajdhani',sans-serif;outline:none;}
+#ownerMoneyUser:focus,#ownerMoneyAmount:focus{border-color:var(--pulsar);}
+#ownerMoneyAmount{flex:0 0 34%;}
+.owner-panel-money .owner-btn{flex:1;}
+</style>
+<style id="idk-wallet-chip-style">
+/* Shared wallet readout in the launcher HUD: the same money the casino plays
+   with, plus the live countdown to the next $50. */
+#idkWalletChip{
+  display:flex;align-items:center;gap:.55rem;
+  padding:.34rem .6rem;border-radius:10px;
+  background:rgba(34,230,255,.07);
+  border:1px solid rgba(34,230,255,.28);
+  box-shadow:0 0 20px -10px rgba(34,230,255,.9) inset;
+  font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+  white-space:nowrap;
+}
+#idkWalletChip .w-bal{
+  font-size:.82rem;font-weight:700;color:#22e6ff;
+  text-shadow:0 0 12px rgba(34,230,255,.6);
+  font-variant-numeric:tabular-nums;
+}
+#idkWalletChip .w-inc{
+  display:flex;align-items:center;gap:.25rem;
+  font-size:.66rem;font-weight:700;color:#39ff88;
+  letter-spacing:.04em;font-variant-numeric:tabular-nums;
+  opacity:.9;
+}
+#idkWalletChip .w-inc::before{
+  content:"";width:5px;height:5px;border-radius:50%;
+  background:#39ff88;box-shadow:0 0 8px #39ff88;
+}
+#idkWalletChip.up{border-color:rgba(57,255,136,.7);box-shadow:0 0 24px -6px rgba(57,255,136,.8) inset}
+#idkWalletChip.up .w-bal{color:#39ff88;text-shadow:0 0 14px rgba(57,255,136,.8)}
+@media(max-width:760px){
+  #idkWalletChip{padding:.26rem .45rem;gap:.4rem}
+  #idkWalletChip .w-bal{font-size:.74rem}
+  #idkWalletChip .w-inc{font-size:.6rem}
+}
+</style>
+
+
+<style id="idk-leaderboard-style">
+/* ── Money leaderboard + save code ────────────────────────────────────────
+   Opened by clicking the HUD balance chip. Neon look, matching the casino. */
+#idkLbOverlay{
+  position:fixed;inset:0;z-index:12500;display:none;
+  align-items:center;justify-content:center;padding:1rem;
+  background:rgba(2,6,10,.82);backdrop-filter:blur(6px);
+}
+#idkLbOverlay.visible{display:flex;}
+#idkLbPanel{
+  width:100%;max-width:520px;max-height:88vh;display:flex;flex-direction:column;
+  border-radius:16px;overflow:hidden;
+  background:linear-gradient(160deg,rgba(10,18,26,.98),rgba(6,11,16,.99));
+  border:1px solid rgba(34,230,255,.34);
+  box-shadow:0 0 60px -18px rgba(34,230,255,.75),0 24px 60px -20px rgba(0,0,0,.9);
+  font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+}
+#idkLbHead{
+  display:flex;align-items:center;gap:.6rem;padding:.85rem 1rem;
+  border-bottom:1px solid rgba(34,230,255,.2);
+  background:rgba(34,230,255,.05);
+}
+#idkLbTitle{
+  flex:1;min-width:0;font-size:.82rem;font-weight:800;letter-spacing:.14em;
+  color:#22e6ff;text-shadow:0 0 14px rgba(34,230,255,.6);
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+}
+#idkLbClose{
+  flex-shrink:0;width:30px;height:30px;border-radius:8px;cursor:pointer;
+  border:1px solid rgba(34,230,255,.3);background:rgba(34,230,255,.08);
+  color:#9fe4ff;font-size:.9rem;line-height:1;display:grid;place-items:center;
+}
+#idkLbClose:hover{background:rgba(34,230,255,.2);border-color:rgba(34,230,255,.7);color:#fff;}
+#idkLbBody{overflow-y:auto;padding:.85rem 1rem 1rem;flex:1;min-height:0;}
+#idkLbMeta{
+  display:flex;align-items:center;justify-content:space-between;gap:.5rem;
+  font-size:.62rem;letter-spacing:.08em;color:rgba(255,255,255,.42);
+  margin-bottom:.6rem;text-transform:uppercase;
+}
+#idkLbLive{display:flex;align-items:center;gap:.3rem;color:#39ff88;}
+#idkLbLive::before{
+  content:"";width:5px;height:5px;border-radius:50%;background:#39ff88;
+  box-shadow:0 0 8px #39ff88;animation:idkLbPulse 1.6s ease-in-out infinite;
+}
+@keyframes idkLbPulse{0%,100%{opacity:1}50%{opacity:.35}}
+#idkLbList{display:flex;flex-direction:column;gap:.35rem;}
+.idk-lb-row{
+  display:flex;align-items:center;gap:.6rem;padding:.5rem .6rem;border-radius:9px;
+  border:1px solid rgba(255,255,255,.07);background:rgba(255,255,255,.025);
+  font-size:.76rem;
+}
+.idk-lb-row.me{
+  border-color:rgba(34,230,255,.6);background:rgba(34,230,255,.1);
+  box-shadow:0 0 22px -10px rgba(34,230,255,.9) inset;
+}
+.idk-lb-pos{
+  flex-shrink:0;width:1.9rem;text-align:center;font-weight:800;
+  color:rgba(255,255,255,.5);font-variant-numeric:tabular-nums;
+}
+.idk-lb-row.me .idk-lb-pos{color:#22e6ff;}
+.idk-lb-row.top1 .idk-lb-pos{color:#ffd66b;text-shadow:0 0 10px rgba(255,214,107,.7);}
+.idk-lb-row.top2 .idk-lb-pos{color:#d8e6f2;}
+.idk-lb-row.top3 .idk-lb-pos{color:#e0a06a;}
+.idk-lb-name{
+  flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+  color:rgba(255,255,255,.88);
+}
+.idk-lb-row.me .idk-lb-name{color:#c9f6ff;font-weight:700;}
+.idk-lb-you{
+  flex-shrink:0;font-size:.55rem;letter-spacing:.1em;padding:.1rem .3rem;
+  border-radius:4px;background:rgba(34,230,255,.2);color:#9fe4ff;
+}
+.idk-lb-bal{
+  flex-shrink:0;font-weight:800;color:#39ff88;font-variant-numeric:tabular-nums;
+  text-shadow:0 0 10px rgba(57,255,136,.45);
+}
+.idk-lb-empty{
+  padding:1.4rem .8rem;text-align:center;font-size:.72rem;line-height:1.6;
+  color:rgba(255,255,255,.4);border:1px dashed rgba(255,255,255,.12);border-radius:10px;
+}
+/* ── SAVE CODE ── */
+#idkSaveWrap{
+  margin-top:1rem;padding-top:.9rem;border-top:1px solid rgba(34,230,255,.18);
+}
+#idkSaveTitle{
+  font-size:.68rem;font-weight:800;letter-spacing:.14em;color:#b98cff;
+  text-shadow:0 0 12px rgba(185,140,255,.5);margin-bottom:.5rem;
+}
+#idkSaveNote{
+  font-size:.6rem;line-height:1.5;color:rgba(255,255,255,.4);margin-bottom:.6rem;
+}
+#idkSaveNote b{color:#ffb347;}
+.idk-save-row{display:flex;gap:.4rem;margin-bottom:.5rem;}
+.idk-save-btn{
+  flex:1;padding:.55rem .5rem;border-radius:8px;cursor:pointer;
+  font-family:inherit;font-size:.66rem;font-weight:800;letter-spacing:.08em;
+  border:1px solid rgba(185,140,255,.4);background:rgba(185,140,255,.12);color:#d9c2ff;
+}
+.idk-save-btn:hover{background:rgba(185,140,255,.24);border-color:rgba(185,140,255,.8);color:#fff;}
+.idk-save-btn.alt{border-color:rgba(34,230,255,.4);background:rgba(34,230,255,.1);color:#9fe4ff;}
+.idk-save-btn.alt:hover{background:rgba(34,230,255,.22);border-color:rgba(34,230,255,.8);color:#fff;}
+#idkSaveCode{
+  width:100%;box-sizing:border-box;min-height:4.2rem;resize:vertical;
+  padding:.5rem .6rem;border-radius:8px;
+  border:1px solid rgba(185,140,255,.28);background:rgba(0,0,0,.45);
+  color:#d9c2ff;font-family:inherit;font-size:.6rem;line-height:1.45;
+  word-break:break-all;
+}
+#idkSaveCode:focus{outline:none;border-color:rgba(185,140,255,.75);}
+#idkSaveStatus{
+  min-height:1.1rem;margin-top:.45rem;font-size:.64rem;line-height:1.45;
+  color:rgba(255,255,255,.5);
+}
+#idkSaveStatus.ok{color:#8ff0b8;}
+#idkSaveStatus.error{color:#ff9b9b;}
+@media(max-width:520px){
+  #idkLbPanel{max-height:92vh;}
+  #idkLbBody{padding:.7rem .7rem .85rem;}
+  .idk-lb-row{font-size:.72rem;gap:.45rem;padding:.45rem .5rem;}
+  .idk-lb-pos{width:1.5rem;}
+  #idkLbTitle{font-size:.72rem;letter-spacing:.1em;}
+}
+</style>
+
+<style id="neon-casino-style">
+/* ── Neon Casino, embedded in IDK.GG ──────────────────────────────────────
+   Every rule below is scoped to #ncRoot so the casino's neon palette can
+   never leak into the launcher, and the launcher's own .card/.btn/.panel
+   rules can never leak in. */
+#ncRoot{
+  position:fixed;inset:0;z-index:99999;overflow:auto;
+  -webkit-overflow-scrolling:touch;
+  background:#05060a;
+}
+#ncRoot.nc-hidden{display:none}
+body.nc-locked{overflow:hidden}
+#ncRoot .nc-close{
+  position:fixed;top:12px;right:12px;z-index:100001;
+  appearance:none;cursor:pointer;font-family:inherit;
+  font-size:11px;font-weight:700;letter-spacing:.16em;text-transform:uppercase;
+  padding:10px 16px;border-radius:11px;
+  color:#eaf2ff;background:rgba(10,14,22,.9);
+  border:1px solid rgba(34,230,255,.4);
+  box-shadow:0 0 24px -10px rgba(34,230,255,.9);
+  transition:all .18s ease;
+}
+#ncRoot .nc-close:hover{
+  color:#22e6ff;border-color:rgba(34,230,255,.85);
+  box-shadow:0 0 30px -6px rgba(34,230,255,.95);
+}
+/* The back button floats over the casino's own top bar, so reserve room for it
+   there — otherwise it sits on top of the balance chip. This MUST come after
+   the casino's own stylesheet below, or its `.topbar{padding:12px 18px}` wins. */
+/* ── the casino's own stylesheet, scoped ───────────────────────────────── */
+#ncRoot{
+  --bg:#05060a;
+  --panel:rgba(255,255,255,.035);
+  --panel-2:rgba(255,255,255,.055);
+  --line:rgba(34,230,255,.16);
+  --line-2:rgba(255,255,255,.08);
+  --cyan:#22e6ff;
+  --magenta:#ff3d8b;
+  --purple:#b06bff;
+  --gold:#ffd93d;
+  --green:#39ff88;
+  --red:#ff4d6d;
+  --text:#eaf2ff;
+  --dim:#8b9bb4;
+  --mono:ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,monospace;
+  --sans:system-ui,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+}#ncRoot *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}#ncRoot, #ncRoot{height:100%}#ncRoot{
+  margin:0;
+  background:var(--bg);
+  color:var(--text);
+  font-family:var(--sans);
+  font-size:15px;
+  line-height:1.5;
+  overflow-x:hidden;
+  -webkit-font-smoothing:antialiased;
+}#ncRoot /* ---------- background layers ---------- */
+.bg{position:fixed;inset:0;z-index:0;pointer-events:none;overflow:hidden}#ncRoot .bg-glow{position:absolute;border-radius:50%;filter:blur(90px);opacity:.5}#ncRoot .bg-glow.a{width:60vw;height:60vw;left:-18vw;top:-22vw;background:radial-gradient(circle,rgba(34,230,255,.30),transparent 68%)}#ncRoot .bg-glow.b{width:55vw;height:55vw;right:-16vw;bottom:-20vw;background:radial-gradient(circle,rgba(255,61,139,.26),transparent 68%)}#ncRoot .bg-glow.c{width:44vw;height:44vw;left:38vw;top:34vh;background:radial-gradient(circle,rgba(176,107,255,.20),transparent 70%)}#ncRoot .bg-grid{
+  position:absolute;inset:-2px;
+  background-image:linear-gradient(rgba(34,230,255,.055) 1px,transparent 1px),
+                   linear-gradient(90deg,rgba(34,230,255,.055) 1px,transparent 1px);
+  background-size:52px 52px;
+  mask-image:radial-gradient(ellipse 90% 70% at 50% 40%,#000 20%,transparent 78%);
+  -webkit-mask-image:radial-gradient(ellipse 90% 70% at 50% 40%,#000 20%,transparent 78%);
+}#ncRoot .bg-scan{
+  position:absolute;inset:0;
+  background:repeating-linear-gradient(0deg,rgba(255,255,255,.022) 0 1px,transparent 1px 3px);
+  opacity:.5;
+}#ncRoot /* ---------- shell ---------- */
+.wrap{position:relative;z-index:1;min-height:100%;display:flex;flex-direction:column}#ncRoot .screen{display:none;flex:1;flex-direction:column}#ncRoot .screen.on{display:flex}#ncRoot /* ---------- start screen ---------- */
+#startScreen{align-items:center;justify-content:center;padding:28px 18px;min-height:100vh}#ncRoot .start-card{
+  width:100%;max-width:520px;text-align:center;
+  padding:44px 30px 34px;
+  border-radius:24px;
+  background:linear-gradient(180deg,rgba(255,255,255,.055),rgba(255,255,255,.015));
+  border:1px solid var(--line);
+  box-shadow:0 0 0 1px rgba(255,255,255,.03) inset,0 30px 90px -30px rgba(34,230,255,.35),0 0 70px -20px rgba(255,61,139,.25);
+  backdrop-filter:blur(14px);
+  -webkit-backdrop-filter:blur(14px);
+  animation:nc_cardIn .7s cubic-bezier(.2,.8,.2,1) both;
+}
+@keyframes nc_cardIn{from{opacity:0;transform:translateY(18px) scale(.985)}to{opacity:1;transform:none}}#ncRoot .brand-kicker{
+  font-size:11px;letter-spacing:.42em;text-transform:uppercase;color:var(--cyan);
+  opacity:.85;margin-bottom:14px;text-shadow:0 0 14px rgba(34,230,255,.7)
+}#ncRoot .brand{
+  font-size:clamp(38px,11vw,62px);line-height:.95;font-weight:800;letter-spacing:.06em;
+  margin:0 0 6px;text-transform:uppercase;
+}#ncRoot .brand .n1{color:#fff;text-shadow:0 0 18px rgba(34,230,255,.9),0 0 46px rgba(34,230,255,.55)}#ncRoot .brand .n2{color:var(--magenta);text-shadow:0 0 18px rgba(255,61,139,.9),0 0 46px rgba(255,61,139,.5)}#ncRoot .brand-sub{
+  font-size:12px;letter-spacing:.3em;text-transform:uppercase;color:var(--dim);margin-bottom:26px
+}#ncRoot .start-balance{
+  display:inline-flex;flex-direction:column;gap:2px;
+  padding:14px 30px;border-radius:16px;margin-bottom:26px;
+  background:rgba(34,230,255,.06);border:1px solid rgba(34,230,255,.28);
+  box-shadow:0 0 30px -8px rgba(34,230,255,.5) inset;
+}#ncRoot .start-balance .lbl{font-size:10px;letter-spacing:.28em;text-transform:uppercase;color:var(--dim)}#ncRoot .start-balance .val{font-family:var(--mono);font-size:30px;font-weight:700;color:var(--cyan);text-shadow:0 0 20px rgba(34,230,255,.75)}#ncRoot .start-note{font-size:12px;color:var(--dim);margin-top:18px;line-height:1.6}#ncRoot .start-note b{color:var(--green);font-weight:600}#ncRoot /* ---------- buttons ---------- */
+.btn{
+  appearance:none;border:0;cursor:pointer;font-family:inherit;font-size:14px;font-weight:700;
+  letter-spacing:.14em;text-transform:uppercase;color:#04121a;
+  padding:15px 30px;border-radius:13px;
+  background:linear-gradient(135deg,var(--cyan),#7af5ff 45%,var(--cyan));
+  box-shadow:0 0 0 1px rgba(255,255,255,.25) inset,0 10px 30px -10px rgba(34,230,255,.9),0 0 26px -6px rgba(34,230,255,.7);
+  transition:transform .16s ease,box-shadow .22s ease,filter .2s ease;
+  position:relative;overflow:hidden;
+}#ncRoot .btn:hover{transform:translateY(-2px);box-shadow:0 0 0 1px rgba(255,255,255,.35) inset,0 16px 40px -12px rgba(34,230,255,1),0 0 40px -4px rgba(34,230,255,.85)}#ncRoot .btn:active{transform:translateY(0) scale(.985)}#ncRoot .btn:disabled{opacity:.4;cursor:not-allowed;transform:none;filter:grayscale(.4)}#ncRoot .btn.big{width:100%;padding:18px;font-size:15px;letter-spacing:.2em}#ncRoot .btn.magenta{background:linear-gradient(135deg,var(--magenta),#ff7ab0 45%,var(--magenta));color:#1a0410;box-shadow:0 0 0 1px rgba(255,255,255,.25) inset,0 10px 30px -10px rgba(255,61,139,.9),0 0 26px -6px rgba(255,61,139,.7)}#ncRoot .btn.magenta:hover{box-shadow:0 0 0 1px rgba(255,255,255,.35) inset,0 16px 40px -12px rgba(255,61,139,1),0 0 40px -4px rgba(255,61,139,.85)}#ncRoot .btn.ghost{
+  background:transparent;color:var(--text);border:1px solid var(--line-2);
+  box-shadow:none;font-weight:600;letter-spacing:.1em;
+}#ncRoot .btn.ghost:hover{border-color:rgba(34,230,255,.5);color:var(--cyan);box-shadow:0 0 22px -8px rgba(34,230,255,.8);transform:translateY(-1px)}#ncRoot .btn.sm{padding:10px 16px;font-size:11px;border-radius:10px}#ncRoot .btn.pulse{animation:nc_btnPulse 2.6s ease-in-out infinite}
+@keyframes nc_btnPulse{
+  0%,100%{box-shadow:0 0 0 1px rgba(255,255,255,.25) inset,0 10px 30px -10px rgba(34,230,255,.9),0 0 26px -6px rgba(34,230,255,.7)}
+  50%{box-shadow:0 0 0 1px rgba(255,255,255,.35) inset,0 14px 40px -10px rgba(34,230,255,1),0 0 52px -2px rgba(34,230,255,.95)}
+}#ncRoot /* ---------- app chrome ---------- */
+.topbar{
+  position:sticky;top:0;z-index:20;
+  display:flex;align-items:center;gap:14px;flex-wrap:wrap;
+  padding:12px 18px;
+  background:rgba(5,6,10,.78);
+  border-bottom:1px solid var(--line-2);
+  backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);
+}#ncRoot .logo{font-size:15px;font-weight:800;letter-spacing:.2em;text-transform:uppercase;white-space:nowrap}#ncRoot .logo .a{color:#fff;text-shadow:0 0 14px rgba(34,230,255,.8)}#ncRoot .logo .b{color:var(--magenta);text-shadow:0 0 14px rgba(255,61,139,.8)}#ncRoot .bal-chip{
+  display:flex;align-items:baseline;gap:8px;margin-left:auto;
+  padding:8px 16px;border-radius:12px;
+  background:rgba(34,230,255,.07);border:1px solid rgba(34,230,255,.3);
+  box-shadow:0 0 24px -10px rgba(34,230,255,.9) inset;
+  transition:box-shadow .3s ease,background .3s ease;
+}#ncRoot .bal-chip .lbl{font-size:9px;letter-spacing:.24em;text-transform:uppercase;color:var(--dim)}#ncRoot .bal-chip .val{font-family:var(--mono);font-size:19px;font-weight:700;color:var(--cyan);text-shadow:0 0 16px rgba(34,230,255,.7);font-variant-numeric:tabular-nums}#ncRoot .bal-chip.up{background:rgba(57,255,136,.12);border-color:rgba(57,255,136,.55);box-shadow:0 0 30px -6px rgba(57,255,136,.8) inset}#ncRoot .bal-chip.up .val{color:var(--green);text-shadow:0 0 18px rgba(57,255,136,.9)}#ncRoot .bal-chip.down{background:rgba(255,77,109,.1);border-color:rgba(255,77,109,.45)}#ncRoot .bal-chip.down .val{color:var(--red);text-shadow:0 0 18px rgba(255,77,109,.8)}#ncRoot .tabs{display:flex;gap:6px;padding:10px 18px 0;flex-wrap:wrap}#ncRoot .tab{
+  appearance:none;cursor:pointer;font-family:inherit;
+  padding:10px 18px;border-radius:11px 11px 0 0;
+  background:transparent;border:1px solid transparent;border-bottom:0;
+  color:var(--dim);font-size:12px;font-weight:700;letter-spacing:.16em;text-transform:uppercase;
+  transition:color .2s,background .2s,border-color .2s;
+}#ncRoot .tab:hover{color:var(--text)}#ncRoot .tab.on{
+  color:var(--cyan);background:rgba(34,230,255,.07);
+  border-color:var(--line);text-shadow:0 0 14px rgba(34,230,255,.8)
+}#ncRoot .main{flex:1;display:grid;grid-template-columns:minmax(0,1fr) 320px;gap:18px;padding:0 18px 26px;align-items:start}
+@media(max-width:900px){#ncRoot .main{grid-template-columns:minmax(0,1fr)}}#ncRoot .panel{
+  border-radius:18px;border:1px solid var(--line-2);
+  background:linear-gradient(180deg,rgba(255,255,255,.045),rgba(255,255,255,.012));
+  padding:20px;
+  box-shadow:0 20px 60px -40px rgba(0,0,0,.9);
+}#ncRoot .panel + .panel{margin-top:16px}#ncRoot .panel-title{
+  font-size:10px;letter-spacing:.3em;text-transform:uppercase;color:var(--dim);
+  margin:0 0 14px;display:flex;align-items:center;gap:8px
+}#ncRoot .panel-title::after{content:"";flex:1;height:1px;background:linear-gradient(90deg,var(--line-2),transparent)}#ncRoot /* ---------- game area ---------- */
+.game{display:none}#ncRoot .game.on{display:block;animation:nc_fadeUp .35s ease both}
+@keyframes nc_fadeUp{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}#ncRoot .game-head{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:16px}#ncRoot .game-name{font-size:20px;font-weight:800;letter-spacing:.14em;text-transform:uppercase;margin:0}#ncRoot .game-name .accent{color:var(--cyan);text-shadow:0 0 18px rgba(34,230,255,.7)}#ncRoot .rtp{font-size:10px;letter-spacing:.16em;text-transform:uppercase;color:var(--dim);font-family:var(--mono)}#ncRoot /* bet row */
+.bet-row{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-top:16px}#ncRoot .bet-label{font-size:10px;letter-spacing:.24em;text-transform:uppercase;color:var(--dim)}#ncRoot .bet-input{
+  width:120px;padding:12px 14px;border-radius:11px;
+  background:rgba(0,0,0,.45);border:1px solid var(--line);
+  color:var(--cyan);font-family:var(--mono);font-size:16px;font-weight:700;
+  outline:none;transition:border-color .2s,box-shadow .2s;
+}#ncRoot .bet-input:focus{border-color:rgba(34,230,255,.7);box-shadow:0 0 0 3px rgba(34,230,255,.12),0 0 24px -8px rgba(34,230,255,.9)}#ncRoot .chip{
+  appearance:none;cursor:pointer;font-family:var(--mono);font-size:11px;font-weight:700;
+  padding:9px 12px;border-radius:9px;color:var(--dim);
+  background:rgba(255,255,255,.04);border:1px solid var(--line-2);
+  transition:all .18s ease;
+}#ncRoot .chip:hover{color:var(--cyan);border-color:rgba(34,230,255,.5);box-shadow:0 0 18px -8px rgba(34,230,255,.9)}#ncRoot .chip.max{color:var(--gold);border-color:rgba(255,217,61,.3)}#ncRoot .chip.max:hover{color:var(--gold);border-color:rgba(255,217,61,.7);box-shadow:0 0 18px -8px rgba(255,217,61,.9)}#ncRoot /* ---------- slots ---------- */
+.slots-frame{
+  position:relative;margin:18px 0 4px;padding:16px;border-radius:18px;
+  background:radial-gradient(ellipse at 50% 0%,rgba(34,230,255,.10),transparent 70%),rgba(0,0,0,.5);
+  border:1px solid rgba(34,230,255,.22);
+  box-shadow:0 0 60px -24px rgba(34,230,255,.9) inset,0 0 40px -20px rgba(34,230,255,.6);
+}#ncRoot .slots-frame.win{border-color:rgba(57,255,136,.6);box-shadow:0 0 70px -18px rgba(57,255,136,.9) inset,0 0 50px -14px rgba(57,255,136,.7)}#ncRoot .reels{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;--cellh:70px}#ncRoot .reel{
+  position:relative;height:calc(var(--cellh) * 3);overflow:hidden;border-radius:12px;
+  background:linear-gradient(180deg,rgba(255,255,255,.05),rgba(0,0,0,.55));
+  border:1px solid rgba(255,255,255,.07);
+}#ncRoot .reel::before, #ncRoot .reel::after{
+  content:"";position:absolute;left:0;right:0;height:34px;z-index:3;pointer-events:none;
+}#ncRoot .reel::before{top:0;background:linear-gradient(180deg,rgba(5,6,10,.95),transparent)}#ncRoot .reel::after{bottom:0;background:linear-gradient(0deg,rgba(5,6,10,.95),transparent)}#ncRoot .reel-strip{position:absolute;left:0;right:0;top:0;will-change:transform}#ncRoot .cell{
+  height:var(--cellh);display:flex;align-items:center;justify-content:center;
+  font-size:38px;line-height:1;font-weight:700;
+  font-family:var(--mono);
+  transition:color .2s;
+}#ncRoot .cell .sym{display:block;transition:transform .2s,filter .2s}#ncRoot .cell.hit .sym{transform:scale(1.16);filter:drop-shadow(0 0 14px currentColor)}#ncRoot .payline{
+  position:absolute;left:8px;right:8px;height:2px;border-radius:2px;
+  background:linear-gradient(90deg,transparent,rgba(57,255,136,.9),transparent);
+  box-shadow:0 0 14px rgba(57,255,136,.9);opacity:0;transition:opacity .25s;z-index:4;pointer-events:none;
+}#ncRoot .payline.on{opacity:1}#ncRoot .slots-msg{
+  text-align:center;font-size:13px;letter-spacing:.16em;text-transform:uppercase;
+  color:var(--dim);min-height:22px;margin-top:12px;font-weight:600;
+}#ncRoot .slots-msg.win{color:var(--green);text-shadow:0 0 18px rgba(57,255,136,.8)}#ncRoot .slots-msg.lose{color:var(--red)}#ncRoot /* paytable */
+.paytable{display:grid;grid-template-columns:repeat(auto-fill,minmax(112px,1fr));gap:8px;margin-top:16px}#ncRoot .pay{
+  display:flex;align-items:center;gap:8px;padding:8px 10px;border-radius:9px;
+  background:rgba(255,255,255,.03);border:1px solid var(--line-2);
+  font-family:var(--mono);font-size:11px;
+}#ncRoot .pay .g{font-size:17px;line-height:1}#ncRoot .pay .m{color:var(--gold);font-weight:700;margin-left:auto}#ncRoot /* ---------- coin flip ---------- */
+.flip-stage{display:flex;flex-direction:column;align-items:center;gap:18px;padding:14px 0 4px}#ncRoot .coin{
+  width:150px;height:150px;border-radius:50%;position:relative;
+  display:flex;align-items:center;justify-content:center;
+  background:radial-gradient(circle at 34% 28%,#2a3a52,#0b1220 62%,#05080f);
+  border:2px solid rgba(34,230,255,.45);
+  box-shadow:0 0 50px -12px rgba(34,230,255,.85),0 0 0 8px rgba(34,230,255,.05),0 0 0 1px rgba(255,255,255,.08) inset;
+  font-size:52px;font-weight:800;font-family:var(--mono);
+  transition:border-color .3s,box-shadow .3s;
+  transform-style:preserve-3d;
+}#ncRoot .coin .face{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;backface-visibility:hidden}#ncRoot .coin .face.back{transform:rotateY(180deg)}#ncRoot .coin .face.h{color:var(--gold);text-shadow:0 0 26px rgba(255,217,61,.9)}#ncRoot .coin .face.t{color:var(--purple);text-shadow:0 0 26px rgba(176,107,255,.9)}#ncRoot .coin.spin{animation:nc_coinSpin 1.15s cubic-bezier(.3,.1,.2,1)}
+@keyframes nc_coinSpin{
+  0%{transform:rotateY(0) translateY(0)}
+  40%{transform:rotateY(720deg) translateY(-46px)}
+  70%{transform:rotateY(1260deg) translateY(-14px)}
+  100%{transform:rotateY(1800deg) translateY(0)}
+}#ncRoot .coin.win{border-color:rgba(57,255,136,.8);box-shadow:0 0 70px -8px rgba(57,255,136,.95),0 0 0 8px rgba(57,255,136,.08)}#ncRoot .coin.lose{border-color:rgba(255,77,109,.6);box-shadow:0 0 50px -14px rgba(255,77,109,.8),0 0 0 8px rgba(255,77,109,.05)}#ncRoot .side-pick{display:flex;gap:10px}#ncRoot .side-btn{
+  appearance:none;cursor:pointer;font-family:inherit;
+  display:flex;flex-direction:column;align-items:center;gap:4px;
+  padding:14px 26px;border-radius:13px;
+  background:rgba(255,255,255,.04);border:1px solid var(--line-2);
+  color:var(--dim);font-size:11px;font-weight:700;letter-spacing:.18em;text-transform:uppercase;
+  transition:all .2s ease;
+}#ncRoot .side-btn .ic{font-size:24px;line-height:1;font-family:var(--mono)}#ncRoot .side-btn:hover{color:var(--text);border-color:rgba(34,230,255,.4);transform:translateY(-2px)}#ncRoot .side-btn.on{color:var(--cyan);border-color:rgba(34,230,255,.75);background:rgba(34,230,255,.1);box-shadow:0 0 30px -10px rgba(34,230,255,.9)}#ncRoot .side-btn.on .ic{text-shadow:0 0 18px currentColor}#ncRoot /* ---------- blackjack ---------- */
+.bj-table{
+  position:relative;border-radius:18px;padding:18px 16px;margin:16px 0 4px;
+  background:radial-gradient(ellipse at 50% 0%,rgba(57,255,136,.07),transparent 65%),rgba(0,0,0,.45);
+  border:1px solid rgba(57,255,136,.18);
+  box-shadow:0 0 60px -30px rgba(57,255,136,.8) inset;
+}#ncRoot .bj-row{margin-bottom:14px}#ncRoot .bj-row:last-child{margin-bottom:0}#ncRoot .bj-row-head{display:flex;align-items:center;gap:10px;margin-bottom:8px}#ncRoot .bj-who{font-size:10px;letter-spacing:.26em;text-transform:uppercase;color:var(--dim)}#ncRoot .bj-score{
+  font-family:var(--mono);font-size:13px;font-weight:700;color:var(--cyan);
+  padding:2px 9px;border-radius:7px;background:rgba(34,230,255,.1);
+  border:1px solid rgba(34,230,255,.28);
+}#ncRoot .bj-score.bust{color:var(--red);background:rgba(255,77,109,.12);border-color:rgba(255,77,109,.4)}#ncRoot .bj-score.bj{color:var(--gold);background:rgba(255,217,61,.12);border-color:rgba(255,217,61,.45)}#ncRoot .cards{display:flex;gap:8px;flex-wrap:wrap;min-height:96px;align-items:center}#ncRoot .card{
+  width:64px;height:92px;border-radius:9px;position:relative;
+  background:linear-gradient(160deg,#f7fbff,#dbe6f5);
+  color:#0a1220;font-family:var(--mono);font-weight:800;
+  display:flex;flex-direction:column;justify-content:space-between;
+  padding:6px 7px;font-size:15px;line-height:1;
+  box-shadow:0 8px 22px -10px rgba(0,0,0,.9),0 0 0 1px rgba(255,255,255,.5) inset;
+  animation:nc_dealIn .34s cubic-bezier(.2,.9,.2,1) both;
+}
+@keyframes nc_dealIn{from{opacity:0;transform:translateY(-16px) rotate(-6deg) scale(.9)}to{opacity:1;transform:none}}#ncRoot .card .r{font-size:16px}#ncRoot .card .s{font-size:22px;align-self:flex-end}#ncRoot .card.red{color:#d81b4a}#ncRoot .card.back{
+  background:repeating-linear-gradient(45deg,#101a2e 0 6px,#16233c 6px 12px);
+  border:1px solid rgba(34,230,255,.35);
+  box-shadow:0 8px 22px -10px rgba(0,0,0,.9),0 0 22px -8px rgba(34,230,255,.7) inset;
+}#ncRoot .card.back::after{
+  content:"";position:absolute;inset:8px;border-radius:5px;
+  border:1px solid rgba(34,230,255,.3);
+}#ncRoot .bj-actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:16px}#ncRoot .bj-msg{
+  text-align:center;font-size:13px;letter-spacing:.16em;text-transform:uppercase;
+  font-weight:700;color:var(--dim);min-height:22px;margin-top:12px;
+}#ncRoot .bj-msg.win{color:var(--green);text-shadow:0 0 18px rgba(57,255,136,.8)}#ncRoot .bj-msg.lose{color:var(--red)}#ncRoot .bj-msg.push{color:var(--gold);text-shadow:0 0 18px rgba(255,217,61,.7)}#ncRoot /* ---------- side column ---------- */
+.stat-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}#ncRoot .stat{
+  padding:12px;border-radius:11px;background:rgba(255,255,255,.03);
+  border:1px solid var(--line-2);
+}#ncRoot .stat .k{font-size:9px;letter-spacing:.2em;text-transform:uppercase;color:var(--dim);margin-bottom:4px}#ncRoot .stat .v{font-family:var(--mono);font-size:16px;font-weight:700;color:var(--text);font-variant-numeric:tabular-nums}#ncRoot .stat .v.g{color:var(--green)}#ncRoot .stat .v.c{color:var(--cyan)}#ncRoot .stat .v.gold{color:var(--gold)}#ncRoot .hist{display:flex;flex-direction:column;gap:6px;max-height:340px;overflow-y:auto;padding-right:4px}#ncRoot .hist::-webkit-scrollbar{width:5px}#ncRoot .hist::-webkit-scrollbar-thumb{background:rgba(34,230,255,.3);border-radius:3px}#ncRoot .hist-empty{font-size:12px;color:var(--dim);text-align:center;padding:18px 0;font-style:italic}#ncRoot .hrow{
+  display:flex;align-items:center;gap:9px;padding:8px 10px;border-radius:9px;
+  background:rgba(255,255,255,.025);border:1px solid rgba(255,255,255,.05);
+  font-size:11px;animation:nc_histIn .3s ease both;
+}
+@keyframes nc_histIn{from{opacity:0;transform:translateX(-8px)}to{opacity:1;transform:none}}#ncRoot .hrow .g{font-size:9px;letter-spacing:.14em;text-transform:uppercase;color:var(--dim);min-width:52px}#ncRoot .hrow .d{font-family:var(--mono);font-weight:700;margin-left:auto;font-variant-numeric:tabular-nums}#ncRoot .hrow .d.w{color:var(--green)}#ncRoot .hrow .d.l{color:var(--red)}#ncRoot .hrow .d.p{color:var(--gold)}#ncRoot /* ---------- toast / banner ---------- */
+.toast-wrap{position:fixed;left:50%;bottom:22px;transform:translateX(-50%);z-index:80;display:flex;flex-direction:column;gap:8px;align-items:center;pointer-events:none;width:calc(100% - 32px);max-width:420px}#ncRoot .toast{
+  padding:12px 20px;border-radius:12px;font-size:12.5px;font-weight:600;letter-spacing:.04em;
+  background:rgba(10,14,22,.96);border:1px solid rgba(34,230,255,.4);
+  color:var(--text);box-shadow:0 14px 40px -14px rgba(0,0,0,.95),0 0 30px -12px rgba(34,230,255,.8);
+  animation:nc_toastIn .28s cubic-bezier(.2,.9,.2,1) both;text-align:center;
+}#ncRoot .toast.err{border-color:rgba(255,77,109,.6);box-shadow:0 14px 40px -14px rgba(0,0,0,.95),0 0 30px -12px rgba(255,77,109,.8)}#ncRoot .toast.ok{border-color:rgba(57,255,136,.6);box-shadow:0 14px 40px -14px rgba(0,0,0,.95),0 0 30px -12px rgba(57,255,136,.8)}#ncRoot .toast.out{animation:nc_toastOut .25s ease forwards}
+@keyframes nc_toastIn{from{opacity:0;transform:translateY(14px) scale(.96)}to{opacity:1;transform:none}}
+@keyframes nc_toastOut{to{opacity:0;transform:translateY(10px) scale(.97)}}#ncRoot .storage-warn{
+  display:none;align-items:flex-start;gap:12px;
+  margin:0 18px 14px;padding:14px 16px;border-radius:13px;
+  background:linear-gradient(135deg,rgba(255,217,61,.10),rgba(255,61,139,.07));
+  border:1px solid rgba(255,217,61,.45);
+  box-shadow:0 0 34px -16px rgba(255,217,61,.9);
+  font-size:12.5px;line-height:1.55;color:#ffe9a8;
+}#ncRoot /* Fixed to the viewport so it is visible on BOTH the start screen and the
+   game screen — the notice used to live inside #appScreen, #ncRoot which is
+   display:none at boot, #ncRoot so it silently had zero height exactly when the
+   player most needed to see it. */
+.storage-warn{
+  position:fixed;left:50%;top:14px;transform:translateX(-50%);
+  z-index:80;width:min(540px,94vw);box-sizing:border-box;
+  margin:0;backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);
+}#ncRoot .storage-warn.on{display:flex}#ncRoot .storage-warn .ic{font-size:18px;line-height:1.2;flex-shrink:0}#ncRoot .storage-warn b{color:var(--gold);letter-spacing:.06em}#ncRoot .storage-warn .x{
+  margin-left:auto;background:none;border:0;color:#ffe9a8;opacity:.6;cursor:pointer;
+  font-size:16px;line-height:1;padding:0 2px;flex-shrink:0;
+}#ncRoot .storage-warn .x:hover{opacity:1}#ncRoot /* ---------- win flash / shake ---------- */
+.flash{
+  position:fixed;inset:0;z-index:70;pointer-events:none;opacity:0;
+  background:radial-gradient(circle at 50% 45%,rgba(57,255,136,.30),transparent 62%);
+}#ncRoot .flash.go{animation:nc_flashGo .7s ease-out}
+@keyframes nc_flashGo{0%{opacity:0}18%{opacity:1}100%{opacity:0}}#ncRoot .shake{animation:nc_shake .42s cubic-bezier(.36,.07,.19,.97)}
+@keyframes nc_shake{
+  10%,90%{transform:translateX(-2px)}
+  20%,80%{transform:translateX(4px)}
+  30%,50%,70%{transform:translateX(-7px)}
+  40%,60%{transform:translateX(7px)}
+}#ncRoot .float-win{
+  position:fixed;z-index:75;pointer-events:none;font-family:var(--mono);font-weight:800;
+  font-size:26px;color:var(--green);text-shadow:0 0 24px rgba(57,255,136,.95);
+  animation:nc_floatUp 1.15s cubic-bezier(.2,.8,.2,1) forwards;
+}
+@keyframes nc_floatUp{
+  0%{opacity:0;transform:translate(-50%,0) scale(.7)}
+  22%{opacity:1;transform:translate(-50%,-18px) scale(1.1)}
+  100%{opacity:0;transform:translate(-50%,-84px) scale(1)}
+}#ncRoot /* ---------- footer ---------- */
+.foot{
+  padding:0 18px 22px;font-size:10.5px;color:#5d6b80;letter-spacing:.06em;text-align:center;
+}#ncRoot .foot b{color:#7d8ca3}#ncRoot /* ---------- income chip: the $50 / 10 min countdown ---------- */
+.income-chip{
+  display:flex;flex-direction:column;align-items:flex-end;gap:1px;
+  padding:7px 13px;border-radius:12px;
+  background:rgba(34,255,136,.05);
+  border:1px solid rgba(34,255,136,.22);
+  transition:border-color .25s ease,box-shadow .25s ease;
+}#ncRoot .income-chip .lbl{
+  font-size:8.5px;letter-spacing:.2em;text-transform:uppercase;
+  color:#22ff88;opacity:.8;
+}#ncRoot .income-chip .val{
+  font-family:var(--mono,monospace);font-size:14px;font-weight:700;
+  color:#22ff88;letter-spacing:.03em;
+  font-variant-numeric:tabular-nums;
+  text-shadow:0 0 12px rgba(34,255,136,.45);
+}#ncRoot .income-chip.ready{border-color:rgba(34,255,136,.75);box-shadow:0 0 22px -4px rgba(34,255,136,.6)}#ncRoot .income-chip.paid{animation:nc_incomePulse .7s ease both}
+@keyframes nc_incomePulse{
+  0%{transform:scale(1)}
+  35%{transform:scale(1.07);box-shadow:0 0 26px -2px rgba(34,255,136,.85)}
+  100%{transform:scale(1)}
+}
+
+@media(max-width:560px){#ncRoot .topbar{padding:10px 12px;gap:10px}#ncRoot .logo{font-size:13px}#ncRoot .bal-chip{padding:6px 12px}#ncRoot .bal-chip .val{font-size:16px}#ncRoot .tabs{padding:8px 12px 0;gap:4px}#ncRoot .tab{padding:9px 12px;font-size:10.5px;letter-spacing:.1em}#ncRoot .main{padding:0 12px 20px;gap:14px}#ncRoot .panel{padding:15px;border-radius:15px}#ncRoot .reel{height:calc(var(--cellh) * 3)}#ncRoot .reels{--cellh:58px}#ncRoot .cell{font-size:31px}#ncRoot .coin{width:124px;height:124px;font-size:44px}#ncRoot .card{width:52px;height:76px;font-size:13px}#ncRoot .card .s{font-size:18px}#ncRoot .cards{min-height:80px}#ncRoot .game-name{font-size:16px}#ncRoot .bet-input{width:96px;font-size:15px}#ncRoot .stat-grid{gap:8px}#ncRoot .stat{padding:10px}#ncRoot .stat .v{font-size:14px}#ncRoot .storage-warn{margin:0 12px 12px;font-size:11.5px;padding:12px}#ncRoot .start-card{padding:34px 20px 28px}
+}
+@media(prefers-reduced-motion:reduce){#ncRoot *{animation-duration:.01ms !important;animation-iteration-count:1 !important;transition-duration:.01ms !important}
+}
+
+/* ── host overrides (after the casino CSS, so they win) ────────────────── */
+#ncRoot .topbar{padding-right:200px}
+@media(max-width:560px){
+  #ncRoot .topbar{padding-right:158px}
+}
+</style>
+
+<!-- ══════════════════════════════════════════════════════════════════════
+     NEON CASINO — a playable game inside IDK.GG.
+     Hidden until the CASINO card in the game list is opened. It shares the
+     app's wallet (idkgg_wallet_v1) and its $50 / 10 min income clock.
+     ══════════════════════════════════════════════════════════════════════ -->
+
+<!-- ══ MONEY LEADERBOARD + SAVE CODE ══════════════════════════════════════
+     Opened by clicking the HUD balance chip. Every client publishes its own
+     balance on the moderation channel, so the board is a live merge of what
+     each device actually holds. -->
+<div id="idkLbOverlay" role="dialog" aria-modal="true" aria-labelledby="idkLbTitle">
+  <div id="idkLbPanel">
+    <div id="idkLbHead">
+      <span id="idkLbTitle">◈ MONEY LEADERBOARD</span>
+      <button id="idkLbClose" type="button" aria-label="Close leaderboard">✕</button>
+    </div>
+    <div id="idkLbBody">
+      <div id="idkLbMeta">
+        <span id="idkLbCount">0 players</span>
+        <span id="idkLbLive">LIVE</span>
+      </div>
+      <div id="idkLbList"></div>
+
+      <div id="idkSaveWrap">
+        <div id="idkSaveTitle">◈ SAVE CODE</div>
+        <p id="idkSaveNote">
+          Your code holds your balance, rank and progress. <b>Keep it private</b> —
+          anyone who has it can load your save. Paste it back here on a new device
+          to restore everything.
+        </p>
+        <div class="idk-save-row">
+          <button class="idk-save-btn" type="button" id="idkSaveBtn">SAVE — MAKE CODE</button>
+          <button class="idk-save-btn alt" type="button" id="idkSaveCopyBtn">COPY</button>
+        </div>
+        <textarea id="idkSaveCode" spellcheck="false" autocomplete="off"
+          placeholder="Your save code appears here. Paste one in and press LOAD to restore."></textarea>
+        <div class="idk-save-row" style="margin-top:.5rem">
+          <button class="idk-save-btn alt" type="button" id="idkSaveLoadBtn">LOAD — RESTORE SAVE</button>
+        </div>
+        <div id="idkSaveStatus"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div id="ncRoot" class="nc-hidden">
+  <button class="nc-close" type="button" onclick="window.__idkggCloseCasino()">✕ Back to IDK.GG</button>
+<div class="bg" aria-hidden="true">
+  <div class="bg-glow a"></div>
+  <div class="bg-glow b"></div>
+  <div class="bg-glow c"></div>
+  <div class="bg-grid"></div>
+  <div class="bg-scan"></div>
+</div>
+
+<div class="flash" id="flash"></div>
+<div class="toast-wrap" id="toastWrap"></div>
+
+<!-- The storage notice lives at document level, NOT inside a .screen: both
+     screens are display:none until shown, so a notice nested in either one
+     would have zero height exactly when it needs to be read. -->
+<div class="storage-warn" id="storageWarn" role="alert">
+  <span class="ic">&#9888;</span>
+  <span>
+    <b>PROGRESS CANNOT BE SAVED ON THIS DEVICE.</b><br>
+    Your browser is blocking site storage, so your balance and stats will reset when you reload.
+    Allow cookies and site data for this page to keep your progress.
+  </span>
+  <button class="x" id="warnClose" aria-label="Dismiss">&times;</button>
+</div>
+
+<div class="wrap">
+
+  <!-- ============ START SCREEN ============ -->
+  <section class="screen on" id="startScreen">
+    <div class="start-card">
+      <div class="brand-kicker">Welcome to the floor</div>
+      <h1 class="brand"><span class="n1">NEON</span> <span class="n2">CASINO</span></h1>
+      <div class="brand-sub">Slots &middot; Coin Flip &middot; Blackjack</div>
+
+      <div class="start-balance">
+        <span class="lbl">Your balance</span>
+        <span class="val" id="startBalance">$1,000</span>
+      </div>
+
+      <button class="btn big pulse" id="playBtn">Enter the floor</button>
+
+      <div class="start-note" id="startNote">
+        Progress saves automatically on this device.
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ APP ============ -->
+  <section class="screen" id="appScreen">
+
+    <div class="topbar">
+      <div class="logo"><span class="a">NEON</span> <span class="b">CASINO</span></div>
+      <div class="bal-chip" id="balChip">
+        <span class="lbl">Balance</span>
+        <span class="val" id="balance">$1,000</span>
+      </div>
+      <div class="income-chip" id="incomeChip" title="You earn $50 every 10 minutes">
+        <span class="lbl">Income</span>
+        <span class="val" id="incomeTtl">10:00</span>
+      </div>
+    </div>
+
+    <div class="tabs" role="tablist">
+      <button class="tab on" data-game="slots" role="tab">Slots</button>
+      <button class="tab" data-game="flip" role="tab">Coin Flip</button>
+      <button class="tab" data-game="bj" role="tab">Blackjack</button>
+    </div>
+
+    <div class="main">
+      <div>
+        <!-- ---------- SLOTS ---------- -->
+        <div class="panel game on" id="gameSlots">
+          <div class="game-head">
+            <h2 class="game-name">Neon <span class="accent">Reels</span></h2>
+            <div class="rtp" id="slotsRtp">RTP 95.9%</div>
+          </div>
+
+          <div class="slots-frame" id="slotsFrame">
+            <div class="reels" id="reels">
+              <div class="reel"><div class="reel-strip" id="strip0"></div></div>
+              <div class="reel"><div class="reel-strip" id="strip1"></div></div>
+              <div class="reel"><div class="reel-strip" id="strip2"></div></div>
+            </div>
+            <div class="payline" id="pl0" style="top:calc(16px + var(--cellh) * 0.5)"></div>
+            <div class="payline" id="pl1" style="top:calc(16px + var(--cellh) * 1.5)"></div>
+            <div class="payline" id="pl2" style="top:calc(16px + var(--cellh) * 2.5)"></div>
+          </div>
+
+          <div class="slots-msg" id="slotsMsg">Place your bet and spin</div>
+
+          <div class="bet-row">
+            <span class="bet-label">Bet</span>
+            <input class="bet-input" id="slotsBet" type="number" min="1" step="1" value="25" inputmode="numeric">
+            <button class="chip" data-bet="slots" data-mult="0.5">&frac12;</button>
+            <button class="chip" data-bet="slots" data-mult="2">2&times;</button>
+            <button class="chip max" data-bet="slots" data-max="1">MAX</button>
+            <button class="btn" id="spinBtn" style="margin-left:auto">Spin</button>
+          </div>
+
+          <div class="paytable" id="paytable"></div>
+        </div>
+
+        <!-- ---------- COIN FLIP ---------- -->
+        <div class="panel game" id="gameFlip">
+          <div class="game-head">
+            <h2 class="game-name">Coin <span class="accent">Flip</span></h2>
+            <div class="rtp">RTP 100% &middot; 2&times; payout</div>
+          </div>
+
+          <div class="flip-stage">
+            <div class="coin" id="coin">
+              <div class="face front h" id="coinFront">H</div>
+              <div class="face back t" id="coinBack">T</div>
+            </div>
+
+            <div class="side-pick">
+              <button class="side-btn on" data-side="heads">
+                <span class="ic">H</span><span>Heads</span>
+              </button>
+              <button class="side-btn" data-side="tails">
+                <span class="ic">T</span><span>Tails</span>
+              </button>
+            </div>
+
+            <div class="bj-msg" id="flipMsg">Pick a side and flip</div>
+          </div>
+
+          <div class="bet-row">
+            <span class="bet-label">Bet</span>
+            <input class="bet-input" id="flipBet" type="number" min="1" step="1" value="25" inputmode="numeric">
+            <button class="chip" data-bet="flip" data-mult="0.5">&frac12;</button>
+            <button class="chip" data-bet="flip" data-mult="2">2&times;</button>
+            <button class="chip max" data-bet="flip" data-max="1">MAX</button>
+            <button class="btn" id="flipBtn" style="margin-left:auto">Flip</button>
+          </div>
+        </div>
+
+        <!-- ---------- BLACKJACK ---------- -->
+        <div class="panel game" id="gameBj">
+          <div class="game-head">
+            <h2 class="game-name">Black<span class="accent">jack</span></h2>
+            <div class="rtp">Blackjack pays 3:2 &middot; Dealer stands on 17</div>
+          </div>
+
+          <div class="bj-table">
+            <div class="bj-row">
+              <div class="bj-row-head">
+                <span class="bj-who">Dealer</span>
+                <span class="bj-score" id="dealerScore">&mdash;</span>
+              </div>
+              <div class="cards" id="dealerCards"></div>
+            </div>
+            <div class="bj-row">
+              <div class="bj-row-head">
+                <span class="bj-who">You</span>
+                <span class="bj-score" id="playerScore">&mdash;</span>
+              </div>
+              <div class="cards" id="playerCards"></div>
+            </div>
+          </div>
+
+          <div class="bj-msg" id="bjMsg">Place your bet and deal</div>
+
+          <div class="bet-row">
+            <span class="bet-label">Bet</span>
+            <input class="bet-input" id="bjBet" type="number" min="1" step="1" value="25" inputmode="numeric">
+            <button class="chip" data-bet="bj" data-mult="0.5">&frac12;</button>
+            <button class="chip" data-bet="bj" data-mult="2">2&times;</button>
+            <button class="chip max" data-bet="bj" data-max="1">MAX</button>
+          </div>
+
+          <div class="bj-actions">
+            <button class="btn" id="dealBtn">Deal</button>
+            <button class="btn ghost" id="hitBtn" disabled>Hit</button>
+            <button class="btn ghost" id="standBtn" disabled>Stand</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- ---------- SIDE COLUMN ---------- -->
+      <div>
+        <div class="panel">
+          <h3 class="panel-title">Stats</h3>
+          <div class="stat-grid">
+            <div class="stat"><div class="k">Wagered</div><div class="v c" id="stWagered">$0</div></div>
+            <div class="stat"><div class="k">Won</div><div class="v g" id="stWon">$0</div></div>
+            <div class="stat"><div class="k">Biggest win</div><div class="v gold" id="stBiggest">$0</div></div>
+            <div class="stat"><div class="k">Rounds</div><div class="v" id="stRounds">0</div></div>
+            <div class="stat"><div class="k">Net</div><div class="v" id="stNet">$0</div></div>
+            <div class="stat"><div class="k">Win rate</div><div class="v" id="stRate">&mdash;</div></div>
+          </div>
+        </div>
+
+        <div class="panel">
+          <h3 class="panel-title">Recent</h3>
+          <div class="hist" id="hist">
+            <div class="hist-empty">No bets yet</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="foot">
+      Play money only &middot; no real currency &middot; <b id="saveState">saved</b>
+    </div>
+  </section>
+</div>
+</div>
+
+<script id="neon-casino-script">
+(function(){
+"use strict";
+var ncRoot = document.getElementById("ncRoot");
+if(!ncRoot) return;
+/* per-tab identity, used to make the income lock re-entrant */
+var TAB_ID = "t" + Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
+
+/* =========================================================
+   1. RESILIENT STORAGE CHAIN
+   localStorage -> sessionStorage -> cookie -> memory
+   Reads merge from ALL sources; newest timestamp wins.
+   ========================================================= */
+var SAVE_KEY = "neon_casino_save_v1";
+var COOKIE_MAX_AGE = 60 * 60 * 24 * 365 * 2; /* 2 years */
+
+var Store = (function(){
+  var mem = {};
+  var lsOK = false, ssOK = false, ckOK = false;
+
+  function probe(kind){
+    try{
+      /* the shim reports honestly: a memory-backed stand-in is not storage */
+      if(kind === "ls" && window.__idkggLSBlocked) return false;
+      if(kind === "ss" && window.__idkggSSBlocked) return false;
+      var s = kind === "ls" ? window.localStorage : window.sessionStorage;
+      if(!s) return false;
+      var k = "__nc_probe__";
+      s.setItem(k, "1");
+      var v = s.getItem(k);
+      s.removeItem(k);
+      return v === "1";
+    }catch(e){ return false; }
+  }
+
+  function ckWrite(name, val, maxAge){
+    try{
+      document.cookie = name + "=" + encodeURIComponent(val) +
+        ";path=/;max-age=" + maxAge + ";SameSite=Lax";
+      return true;
+    }catch(e){ return false; }
+  }
+  function ckRead(name){
+    try{
+      var raw = document.cookie;
+      if(!raw) return null;
+      var parts = raw.split(";");
+      for(var i = 0; i < parts.length; i++){
+        var p = parts[i].replace(/^\s+/, "");
+        if(p.indexOf(name + "=") === 0){
+          return decodeURIComponent(p.slice(name.length + 1));
+        }
+      }
+    }catch(e){}
+    return null;
+  }
+
+  lsOK = probe("ls");
+  ssOK = probe("ss");
+  /* cookie probe: write then read back — a blocked jar silently drops it */
+  try{
+    ckOK = ckWrite("__nc_probe__", "1", 60) && ckRead("__nc_probe__") === "1";
+    if(ckOK) ckWrite("__nc_probe__", "", -1);
+  }catch(e){ ckOK = false; }
+
+  function get(kind, key){
+    try{
+      if(kind === "ls" && lsOK) return window.localStorage.getItem(key);
+      if(kind === "ss" && ssOK) return window.sessionStorage.getItem(key);
+      if(kind === "ck" && ckOK) return ckRead(key);
+      if(kind === "mem") return Object.prototype.hasOwnProperty.call(mem, key) ? mem[key] : null;
+    }catch(e){}
+    return null;
+  }
+
+  function set(kind, key, val, maxAge){
+    try{
+      if(kind === "ls" && lsOK){ window.localStorage.setItem(key, val); return true; }
+      if(kind === "ss" && ssOK){ window.sessionStorage.setItem(key, val); return true; }
+      if(kind === "ck" && ckOK) return ckWrite(key, val, maxAge || COOKIE_MAX_AGE);
+      if(kind === "mem"){ mem[key] = val; return true; }
+    }catch(e){}
+    return false;
+  }
+
+  return {
+    lsOK: lsOK,
+    ssOK: ssOK,
+    ckOK: ckOK,
+    get: get,
+    set: set,
+    /* a store that survives a browser restart */
+    persistent: function(){ return lsOK || ckOK; }
+  };
+})();
+
+/* =========================================================
+   1b. IDK.GG SHARED WALLET
+   =========================================================
+   The money is IDK.GG's, not the casino's. One balance lives under
+   IDKGG_WALLET_KEY and is shared with the app: a win here is money
+   there, and vice versa. The resilient chain below is the same one the
+   casino uses for its own save (localStorage -> sessionStorage -> cookie
+   -> memory, every source read and merged, newest timestamp winning), so
+   the wallet behaves identically whether the casino is opened from the
+   IDK.GG game list or standalone on its own URL.
+
+   IDKGG_WALLET_KEY is the single source of truth. Its shape:
+     { t, balance, incomeAt, wagered, won, biggest, rounds, wins, history }
+   ========================================================= */
+var IDKGG_WALLET_KEY = "idkgg_wallet_v1";
+var INCOME_MS = 10 * 60 * 1000;   /* $50 every ten minutes */
+var INCOME_AMOUNT = 50;
+
+function walletDefault(){
+  return {
+    t: 0,
+    balance: START_BALANCE,
+    /* incomeAt is the clock the $50 income is measured from. 0 means
+       "not started yet" and is stamped on first run, so no money is
+       ever granted for time before the feature existed. */
+    incomeAt: 0,
+    wagered: 0, won: 0, biggest: 0, rounds: 0, wins: 0,
+    history: []
+  };
+}
+
+function walletNum(v, def, min, max){
+  if(typeof v !== "number" || !isFinite(v)) return def;
+  v = Math.floor(v);
+  if(v < min) return min;
+  if(typeof max === "number" && v > max) return max;
+  return v;
+}
+
+/* Coerce anything we read into a complete, sane wallet. */
+function walletSanitize(o){
+  var w = walletDefault();
+  if(!o || typeof o !== "object") return w;
+  w.t = walletNum(o.t, 0, 0);
+  w.balance = walletNum(o.balance, START_BALANCE, 0);
+  w.incomeAt = walletNum(o.incomeAt, 0, 0);
+  w.wagered = walletNum(o.wagered, 0, 0);
+  w.won = walletNum(o.won, 0, 0);
+  w.biggest = walletNum(o.biggest, 0, 0);
+  w.rounds = walletNum(o.rounds, 0, 0);
+  w.wins = walletNum(o.wins, 0, 0);
+  if(Object.prototype.toString.call(o.history) === "[object Array]"){
+    var h = o.history.slice(0, HISTORY_MAX);
+    for(var i = 0; i < h.length; i++){
+      var e = h[i];
+      if(!e || typeof e !== "object") continue;
+      w.history.push({
+        g: String(e.g || "").slice(0, 12),
+        b: walletNum(e.b, 0, 0),
+        d: walletNum(e.d, 0, -1000000000, 1000000000),
+        r: String(e.r || "").slice(0, 24)
+      });
+    }
+  }
+  return w;
+}
+
+/* Read EVERY store and keep the newest wallet, so a save written by the
+   IDK.GG tab is never masked by an older copy sitting in this one. */
+function walletRead(){
+  var best = null;
+  var kinds = ["ls", "ss", "ck", "mem"];
+  for(var i = 0; i < kinds.length; i++){
+    var raw = Store.get(kinds[i], IDKGG_WALLET_KEY);
+    if(!raw) continue;
+    var parsed = null;
+    try{ parsed = JSON.parse(raw); }catch(e){ parsed = null; }
+    if(!parsed || typeof parsed !== "object") continue;
+    var cand = walletSanitize(parsed);
+    if(!best || cand.t > best.t) best = cand;
+  }
+  return best;
+}
+
+/* Write the wallet to every store that works — exactly like the game save. */
+function walletWrite(w){
+  w.t = Date.now();
+  var raw;
+  try{ raw = JSON.stringify(w); }catch(e){ return false; }
+  var ok = false;
+  if(Store.set("ls", IDKGG_WALLET_KEY, raw)) ok = true;
+  if(Store.set("ss", IDKGG_WALLET_KEY, raw)) ok = true;
+  if(Store.set("ck", IDKGG_WALLET_KEY, raw, COOKIE_MAX_AGE)) ok = true;
+  if(Store.set("mem", IDKGG_WALLET_KEY, raw)) ok = true;
+  if(typeof window !== "undefined"){
+    try{ window.dispatchEvent(new CustomEvent("idkgg-wallet", { detail: { balance: w.balance } })); }catch(e){}
+  }
+  walletBroadcast(w);
+  /* keep the money leaderboard live: every balance change re-announces */
+  try{
+    if(typeof window.__idkggLeaderboardPublish === "function") window.__idkggLeaderboardPublish(true);
+  }catch(e){}
+  return ok;
+}
+
+/* =========================================================
+   1b-ii. CROSS-ORIGIN WALLET BRIDGE
+   =========================================================
+   Inside IDK.GG the casino runs in an iframe on a DIFFERENT origin
+   (the app is fetched from raw.githubusercontent.com, this page is
+   served from static.teamily.ai), so the two cannot literally share a
+   localStorage object — and a fetch() of this page is blocked by CORS
+   (no Access-Control-Allow-Origin on the CDN).
+
+   So the wallet is kept in sync explicitly, over postMessage, which is
+   allowed cross-origin by design:
+
+     casino -> parent : every money change, so IDK.GG's balance moves
+     parent -> casino : the current wallet on load, so this page adopts it
+
+   The merge rule is the same as the storage chain: newest t wins. When
+   the page is NOT framed (opened standalone) both calls are no-ops and
+   the storage chain alone is the source of truth.
+   ========================================================= */
+var WALLET_MSG = "idkgg-wallet-v1";
+
+function inFrame(){
+  try{ return window.parent && window.parent !== window; }catch(e){ return false; }
+}
+
+function walletBroadcast(w){
+  if(!inFrame()) return;
+  try{
+    window.parent.postMessage({
+      source: WALLET_MSG,
+      kind: "state",
+      wallet: {
+        t: w.t, balance: w.balance, incomeAt: w.incomeAt,
+        wagered: w.wagered, won: w.won, biggest: w.biggest,
+        rounds: w.rounds, wins: w.wins
+      }
+    }, "*");
+  }catch(e){ /* a blocked parent must never break a spin */ }
+  
+}
+
+/* Adopt a wallet handed down by the host app. Only accepted when this
+   page is actually framed, so a stray message cannot rewrite the balance
+   of a standalone game. */
+function walletAdopt(incoming){
+  try{
+    if(!inFrame()) return false;
+    if(!incoming || typeof incoming !== "object") return false;
+    var w = walletSanitize(incoming);
+    if(!(w.t > 0)) return false;
+
+    var mine = walletRead();
+    /* newest wins — never let a stale host snapshot undo a spin that just
+       landed here */
+    if(mine && mine.t >= w.t) return false;
+
+    /* The host owns the income clock only if it already has one; otherwise
+       keep ours so a fresh install still earns. */
+    if(!w.incomeAt && mine) w.incomeAt = mine.incomeAt || 0;
+
+    walletWrite(w);
+    walletIntoSave(w);
+    renderBalance();
+    renderStats();
+    paintIncome();
+    return true;
+  }catch(e){ return false; }
+}
+
+window.addEventListener("message", function(ev){
+  try{
+    var d = ev && ev.data;
+    if(!d || d.source !== WALLET_MSG) return;
+    if(d.kind === "hello"){
+      /* the host is asking for our current wallet */
+      var w = walletRead();
+      if(w) walletBroadcast(w);
+      return;
+    }
+    if(d.kind === "state"){ walletAdopt(d.wallet); }
+  }catch(e){}
+});
+
+/* Copy a wallet into this page's live save object, so every existing
+   render/maths path keeps working unchanged. */
+function walletIntoSave(w){
+  save.balance = w.balance;
+  save.wagered = w.wagered;
+  save.won = w.won;
+  save.biggest = w.biggest;
+  save.rounds = w.rounds;
+  save.wins = w.wins;
+  save.history = w.history;
+  save.incomeAt = w.incomeAt;
+  save.t = w.t;
+}
+
+function saveIntoWallet(){
+  var w = walletDefault();
+  w.balance = save.balance;
+  w.incomeAt = save.incomeAt || 0;
+  w.wagered = save.wagered;
+  w.won = save.won;
+  w.biggest = save.biggest;
+  w.rounds = save.rounds;
+  w.wins = save.wins;
+  w.history = save.history;
+  return w;
+}
+
+/* =========================================================
+   1c. $50 EVERY 10 MINUTES
+   =========================================================
+   Honest, time-based income. incomeAt is the single source of truth:
+   every completed 10-minute interval since it is paid once, including
+   intervals that elapsed while the page was closed (come back after 30
+   minutes and you are owed 3 payouts). Because the timestamp lives in the
+   shared store and every tab re-reads it, two open tabs cannot both pay
+   for the same interval.
+   ========================================================= */
+function incomeGrant(burst){
+  var w = walletRead();
+  if(!w) w = saveIntoWallet();
+
+  var now = Date.now();
+
+  /* ── cross-tab guard ────────────────────────────────────────────────────
+     Two tabs ticking at the same moment would otherwise both read the same
+     anchor and both pay for the same interval. The claim records the owner,
+     when it was taken, and the anchor it was taken against:
+
+       owner|at|anchor
+
+     It is honoured only when it is recent AND the anchor has not moved since
+     — a claim whose anchor already advanced belongs to a grant that FINISHED,
+     so it must not block anyone. It is also re-entrant within a tab (a tab
+     legitimately grants on load, on the timer and on visibility change), and
+     it is cleared on pagehide so a reload never inherits a dead claim. */
+  var LOCK_KEY = "idkgg_income_lock_v1";
+  var lockRaw = Store.get("ls", LOCK_KEY) || Store.get("ck", LOCK_KEY);
+  var lockOwner = "", lockAt = 0, lockAnchor = -1;
+  if(lockRaw){
+    var bits = String(lockRaw).split("|");
+    if(bits.length === 3){
+      lockOwner = bits[0];
+      lockAt = parseInt(bits[1], 10) || 0;
+      lockAnchor = parseInt(bits[2], 10);
+      if(isNaN(lockAnchor)) lockAnchor = -1;
+    }
+  }
+  var claimLive = lockOwner && lockOwner !== TAB_ID &&
+                  (now - lockAt) < 1500 &&
+                  lockAnchor === (w.incomeAt || 0);
+  if(claimLive){
+    /* another tab is mid-grant on this very anchor: it will pay for it */
+    return 0;
+  }
+  var lockVal = TAB_ID + "|" + now + "|" + (w.incomeAt || 0);
+  Store.set("ls", LOCK_KEY, lockVal);
+  Store.set("ck", LOCK_KEY, lockVal, 120);
+
+  /* First ever run: start the clock and pay nothing — no money for time
+     before the feature existed. */
+  if(!w.incomeAt){
+    w.incomeAt = now;
+    w.t = now;
+    walletWrite(w);
+    walletIntoSave(w);
+    return 0;
+  }
+
+  /* A clock that jumped backwards (timezone change, tampered clock) — or a
+     machine that was asleep for months — must not mint a fortune. Reset the
+     anchor instead of granting a negative count. */
+  if(w.incomeAt > now){
+    w.incomeAt = now;
+    walletWrite(w);
+    walletIntoSave(w);
+    return 0;
+  }
+
+  var intervals = Math.floor((now - w.incomeAt) / INCOME_MS);
+  if(intervals <= 0) return 0;
+
+  /* Cap a single catch-up so a tab left open for a fortnight does not
+     credit thousands at once, and so a tampered clock cannot break the
+     balance maths. 24 payouts = 4 hours of idle time. */
+  var MAX_CATCHUP = 24;
+  var paid = Math.min(intervals, MAX_CATCHUP);
+
+  /* Compare-and-swap: if another tab advanced the anchor between our read and
+     this write, it has already paid for these intervals. Adopt its result
+     instead of paying twice. */
+  var fresh = walletRead();
+  if(fresh && (fresh.incomeAt || 0) !== (w.incomeAt || 0)){
+    walletIntoSave(fresh);
+    renderBalance();
+    paintIncome();
+    return 0;
+  }
+
+  w.balance += paid * INCOME_AMOUNT;
+  /* Advance the anchor by exactly the intervals actually paid, so the
+     remainder still counts toward the next one. */
+  w.incomeAt += paid * INCOME_MS;
+  /* If we hit the cap, skip the rest rather than banking it forever. */
+  if(intervals > paid) w.incomeAt = now - ((now - w.incomeAt) % INCOME_MS);
+
+  walletWrite(w);
+  walletIntoSave(w);
+
+  if(burst !== false){
+    toast("+" + money(paid * INCOME_AMOUNT) + " income" + (paid > 1 ? " (" + paid + " \u00d7 " + money(INCOME_AMOUNT) + ")" : ""), "ok");
+    flash();
+  }
+  return paid;
+}
+
+/* =========================================================
+   1c-ii. OWNER MONEY ADMIN — apply a change to the shared wallet
+   =========================================================
+   One entry point behind every money command and the OWNER panel's
+   MONEY section. The wallet is the single source of truth, so a change
+   made here is immediately the same money the casino plays with and the
+   same money the $50 income tops up.
+
+   mode: "give"  → balance += amount
+         "take"  → balance -= amount, clamped at 0 (never negative)
+         "set"   → balance  = amount, clamped at 0
+
+   Returns {ok, balance, delta, message}. Never throws: a blocked store
+   must not break the command, it only means the change is not durable.
+   ========================================================= */
+function applyWalletChange(mode, amount){
+  try{
+    var amt = Math.round(Number(amount));
+    if(!isFinite(amt) || amt < 0){
+      return { ok:false, balance:0, delta:0, message:"That is not a valid amount." };
+    }
+    var w = walletRead() || saveIntoWallet();
+    var before = Math.max(0, Math.round(Number(w.balance) || 0));
+    var after = before;
+
+    if(mode === "give")      after = before + amt;
+    else if(mode === "take") after = Math.max(0, before - amt);
+    else if(mode === "set")  after = Math.max(0, amt);
+    else return { ok:false, balance:before, delta:0, message:"Unknown money action." };
+
+    /* A balance is a whole number of dollars, and it can never be negative. */
+    after = Math.max(0, Math.round(after));
+
+    w.balance = after;
+    w.t = Date.now();
+    walletWrite(w);
+    walletIntoSave(w);
+    renderBalance();
+    renderStats();
+    paintIncome();
+    return { ok:true, balance:after, delta:after - before, message:"" };
+  }catch(e){
+    return { ok:false, balance:0, delta:0, message:"The balance could not be changed." };
+  }
+}
+
+/* Seconds until the next $50 lands. */
+function incomeTilNext(){
+  var w = walletRead();
+  var anchor = (w && w.incomeAt) || save.incomeAt || 0;
+  if(!anchor) return Math.ceil(INCOME_MS / 1000);
+  var left = INCOME_MS - ((Date.now() - anchor) % INCOME_MS);
+  return Math.max(0, Math.ceil(left / 1000));
+}
+
+/* =========================================================
+   2. SAVE STATE
+   ========================================================= */
+var START_BALANCE = 1000;
+var HISTORY_MAX = 40;
+
+function freshSave(){
+  return {
+    t: 0,
+    balance: START_BALANCE,
+    incomeAt: 0,
+    wagered: 0,
+    won: 0,
+    biggest: 0,
+    rounds: 0,
+    wins: 0,
+    history: []
+  };
+}
+
+var save = freshSave();
+
+function num(v, def, min, max){
+  if(typeof v !== "number" || !isFinite(v)) return def;
+  v = Math.floor(v);
+  if(v < min) return min;
+  if(typeof max === "number" && v > max) return max;
+  return v;
+}
+
+function sanitize(o){
+  var s = freshSave();
+  if(!o || typeof o !== "object") return s;
+  s.t = num(o.t, 0, 0);
+  s.balance = num(o.balance, START_BALANCE, 0);
+  s.incomeAt = num(o.incomeAt, 0, 0);
+  s.wagered = num(o.wagered, 0, 0);
+  s.won = num(o.won, 0, 0);
+  s.biggest = num(o.biggest, 0, 0);
+  s.rounds = num(o.rounds, 0, 0);
+  s.wins = num(o.wins, 0, 0);
+  if(Object.prototype.toString.call(o.history) === "[object Array]"){
+    var h = o.history.slice(0, HISTORY_MAX);
+    for(var i = 0; i < h.length; i++){
+      var e = h[i];
+      if(!e || typeof e !== "object") continue;
+      s.history.push({
+        g: String(e.g || "").slice(0, 12),
+        b: num(e.b, 0, 0),
+        d: num(e.d, 0, -1000000000, 1000000000),
+        r: String(e.r || "").slice(0, 24)
+      });
+    }
+  }
+  return s;
+}
+
+/* Load the money. The shared wallet wins whenever one exists; a pre-wallet
+   casino save is migrated into it once so an existing player keeps their
+   balance. Nothing here ever throws. */
+function loadSave(){
+  var wallet = walletRead();
+
+  /* legacy casino-only save (old versions, and a stale copy in a store the
+     wallet could not reach) */
+  var legacy = null;
+  var kinds = ["ls", "ss", "ck", "mem"];
+  for(var i = 0; i < kinds.length; i++){
+    var raw = Store.get(kinds[i], SAVE_KEY);
+    if(!raw) continue;
+    var parsed = null;
+    try{ parsed = JSON.parse(raw); }catch(e){ parsed = null; }
+    if(!parsed || typeof parsed !== "object") continue;
+    var cand = sanitize(parsed);
+    if(!legacy || cand.t > legacy.t) legacy = cand;
+  }
+
+  if(wallet){
+    walletIntoSave(wallet);
+    save = sanitize(save);
+    save.incomeAt = wallet.incomeAt;
+    return;
+  }
+
+  if(legacy){
+    /* Migrate: adopt the old balance into the shared wallet so the money the
+       player already had is the money IDK.GG now shows. */
+    save = legacy;
+    save.incomeAt = 0;
+    walletWrite(saveIntoWallet());
+    return;
+  }
+
+  save = freshSave();
+  walletWrite(saveIntoWallet());
+}
+
+/* Persist the money to the shared wallet AND to the casino's own key, so the
+   balance survives whichever of the two a future page reads. */
+function writeSave(){
+  save.t = Date.now();
+  var raw;
+  try{ raw = JSON.stringify(save); }catch(e){ return false; }
+  var ok = false;
+  if(Store.set("ls", SAVE_KEY, raw)) ok = true;
+  if(Store.set("ss", SAVE_KEY, raw)) ok = true;
+  if(Store.set("ck", SAVE_KEY, raw, COOKIE_MAX_AGE)) ok = true;
+  if(Store.set("mem", SAVE_KEY, raw)) ok = true;
+  walletWrite(saveIntoWallet());
+  return ok;
+}
+
+/* =========================================================
+   3. DOM HELPERS
+   ========================================================= */
+function $(id){ return document.getElementById(id); }
+function money(n){
+  var neg = n < 0;
+  n = Math.abs(Math.round(n));
+  var s = String(n).replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+  return (neg ? "-$" : "$") + s;
+}
+function clamp(v, a, b){ return v < a ? a : (v > b ? b : v); }
+
+var toastWrap = $("toastWrap");
+function toast(msg, kind){
+  var el = document.createElement("div");
+  el.className = "toast" + (kind ? " " + kind : "");
+  el.textContent = msg;
+  toastWrap.appendChild(el);
+  setTimeout(function(){
+    el.className += " out";
+    setTimeout(function(){ if(el.parentNode) el.parentNode.removeChild(el); }, 260);
+  }, 2400);
+}
+
+var flashEl = $("flash");
+function flash(){
+  flashEl.className = "flash";
+  void flashEl.offsetWidth;
+  flashEl.className = "flash go";
+}
+
+function floatWin(text, x, y){
+  var el = document.createElement("div");
+  el.className = "float-win";
+  el.textContent = text;
+  el.style.left = x + "px";
+  el.style.top = y + "px";
+  ncRoot.appendChild(el);
+  setTimeout(function(){ if(el.parentNode) el.parentNode.removeChild(el); }, 1200);
+}
+
+function shake(el){
+  el.className = el.className.replace(/\s*shake/g, "");
+  void el.offsetWidth;
+  el.className += " shake";
+  setTimeout(function(){ el.className = el.className.replace(/\s*shake/g, ""); }, 460);
+}
+
+/* =========================================================
+   4. MONEY CORE
+   ========================================================= */
+var balChip = $("balChip");
+var balEl = $("balance");
+var startBalEl = $("startBalance");
+
+function renderBalance(){
+  var txt = money(save.balance);
+  balEl.textContent = txt;
+  startBalEl.textContent = txt;
+}
+
+function bumpBalance(dir){
+  balChip.className = "bal-chip" + (dir > 0 ? " up" : (dir < 0 ? " down" : ""));
+  clearTimeout(bumpBalance._t);
+  bumpBalance._t = setTimeout(function(){ balChip.className = "bal-chip"; }, 900);
+}
+
+/* Validate a bet against the balance. Returns integer bet or 0 (rejected). */
+function readBet(inputEl, gameLabel){
+  var raw = inputEl.value;
+  var v = parseFloat(raw);
+  if(!isFinite(v) || v <= 0){
+    toast("Enter a bet of at least $1", "err");
+    return 0;
+  }
+  v = Math.floor(v);
+  if(v < 1){
+    toast("Minimum bet is $1", "err");
+    return 0;
+  }
+  if(v > save.balance){
+    toast("Not enough balance for a " + money(v) + " bet", "err");
+    return 0;
+  }
+  inputEl.value = String(v);
+  return v;
+}
+
+/* Deduct the stake. Caller must have validated. */
+function takeBet(amount){
+  save.balance -= amount;
+  save.wagered += amount;
+  renderBalance();
+  bumpBalance(-1);
+  writeSave();
+}
+
+/* Credit a payout (0 = loss). */
+function payOut(amount, gameLabel, bet, resultLabel){
+  if(amount > 0){
+    save.balance += amount;
+    save.won += amount;
+    /* a push returns the stake and is NOT a win */
+    if(amount > bet){
+      var profit = amount - bet;
+      if(profit > save.biggest) save.biggest = profit;
+      save.wins += 1;
+    }
+  }
+  save.rounds += 1;
+  var delta = amount - bet;
+  save.history.unshift({ g: gameLabel, b: bet, d: delta, r: resultLabel });
+  if(save.history.length > HISTORY_MAX) save.history.length = HISTORY_MAX;
+  renderBalance();
+  renderStats();
+  renderHistory();
+  writeSave();
+  if(amount > 0) bumpBalance(1);
+  return delta;
+}
+
+/* =========================================================
+   5. STATS + HISTORY RENDER
+   ========================================================= */
+function renderStats(){
+  $("stWagered").textContent = money(save.wagered);
+  $("stWon").textContent = money(save.won);
+  $("stBiggest").textContent = money(save.biggest);
+  $("stRounds").textContent = String(save.rounds);
+  var net = save.won - save.wagered;
+  var netEl = $("stNet");
+  netEl.textContent = (net > 0 ? "+" : "") + money(net);
+  netEl.className = "v";
+  netEl.style.color = net > 0 ? "var(--green)" : (net < 0 ? "var(--red)" : "var(--cyan)");
+  $("stRate").textContent = save.rounds > 0
+    ? Math.round((save.wins / save.rounds) * 100) + "%"
+    : "\u2014";
+}
+
+function renderHistory(){
+  var box = $("hist");
+  if(!save.history.length){
+    box.innerHTML = '<div class="hist-empty">No bets yet</div>';
+    return;
+  }
+  var html = "";
+  for(var i = 0; i < save.history.length; i++){
+    var e = save.history[i];
+    var cls = e.d > 0 ? "w" : (e.d < 0 ? "l" : "p");
+    var sign = e.d > 0 ? "+" : "";
+    html += '<div class="hrow">' +
+      '<span class="g">' + e.g + '</span>' +
+      '<span style="color:var(--dim);font-size:10px">' + e.r + '</span>' +
+      '<span class="d ' + cls + '">' + sign + money(e.d) + '</span>' +
+      '</div>';
+  }
+  box.innerHTML = html;
+}
+
+/* =========================================================
+   6. SLOTS
+   ========================================================= */
+/* Weights sum to 100. Multipliers are per-line, applied to the line stake
+   (bet / 3). RTP = sum(p^3 * m) and is printed live in the header. */
+var SYMBOLS = [
+  { id: "club",    ch: "\u2663", w: 30, m: 16,  color: "#39ff88" },
+  { id: "heart",   ch: "\u2665", w: 24, m: 19,  color: "#ff3d8b" },
+  { id: "spade",   ch: "\u2660", w: 18, m: 25,  color: "#b06bff" },
+  { id: "diamond", ch: "\u2666", w: 12, m: 39,  color: "#22e6ff" },
+  { id: "star",    ch: "\u2605", w: 8,  m: 60,  color: "#ffd93d" },
+  { id: "seven",   ch: "7",      w: 5,  m: 95,  color: "#ff8a3d" },
+  { id: "crown",   ch: "\u265b", w: 3,  m: 175, color: "#ffffff" }
+];
+var SYM_TOTAL = 0;
+for(var si = 0; si < SYMBOLS.length; si++) SYM_TOTAL += SYMBOLS[si].w;
+
+function symById(id){
+  for(var i = 0; i < SYMBOLS.length; i++) if(SYMBOLS[i].id === id) return SYMBOLS[i];
+  return SYMBOLS[0];
+}
+
+/* Honest RTP. Each of the 3 paylines stakes bet/3 and pays (bet/3)*m on a
+   3-of-a-kind. Expected return per line = (bet/3) * sum(p^3 * m), so the
+   total expected return is bet * sum(p^3 * m) -> RTP = sum(p^3 * m). */
+function computeRtp(){
+  var rtp = 0;
+  for(var i = 0; i < SYMBOLS.length; i++){
+    var p = SYMBOLS[i].w / SYM_TOTAL;
+    rtp += p * p * p * SYMBOLS[i].m;
+  }
+  return rtp;
+}
+
+function pickSymbol(){
+  var r = Math.random() * SYM_TOTAL;
+  for(var i = 0; i < SYMBOLS.length; i++){
+    r -= SYMBOLS[i].w;
+    if(r < 0) return SYMBOLS[i];
+  }
+  return SYMBOLS[SYMBOLS.length - 1];
+}
+
+var CELL_H = 70;
+function measureCellH(){
+  var probe = ncRoot.querySelector(".reel .cell");
+  if(probe){
+    var h = probe.getBoundingClientRect().height;
+    if(h > 10) CELL_H = h;
+  }
+  return CELL_H;
+}
+var strips = [$("strip0"), $("strip1"), $("strip2")];
+var reelPos = [0, 0, 0];
+var reelGrid = [[], [], []];   /* reelGrid[reel][row] = symbol */
+var spinning = false;
+
+function cellHtml(sym){
+  return '<div class="cell" style="color:' + sym.color + '">' +
+         '<span class="sym">' + sym.ch + '</span></div>';
+}
+
+function buildStrip(reel, symbols){
+  var html = "";
+  for(var i = 0; i < symbols.length; i++) html += cellHtml(symbols[i]);
+  strips[reel].innerHTML = html;
+}
+
+function setStripOffset(reel, px){
+  strips[reel].style.transform = "translateY(" + (-px) + "px)";
+}
+
+/* initial idle grid */
+function initReels(){
+  for(var r = 0; r < 3; r++){
+    reelGrid[r] = [pickSymbol(), pickSymbol(), pickSymbol()];
+    buildStrip(r, reelGrid[r]);
+    reelPos[r] = 0;
+    setStripOffset(r, 0);
+  }
+}
+
+function clearHits(){
+  var cells = ncRoot.querySelectorAll(".cell");
+  for(var i = 0; i < cells.length; i++) cells[i].className = "cell";
+  for(var p = 0; p < 3; p++) $("pl" + p).className = "payline";
+}
+
+function spinReel(reel, finalSymbols, duration, onDone){
+  /* Build a long strip: random filler + the 3 final symbols at the end. */
+  var filler = [];
+  var count = 14 + reel * 4;
+  for(var i = 0; i < count; i++) filler.push(pickSymbol());
+  var all = filler.concat(finalSymbols);
+  buildStrip(reel, all);
+
+  var cellH = measureCellH();
+  var startPx = 0;
+  var endPx = (all.length - 3) * cellH;
+  var t0 = null;
+
+  function ease(t){ return 1 - Math.pow(1 - t, 3); }
+
+  function frame(ts){
+    if(t0 === null) t0 = ts;
+    var t = clamp((ts - t0) / duration, 0, 1);
+    var px = startPx + (endPx - startPx) * ease(t);
+    setStripOffset(reel, px);
+    if(t < 1){
+      requestAnimationFrame(frame);
+    }else{
+      setStripOffset(reel, endPx);
+      reelGrid[reel] = finalSymbols;
+      onDone();
+    }
+  }
+  requestAnimationFrame(frame);
+}
+
+function evaluateSlots(bet){
+  var lineStake = bet / 3;
+  var totalWin = 0;
+  var hits = [];
+  for(var row = 0; row < 3; row++){
+    var a = reelGrid[0][row], b = reelGrid[1][row], c = reelGrid[2][row];
+    if(a.id === b.id && b.id === c.id){
+      var win = Math.round(lineStake * a.m);
+      totalWin += win;
+      hits.push({ row: row, sym: a, win: win });
+    }
+  }
+  return { total: totalWin, hits: hits };
+}
+
+function doSpin(){
+  if(spinning) return;
+  var bet = readBet($("slotsBet"), "Slots");
+  if(!bet) return;
+
+  spinning = true;
+  clearHits();
+  $("slotsFrame").className = "slots-frame";
+  $("slotsMsg").className = "slots-msg";
+  $("slotsMsg").textContent = "Spinning\u2026";
+  $("spinBtn").disabled = true;
+
+  takeBet(bet);
+
+  var finals = [];
+  for(var r = 0; r < 3; r++){
+    finals.push([pickSymbol(), pickSymbol(), pickSymbol()]);
+  }
+
+  var done = 0;
+  for(var rr = 0; rr < 3; rr++){
+    (function(reel){
+      spinReel(reel, finals[reel], 900 + reel * 320, function(){
+        done++;
+        if(done === 3) finishSpin(bet);
+      });
+    })(rr);
+  }
+}
+
+function finishSpin(bet){
+  var res = evaluateSlots(bet);
+  var msg = $("slotsMsg");
+
+  if(res.total > 0){
+    /* highlight winning cells */
+    for(var h = 0; h < res.hits.length; h++){
+      var row = res.hits[h].row;
+      for(var r = 0; r < 3; r++){
+        var strip = strips[r];
+        var cell = strip.children[row];
+        if(cell) cell.className = "cell hit";
+      }
+      $("pl" + row).className = "payline on";
+    }
+    $("slotsFrame").className = "slots-frame win";
+    msg.className = "slots-msg win";
+    msg.textContent = "WIN " + money(res.total) + (res.hits.length > 1 ? " \u00b7 " + res.hits.length + " LINES" : "");
+    flash();
+    if(res.total >= bet * 5) shake($("slotsFrame"));
+    var rect = $("slotsFrame").getBoundingClientRect();
+    floatWin("+" + money(res.total), rect.left + rect.width / 2, rect.top + rect.height / 2);
+  }else{
+    msg.className = "slots-msg lose";
+    msg.textContent = "No win \u2014 spin again";
+  }
+
+  var label = res.total > 0 ? (res.hits.length + " line" + (res.hits.length > 1 ? "s" : "")) : "no win";
+  payOut(res.total, "SLOTS", bet, label);
+
+  spinning = false;
+  $("spinBtn").disabled = false;
+}
+
+/* =========================================================
+   7. COIN FLIP
+   ========================================================= */
+var flipSide = "heads";
+var flipping = false;
+
+function doFlip(){
+  if(flipping) return;
+  var bet = readBet($("flipBet"), "Coin Flip");
+  if(!bet) return;
+
+  flipping = true;
+  var coin = $("coin");
+  var msg = $("flipMsg");
+  coin.className = "coin";
+  msg.className = "bj-msg";
+  msg.textContent = "Flipping\u2026";
+  $("flipBtn").disabled = true;
+
+  takeBet(bet);
+
+  /* honest 50/50 */
+  var result = Math.random() < 0.5 ? "heads" : "tails";
+
+  void coin.offsetWidth;
+  coin.className = "coin spin";
+
+  setTimeout(function(){
+    /* land the coin on the result face */
+    var front = $("coinFront"), back = $("coinBack");
+    if(result === "heads"){
+      front.textContent = "H";
+      front.className = "face front h";
+      back.textContent = "T";
+      back.className = "face back t";
+    }else{
+      front.textContent = "T";
+      front.className = "face front t";
+      back.textContent = "H";
+      back.className = "face back h";
+    }
+
+    var won = result === flipSide;
+    var payout = won ? bet * 2 : 0;
+
+    coin.className = "coin " + (won ? "win" : "lose");
+    if(won){
+      msg.className = "bj-msg win";
+      msg.textContent = result.toUpperCase() + " \u2014 YOU WIN " + money(payout);
+      flash();
+      var rect = coin.getBoundingClientRect();
+      floatWin("+" + money(payout), rect.left + rect.width / 2, rect.top);
+    }else{
+      msg.className = "bj-msg lose";
+      msg.textContent = result.toUpperCase() + " \u2014 you lose " + money(bet);
+    }
+
+    payOut(payout, "FLIP", bet, result + (won ? " \u00b7 win" : " \u00b7 loss"));
+
+    flipping = false;
+    $("flipBtn").disabled = false;
+  }, 1180);
+}
+
+/* =========================================================
+   8. BLACKJACK
+   ========================================================= */
+var SUITS = [
+  { s: "\u2660", red: false },
+  { s: "\u2665", red: true },
+  { s: "\u2666", red: true },
+  { s: "\u2663", red: false }
+];
+var RANKS = ["A","2","3","4","5","6","7","8","9","10","J","Q","K"];
+
+var shoe = [];
+var bjState = {
+  active: false,
+  bet: 0,
+  player: [],
+  dealer: [],
+  holeHidden: true,
+  done: false
+};
+
+function buildShoe(){
+  shoe = [];
+  for(var d = 0; d < 6; d++){
+    for(var si2 = 0; si2 < SUITS.length; si2++){
+      for(var ri = 0; ri < RANKS.length; ri++){
+        shoe.push({ r: RANKS[ri], s: SUITS[si2].s, red: SUITS[si2].red });
+      }
+    }
+  }
+  /* Fisher-Yates */
+  for(var i = shoe.length - 1; i > 0; i--){
+    var j = Math.floor(Math.random() * (i + 1));
+    var tmp = shoe[i]; shoe[i] = shoe[j]; shoe[j] = tmp;
+  }
+}
+
+function drawCard(){
+  if(shoe.length < 20) buildShoe();
+  return shoe.pop();
+}
+
+function cardValue(c){
+  if(c.r === "A") return 11;
+  if(c.r === "K" || c.r === "Q" || c.r === "J" || c.r === "10") return 10;
+  return parseInt(c.r, 10);
+}
+
+/* Correct ace handling: count aces as 11, demote to 1 while busting. */
+function handValue(cards){
+  var total = 0, aces = 0;
+  for(var i = 0; i < cards.length; i++){
+    total += cardValue(cards[i]);
+    if(cards[i].r === "A") aces++;
+  }
+  while(total > 21 && aces > 0){
+    total -= 10;
+    aces--;
+  }
+  return total;
+}
+
+function isBlackjack(cards){
+  return cards.length === 2 && handValue(cards) === 21;
+}
+
+function cardHtml(c, hidden){
+  if(hidden){
+    return '<div class="card back"></div>';
+  }
+  return '<div class="card' + (c.red ? " red" : "") + '">' +
+    '<span class="r">' + c.r + '</span>' +
+    '<span class="s">' + c.s + '</span>' +
+    '</div>';
+}
+
+function renderBj(){
+  var dc = $("dealerCards"), pc = $("playerCards");
+  var dHtml = "";
+  for(var i = 0; i < bjState.dealer.length; i++){
+    dHtml += cardHtml(bjState.dealer[i], bjState.holeHidden && i === 1);
+  }
+  dc.innerHTML = dHtml;
+
+  var pHtml = "";
+  for(var j = 0; j < bjState.player.length; j++){
+    pHtml += cardHtml(bjState.player[j], false);
+  }
+  pc.innerHTML = pHtml;
+
+  var dScoreEl = $("dealerScore");
+  if(!bjState.dealer.length){
+    dScoreEl.textContent = "\u2014";
+    dScoreEl.className = "bj-score";
+  }else if(bjState.holeHidden){
+    dScoreEl.textContent = String(cardValue(bjState.dealer[0])) + " + ?";
+    dScoreEl.className = "bj-score";
+  }else{
+    var dv = handValue(bjState.dealer);
+    dScoreEl.textContent = String(dv);
+    dScoreEl.className = "bj-score" + (dv > 21 ? " bust" : (isBlackjack(bjState.dealer) ? " bj" : ""));
+  }
+
+  var pScoreEl = $("playerScore");
+  if(!bjState.player.length){
+    pScoreEl.textContent = "\u2014";
+    pScoreEl.className = "bj-score";
+  }else{
+    var pv = handValue(bjState.player);
+    pScoreEl.textContent = String(pv);
+    pScoreEl.className = "bj-score" + (pv > 21 ? " bust" : (isBlackjack(bjState.player) ? " bj" : ""));
+  }
+}
+
+function setBjButtons(state){
+  $("dealBtn").disabled = state !== "idle";
+  $("hitBtn").disabled = state !== "player";
+  $("standBtn").disabled = state !== "player";
+}
+
+function bjMsg(text, cls){
+  var el = $("bjMsg");
+  el.textContent = text;
+  el.className = "bj-msg" + (cls ? " " + cls : "");
+}
+
+function dealBj(){
+  if(bjState.active) return;
+  var bet = readBet($("bjBet"), "Blackjack");
+  if(!bet) return;
+
+  takeBet(bet);
+
+  bjState.active = true;
+  bjState.bet = bet;
+  bjState.player = [];
+  bjState.dealer = [];
+  bjState.holeHidden = true;
+  bjState.done = false;
+
+  bjState.player.push(drawCard());
+  bjState.dealer.push(drawCard());
+  bjState.player.push(drawCard());
+  bjState.dealer.push(drawCard());
+
+  renderBj();
+  bjMsg("Your move");
+
+  /* natural blackjack check */
+  var pBJ = isBlackjack(bjState.player);
+  var dBJ = isBlackjack(bjState.dealer);
+
+  if(pBJ || dBJ){
+    bjState.holeHidden = false;
+    renderBj();
+    if(pBJ && dBJ){
+      bjMsg("Both blackjack \u2014 push", "push");
+      settleBj(0, "push");
+    }else if(pBJ){
+      bjMsg("BLACKJACK! Pays 3:2", "win");
+      settleBj(Math.round(bet * 2.5), "blackjack");
+    }else{
+      bjMsg("Dealer blackjack \u2014 you lose", "lose");
+      settleBj(0, "dealer blackjack");
+    }
+    return;
+  }
+
+  setBjButtons("player");
+}
+
+function hitBj(){
+  if(!bjState.active || bjState.done) return;
+  bjState.player.push(drawCard());
+  renderBj();
+
+  var pv = handValue(bjState.player);
+  if(pv > 21){
+    bjState.holeHidden = false;
+    renderBj();
+    bjMsg("Bust \u2014 " + pv, "lose");
+    settleBj(0, "bust");
+    return;
+  }
+  if(pv === 21){
+    standBj();
+    return;
+  }
+  bjMsg("Your move");
+}
+
+function standBj(){
+  if(!bjState.active || bjState.done) return;
+  bjState.holeHidden = false;
+  renderBj();
+
+  /* dealer stands on all 17 (S17) */
+  while(handValue(bjState.dealer) < 17){
+    bjState.dealer.push(drawCard());
+    renderBj();
+  }
+
+  var pv = handValue(bjState.player);
+  var dv = handValue(bjState.dealer);
+
+  if(dv > 21){
+    bjMsg("Dealer busts \u2014 you win " + money(bjState.bet * 2), "win");
+    settleBj(bjState.bet * 2, "dealer bust");
+  }else if(pv > dv){
+    bjMsg("You win " + money(bjState.bet * 2), "win");
+    settleBj(bjState.bet * 2, "win");
+  }else if(pv === dv){
+    bjMsg("Push \u2014 bet returned", "push");
+    settleBj(bjState.bet, "push");
+  }else{
+    bjMsg("Dealer wins \u2014 you lose " + money(bjState.bet), "lose");
+    settleBj(0, "loss");
+  }
+}
+
+function settleBj(payout, label){
+  bjState.done = true;
+  bjState.active = false;
+  setBjButtons("idle");
+
+  if(payout > bjState.bet){
+    flash();
+    var rect = $("playerCards").getBoundingClientRect();
+    floatWin("+" + money(payout - bjState.bet), rect.left + rect.width / 2, rect.top);
+  }
+  payOut(payout, "BLACKJACK", bjState.bet, label);
+}
+
+/* =========================================================
+   9. UI WIRING
+   ========================================================= */
+function showScreen(which){
+  $("startScreen").className = "screen" + (which === "start" ? " on" : "");
+  $("appScreen").className = "screen" + (which === "app" ? " on" : "");
+  window.scrollTo(0, 0);
+}
+
+function switchGame(name){
+  var tabs = ncRoot.querySelectorAll(".tab");
+  for(var i = 0; i < tabs.length; i++){
+    tabs[i].className = "tab" + (tabs[i].getAttribute("data-game") === name ? " on" : "");
+  }
+  var games = ["slots", "flip", "bj"];
+  for(var g = 0; g < games.length; g++){
+    var el = $("game" + games[g].charAt(0).toUpperCase() + games[g].slice(1));
+    if(el) el.className = "panel game" + (games[g] === name ? " on" : "");
+  }
+}
+
+/* bet chips */
+var chips = ncRoot.querySelectorAll(".chip");
+for(var ci = 0; ci < chips.length; ci++){
+  chips[ci].addEventListener("click", function(){
+    var target = this.getAttribute("data-bet");
+    var input = $(target + "Bet");
+    if(!input) return;
+    if(this.getAttribute("data-max")){
+      input.value = String(Math.max(1, save.balance));
+      return;
+    }
+    var mult = parseFloat(this.getAttribute("data-mult"));
+    var cur = parseFloat(input.value);
+    if(!isFinite(cur) || cur <= 0) cur = 1;
+    var next = Math.floor(cur * mult);
+    if(next < 1) next = 1;
+    if(next > save.balance) next = Math.max(1, save.balance);
+    input.value = String(next);
+  });
+}
+
+/* tabs */
+var tabEls = ncRoot.querySelectorAll(".tab");
+for(var ti = 0; ti < tabEls.length; ti++){
+  tabEls[ti].addEventListener("click", function(){
+    switchGame(this.getAttribute("data-game"));
+  });
+}
+
+/* coin side */
+var sideBtns = ncRoot.querySelectorAll(".side-btn");
+for(var sbi = 0; sbi < sideBtns.length; sbi++){
+  sideBtns[sbi].addEventListener("click", function(){
+    if(flipping) return;
+    flipSide = this.getAttribute("data-side");
+    for(var k = 0; k < sideBtns.length; k++){
+      sideBtns[k].className = "side-btn" + (sideBtns[k] === this ? " on" : "");
+    }
+  });
+}
+
+$("playBtn").addEventListener("click", function(){
+  showScreen("app");
+  renderBalance();
+  renderStats();
+  renderHistory();
+});
+
+$("spinBtn").addEventListener("click", doSpin);
+$("flipBtn").addEventListener("click", doFlip);
+$("dealBtn").addEventListener("click", dealBj);
+$("hitBtn").addEventListener("click", hitBj);
+$("standBtn").addEventListener("click", standBj);
+
+/* storage warning */
+$("warnClose").addEventListener("click", function(){
+  $("storageWarn").className = "storage-warn";
+});
+
+/* =========================================================
+   10. BOOT
+   ========================================================= */
+function buildPaytable(){
+  var html = "";
+  for(var i = 0; i < SYMBOLS.length; i++){
+    var s = SYMBOLS[i];
+    html += '<div class="pay">' +
+      '<span class="g" style="color:' + s.color + '">' + s.ch + s.ch + s.ch + '</span>' +
+      '<span class="m">' + s.m + '&times;</span>' +
+      '</div>';
+  }
+  $("paytable").innerHTML = html;
+}
+
+function boot(){
+  loadSave();
+  renderBalance();
+  renderStats();
+  renderHistory();
+  buildPaytable();
+  initReels();
+  buildShoe();
+  renderBj();
+  setBjButtons("idle");
+
+  var rtp = computeRtp();
+  $("slotsRtp").textContent = "RTP " + (rtp * 100).toFixed(1) + "%";
+
+  /* storage notice — only when nothing persistent is available */
+  if(!Store.persistent()){
+    $("storageWarn").className = "storage-warn on";
+    $("startNote").innerHTML =
+      '<span style="color:var(--gold)">Storage is blocked on this device \u2014 progress will not be saved.</span>';
+    $("saveState").textContent = "not saved";
+    $("saveState").style.color = "var(--gold)";
+  }else{
+    $("startNote").innerHTML = "Progress saves automatically on this device.";
+    $("saveState").textContent = "saved";
+  }
+
+  /* keep the reel geometry correct across resizes */
+  window.addEventListener("resize", function(){
+    if(spinning) return;
+    measureCellH();
+    for(var r = 0; r < 3; r++) setStripOffset(r, 0);
+  });
+
+  /* keep the balance fresh if another tab writes */
+  window.addEventListener("storage", function(e){
+    if(e && (e.key === SAVE_KEY || e.key === IDKGG_WALLET_KEY)){
+      loadSave();
+      renderBalance();
+      renderStats();
+      renderHistory();
+    }
+  });
+
+  /* the IDK.GG tab and this one are two windows onto ONE wallet: any write
+     either side makes is picked up here, so the two never disagree */
+  window.addEventListener("idkgg-wallet", function(){
+    renderBalance();
+  });
+
+  /* framed inside IDK.GG: ask the host for the authoritative wallet before
+     the first paint, so the casino shows the same money the app does */
+  if(inFrame()){
+    try{ window.parent.postMessage({ source: WALLET_MSG, kind: "hello" }, "*"); }catch(e){}
+  }
+
+  startIncome();
+}
+
+/* =========================================================
+   11. INCOME TICKER
+   =========================================================
+   One timer drives both halves: it credits every completed 10-minute
+   interval (including ones that elapsed while the page was closed) and it
+   repaints the countdown. The stored incomeAt is the only clock, so two
+   tabs open at once still pay each interval exactly once.
+   ========================================================= */
+var incomeTicker = null;
+
+function paintIncome(){
+  var el = $("incomeTtl");
+  var chip = $("incomeChip");
+  if(!el) return;
+  var left = incomeTilNext();
+  var m = Math.floor(left / 60), s = left % 60;
+  el.textContent = m + ":" + (s < 10 ? "0" : "") + s;
+  if(chip){
+    chip.className = "income-chip" + (left <= 3 ? " ready" : "");
+  }
+}
+
+function incomeTick(){
+  var paid = incomeGrant(true);
+  if(paid > 0){
+    var chip = $("incomeChip");
+    if(chip){
+      chip.className = "income-chip ready paid";
+      setTimeout(function(){ chip.className = "income-chip"; }, 750);
+    }
+    renderBalance();
+    renderStats();
+  }
+  paintIncome();
+}
+
+function startIncome(){
+  /* grant anything owed for time spent away BEFORE the first paint, so a
+     player who comes back after half an hour sees the money immediately */
+  try{ incomeTick(); }catch(e){}
+  if(incomeTicker) clearInterval(incomeTicker);
+  incomeTicker = setInterval(function(){ try{ incomeTick(); }catch(e){} }, 1000);
+
+  /* a background tab throttles timers, so re-check the moment it comes back */
+  document.addEventListener("visibilitychange", function(){
+    if(!document.hidden){ try{ incomeTick(); }catch(e){} }
+  });
+  window.addEventListener("focus", function(){ try{ incomeTick(); }catch(e){} });
+}
+
+boot();
+
+/* ── host bridge ────────────────────────────────────────────────────────
+   IDK.GG opens the casino from its own game list, so the host needs a way
+   to show and hide the floor without reloading the page. */
+window.__neonCasinoOpen = function(){
+  // Idempotent and defensive: reopening must never degrade, and a missing
+  // element must not abort the open half-way.
+  try{ if (typeof window.__idkggLeaderboardClose === "function") window.__idkggLeaderboardClose(); }catch(e){}
+  try{ ncRoot.classList.remove("nc-hidden"); }catch(e){}
+  try{ document.body.classList.add("nc-locked"); }catch(e){}
+  try{ showScreen("app"); }catch(e){}
+  try{ renderBalance(); }catch(e){}
+  try{ renderStats(); }catch(e){}
+  try{ renderHistory(); }catch(e){}
+  try{ incomeTick(); }catch(e){}
+  try{ window.scrollTo(0, 0); }catch(e){}
+};
+window.__neonCasinoClose = function(){
+  // Defensive: hide the overlay and unlock the body, then make sure the host
+  // app shell is visible again. Without the restore step a direct call left
+  // the launcher hidden behind a closed overlay -- a blank screen.
+  try{ ncRoot.classList.add("nc-hidden"); }catch(e){}
+  try{ document.body.classList.remove("nc-locked"); }catch(e){}
+  try{
+    if (typeof window.__idkggRestoreShell === "function") window.__idkggRestoreShell();
+  }catch(e){}
+};
+window.__neonCasinoIsOpen = function(){
+  return !ncRoot.classList.contains("nc-hidden");
+};
+
+/* The app's moderation handler lives in a different IIFE, so the money
+   entry point is published on window. It is the ONLY way money moves. */
+window.__idkggApplyWalletChange = applyWalletChange;
+window.__idkggWalletRead = walletRead;
+
+/* expose a tiny read-only probe for automated verification */
+window.__casino = {
+  state: function(){
+    return {
+      balance: save.balance,
+      wagered: save.wagered,
+      won: save.won,
+      biggest: save.biggest,
+      rounds: save.rounds,
+      wins: save.wins,
+      history: save.history.length,
+      incomeAt: save.incomeAt || 0,
+      incomeTtl: incomeTilNext(),
+      storage: { ls: Store.lsOK, ss: Store.ssOK, ck: Store.ckOK, persistent: Store.persistent() },
+      bj: { active: bjState.active, done: bjState.done, player: bjState.player.slice(), dealer: bjState.dealer.slice() }
+    };
+  },
+  handValue: handValue,
+  isBlackjack: isBlackjack,
+  computeRtp: computeRtp,
+  symbols: SYMBOLS,
+  walletKey: IDKGG_WALLET_KEY,
+  wallet: function(){ return walletRead(); },
+  income: { grant: incomeGrant, ttl: incomeTilNext, ms: INCOME_MS, amount: INCOME_AMOUNT },
+  /* deterministic helpers used only by the test harness */
+  _setBalance: function(v){
+    var w = walletRead() || saveIntoWallet();
+    w.balance = Math.max(0, Math.round(Number(v) || 0));
+    w.t = Date.now();
+    walletWrite(w); walletIntoSave(w);
+    renderBalance(); renderStats();
+  },
+  /* backdate the income anchor, so a harness can simulate elapsed time
+     without waiting ten real minutes. The wallet is the source of truth, so
+     the anchor must land there. */
+  _setIncomeAt: function(ts){
+    var w = walletRead() || saveIntoWallet();
+    w.incomeAt = Number(ts) || 0;
+    w.t = Date.now();
+    walletWrite(w); walletIntoSave(w);
+    paintIncome();
+  },
+  _tick: incomeTick,
+  _setBj: function(p, d, bet){
+    bjState.player = p; bjState.dealer = d; bjState.bet = bet;
+    bjState.active = true; bjState.done = false; bjState.holeHidden = false;
+    renderBj();
+  },
+  _stand: standBj,
+  _settle: settleBj,
+  _takeBet: takeBet,
+  _evaluate: evaluateSlots,
+  _setGrid: function(g){ reelGrid = g; }
+};
+})();
+</script>
+
+
+<script id="idk-leaderboard-script">
+/* ══════════════════════════════════════════════════════════════════════════
+   MONEY LEADERBOARD + SAVE CODE
+   ──────────────────────────────────────────────────────────────────────────
+   The leaderboard is a LIVE MERGE of what each device actually holds. A
+   player's balance lives on their own device, so no client can read another's
+   wallet directly. Instead every client publishes its own balance on the
+   existing moderation channel (the same one /kick, /mute and the owner money
+   admin already use) and each client merges what it hears into a local board.
+
+   The save code is a self-contained snapshot of everything this player owns:
+   the shared wallet, the rank, the rank assignments and the identity. It is
+   versioned and checksummed, so a mistyped or corrupted code is REJECTED
+   rather than silently wiping the player's data.
+   ══════════════════════════════════════════════════════════════════════════ */
+(function(){
+  "use strict";
+
+  var overlay = document.getElementById("idkLbOverlay");
+  var listEl  = document.getElementById("idkLbList");
+  var countEl = document.getElementById("idkLbCount");
+  var closeBtn= document.getElementById("idkLbClose");
+  if(!overlay || !listEl || !countEl) return;
+
+  var WALLET_KEY = "idkgg_wallet_v1";
+  var LB_CHANNEL = "idkgg-moderation-v1";   /* reuse the existing channel */
+  var LB_MSG     = "idkgg-lb-v1";
+  var LB_TTL     = 5 * 60 * 1000;           /* a peer is stale after 5 min */
+  var LB_PUB_MS  = 20000;                   /* re-announce every 20s */
+
+  /* ── storage chain (same shape as the rest of the app) ─────────────────── */
+  function ckRead(name){
+    try{
+      var parts = String(document.cookie || "").split(";");
+      for(var i = 0; i < parts.length; i++){
+        var p = parts[i].replace(/^\s+/, "");
+        if(p.indexOf(name + "=") === 0) return decodeURIComponent(p.slice(name.length + 1));
+      }
+    }catch(e){}
+    return null;
+  }
+  function ckWrite(name, val, maxAge){
+    try{
+      document.cookie = name + "=" + encodeURIComponent(val) +
+        ";path=/;max-age=" + maxAge + ";SameSite=Lax";
+      return true;
+    }catch(e){ return false; }
+  }
+  function storeGet(kind, key){
+    try{
+      if(kind === "ls") return window.localStorage.getItem(key);
+      if(kind === "ss") return window.sessionStorage.getItem(key);
+      if(kind === "ck") return ckRead(key);
+    }catch(e){}
+    return null;
+  }
+  function storeSet(kind, key, val, maxAge){
+    try{
+      if(kind === "ls"){ window.localStorage.setItem(key, val); return true; }
+      if(kind === "ss"){ window.sessionStorage.setItem(key, val); return true; }
+      if(kind === "ck") return ckWrite(key, val, maxAge || 63072000);
+    }catch(e){}
+    return false;
+  }
+  /* Read EVERY store, keep the newest blob — the same newest-wins rule the
+     wallet and the rank store use. */
+  function readNewest(key){
+    var best = null, kinds = ["ls","ss","ck"];
+    for(var i = 0; i < kinds.length; i++){
+      var raw = storeGet(kinds[i], key);
+      if(!raw) continue;
+      var o = null;
+      try{ o = JSON.parse(raw); }catch(e){ continue; }
+      if(!o || typeof o !== "object") continue;
+      var t = typeof o.t === "number" ? o.t : 0;
+      if(!best || t > best.t) best = o;
+    }
+    return best;
+  }
+  function writeAll(key, obj){
+    var raw;
+    try{ raw = JSON.stringify(obj); }catch(e){ return false; }
+    var ok = false;
+    if(storeSet("ls", key, raw)) ok = true;
+    if(storeSet("ss", key, raw)) ok = true;
+    if(storeSet("ck", key, raw)) ok = true;
+    return ok;
+  }
+
+  function money(n){
+    n = Math.round(Number(n) || 0);
+    return "$" + String(n).replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+  }
+
+  /* ── identity ──────────────────────────────────────────────────────────── */
+  function myIdentity(){
+    var name = "", id = "";
+    try{ name = String(window.localStorage.getItem("idkgg_username_v1") || ""); }catch(e){}
+    try{
+      var ident = JSON.parse(window.localStorage.getItem("idkgg_identity_v1") || "{}");
+      if(!name) name = String(ident.name || "");
+    }catch(e){}
+    try{ id = String(window.localStorage.getItem("idkgg_device_id_v1") || ""); }catch(e){}
+    if(!id){
+      /* a stable per-device id, so two tabs of one player are ONE row */
+      id = "dev-" + Math.random().toString(36).slice(2, 10) + Date.now().toString(36);
+      storeSet("ls", "idkgg_device_id_v1", id);
+    }
+    return { id: id, name: name || "Player" };
+  }
+
+  function myBalance(){
+    var w = readNewest(WALLET_KEY);
+    if(!w) return 0;
+    return Math.max(0, Math.round(Number(w.balance) || 0));
+  }
+
+  /* ── the board ─────────────────────────────────────────────────────────── */
+  var peers = Object.create(null);   /* id -> {id,name,balance,at} */
+  var me = myIdentity();
+  var lastPub = 0;
+  var pubTimer = null;
+
+  function prune(){
+    var now = Date.now();
+    for(var id in peers){
+      if(now - (peers[id].at || 0) > LB_TTL) delete peers[id];
+    }
+  }
+
+  function rows(){
+    prune();
+    var out = [];
+    for(var id in peers) out.push(peers[id]);
+    /* Always show ourselves, even before any broadcast lands. */
+    var mine = peers[me.id];
+    if(!mine){
+      mine = { id: me.id, name: me.name, balance: myBalance(), at: Date.now(), self: true };
+      out.push(mine);
+    }
+    out.sort(function(a, b){
+      if(b.balance !== a.balance) return b.balance - a.balance;
+      return String(a.name).localeCompare(String(b.name));
+    });
+    return out;
+  }
+
+  function render(){
+    if(!overlay.classList.contains("visible")) return;
+    var data = rows();
+    countEl.textContent = data.length + (data.length === 1 ? " player" : " players");
+    if(!data.length){
+      listEl.innerHTML = '<div class="idk-lb-empty">No players yet.<br>'
+        + 'Balances appear here as people connect.</div>';
+      return;
+    }
+    var html = "";
+    for(var i = 0; i < data.length; i++){
+      var r = data[i];
+      var isMe = (r.id === me.id);
+      var cls = "idk-lb-row" + (isMe ? " me" : "") +
+                (i === 0 ? " top1" : (i === 1 ? " top2" : (i === 2 ? " top3" : "")));
+      html += '<div class="' + cls + '">'
+        + '<span class="idk-lb-pos">' + (i + 1) + '</span>'
+        + '<span class="idk-lb-name">' + esc(r.name) + '</span>'
+        + (isMe ? '<span class="idk-lb-you">YOU</span>' : '')
+        + '<span class="idk-lb-bal">' + money(r.balance) + '</span>'
+        + '</div>';
+    }
+    listEl.innerHTML = html;
+  }
+
+  function esc(s){
+    return String(s == null ? "" : s)
+      .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;").replace(/'/g, "&#39;");
+  }
+
+  /* ── broadcast ─────────────────────────────────────────────────────────── */
+  function publish(force){
+    var now = Date.now();
+    if(!force && now - lastPub < LB_PUB_MS) return;
+    lastPub = now;
+    var payload = {
+      id: "lb-" + me.id + "-" + now,
+      action: "lb",
+      lb: LB_MSG,
+      peerId: me.id,
+      peerName: me.name,
+      balance: myBalance(),
+      issuedAt: now
+    };
+    try{
+      if(window.__idkggLbPublish) window.__idkggLbPublish(payload);
+    }catch(e){}
+  }
+
+  function receive(msg){
+    if(!msg || msg.action !== "lb" || msg.lb !== LB_MSG) return;
+    var id = String(msg.peerId || "");
+    if(!id) return;
+    var bal = Math.round(Number(msg.balance));
+    if(!isFinite(bal) || bal < 0) return;
+    var at = Number(msg.issuedAt) || Date.now();
+    var prev = peers[id];
+    /* newest wins, so a late-arriving stale broadcast cannot undo a fresh one */
+    if(prev && (prev.at || 0) > at) return;
+    peers[id] = {
+      id: id,
+      name: String(msg.peerName || "Player").slice(0, 24),
+      balance: bal,
+      at: at
+    };
+    render();
+  }
+
+  /* ── open / close ──────────────────────────────────────────────────────── */
+  var isOpen = false;
+
+  function open(){
+    isOpen = true;
+    overlay.classList.add("visible");
+    /* refresh our own row from the live wallet, then announce */
+    me = myIdentity();
+    peers[me.id] = { id: me.id, name: me.name, balance: myBalance(), at: Date.now() };
+    render();
+    publish(true);
+    if(pubTimer) clearInterval(pubTimer);
+    pubTimer = setInterval(function(){ publish(false); render(); }, 5000);
+  }
+
+  function close(){
+    isOpen = false;
+    overlay.classList.remove("visible");
+    if(pubTimer){ clearInterval(pubTimer); pubTimer = null; }
+  }
+
+  window.__idkggLeaderboardOpen  = open;
+  window.__idkggLeaderboardClose = close;
+  window.__idkggLeaderboardIsOpen= function(){ return isOpen; };
+  window.__idkggLeaderboardReceive = receive;
+  window.__idkggLeaderboardPublish = publish;
+  window.__idkggLeaderboardRows = rows;
+
+  if(closeBtn) closeBtn.addEventListener("click", close);
+  /* outside-click: only a click on the backdrop itself closes it */
+  overlay.addEventListener("click", function(ev){
+    if(ev.target === overlay) close();
+  });
+  document.addEventListener("keydown", function(ev){
+    if(ev.key !== "Escape" && ev.key !== "Esc") return;
+    if(!isOpen) return;
+    ev.stopPropagation();
+    close();
+  }, true);
+
+  /* ── the chip opens it ─────────────────────────────────────────────────── */
+  var chip = document.getElementById("idkWalletChip");
+  if(chip){
+    chip.style.cursor = "pointer";
+    chip.setAttribute("role", "button");
+    chip.setAttribute("tabindex", "0");
+    chip.setAttribute("title", "Your IDK.GG balance — click for the money leaderboard");
+    chip.addEventListener("click", function(ev){
+      ev.preventDefault();
+      if(isOpen) close(); else open();
+    });
+    chip.addEventListener("keydown", function(ev){
+      if(ev.key === "Enter" || ev.key === " "){
+        ev.preventDefault();
+        if(isOpen) close(); else open();
+      }
+    });
+  }
+
+  /* keep our own row honest as the balance moves (casino, income, admin) */
+  window.addEventListener("idkgg-wallet", function(){
+    if(!isOpen) return;
+    me = myIdentity();
+    peers[me.id] = { id: me.id, name: me.name, balance: myBalance(), at: Date.now() };
+    render();
+    publish(true);
+  });
+  window.addEventListener("storage", function(ev){
+    if(ev && ev.key === WALLET_KEY && isOpen){
+      peers[me.id] = { id: me.id, name: me.name, balance: myBalance(), at: Date.now() };
+      render();
+    }
+  });
+
+  /* announce on load so other clients see us without opening the board */
+  setTimeout(function(){ publish(true); }, 2500);
+  setInterval(function(){ publish(false); }, LB_PUB_MS);
+
+  /* ══════════════════════════════════════════════════════════════════════
+     SAVE CODE
+     ──────────────────────────────────────────────────────────────────────
+     A compact, self-contained snapshot. Format:
+
+       IDK1.<base64url payload>.<checksum>
+
+     The version marker lets a future format be rejected cleanly, and the
+     checksum catches a mistyped or truncated code BEFORE anything is written
+     — a bad code must never wipe a player's data.
+     ══════════════════════════════════════════════════════════════════════ */
+  var SAVE_PREFIX  = "IDK1";
+  var RANKS_KEY    = "idkgg_custom_ranks_v1";
+  var ASSIGN_KEY   = "idkgg_rank_assign_v1";
+  var SAVED_RANK   = "idkgg_saved_rank";
+  var IDENTITY_KEY = "idkgg_identity_v1";
+  var NAME_KEY     = "idkgg_username_v1";
+  var PFP_KEY      = "idkgg_pfp_v1";
+
+  var codeEl   = document.getElementById("idkSaveCode");
+  var statusEl = document.getElementById("idkSaveStatus");
+
+  function status(text, tone){
+    if(!statusEl) return;
+    statusEl.textContent = text || "";
+    statusEl.className = tone || "";
+  }
+
+  /* FNV-1a, 32-bit, rendered as 8 hex chars. Not a security hash — it exists
+     to catch a typo, which is exactly what a save code needs. */
+  function checksum(str){
+    var h = 0x811c9dc5;
+    for(var i = 0; i < str.length; i++){
+      h ^= str.charCodeAt(i);
+      h = (h + ((h << 1) + (h << 4) + (h << 7) + (h << 8) + (h << 24))) >>> 0;
+    }
+    return ("0000000" + h.toString(16)).slice(-8);
+  }
+
+  function b64urlEncode(str){
+    var b64 = btoa(unescape(encodeURIComponent(str)));
+    return b64.replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+  }
+  function b64urlDecode(str){
+    var b64 = String(str).replace(/-/g, "+").replace(/_/g, "/");
+    while(b64.length % 4) b64 += "=";
+    return decodeURIComponent(escape(atob(b64)));
+  }
+
+  function collectState(){
+    var w = readNewest(WALLET_KEY) || {};
+    var ranks = readNewest(RANKS_KEY) || {};
+    var assign = readNewest(ASSIGN_KEY) || {};
+    var ident = null;
+    try{ ident = JSON.parse(storeGet("ls", IDENTITY_KEY) || "null"); }catch(e){}
+    var name = storeGet("ls", NAME_KEY) || (ident && ident.name) || "";
+    var pfp  = storeGet("ls", PFP_KEY)  || (ident && ident.pfp)  || "";
+    var rank = storeGet("ls", SAVED_RANK) || (ident && ident.rank) || "";
+    return {
+      v: 1,
+      at: Date.now(),
+      wallet: {
+        balance:  Math.max(0, Math.round(Number(w.balance)  || 0)),
+        incomeAt: Math.max(0, Math.round(Number(w.incomeAt) || 0)),
+        wagered:  Math.max(0, Math.round(Number(w.wagered)  || 0)),
+        won:      Math.max(0, Math.round(Number(w.won)      || 0)),
+        biggest:  Math.max(0, Math.round(Number(w.biggest)  || 0)),
+        rounds:   Math.max(0, Math.round(Number(w.rounds)   || 0)),
+        wins:     Math.max(0, Math.round(Number(w.wins)     || 0))
+      },
+      rank: String(rank || "").slice(0, 40),
+      name: String(name || "").slice(0, 24),
+      pfp:  String(pfp  || "").slice(0, 400000),
+      ranks:  ranks,
+      assign: assign
+    };
+  }
+
+  function makeCode(){
+    var state = collectState();
+    var json;
+    try{ json = JSON.stringify(state); }catch(e){
+      status("Could not build the save code.", "error");
+      return null;
+    }
+    var body = b64urlEncode(json);
+    return SAVE_PREFIX + "." + body + "." + checksum(body);
+  }
+
+  /* Parse a code. Returns {ok, state} or {ok:false, message}. NEVER writes. */
+  function parseCode(raw){
+    var text = String(raw == null ? "" : raw).trim().replace(/\s+/g, "");
+    if(!text) return { ok:false, message:"Paste a save code first." };
+    var parts = text.split(".");
+    if(parts.length !== 3) return { ok:false, message:"That is not a valid save code." };
+    if(parts[0] !== SAVE_PREFIX){
+      return { ok:false, message:"That save code is from a different version and cannot be loaded." };
+    }
+    var body = parts[1], sum = parts[2].toLowerCase();
+    if(!body) return { ok:false, message:"That save code is incomplete." };
+    if(checksum(body) !== sum){
+      return { ok:false, message:"That save code is damaged or mistyped — nothing was changed." };
+    }
+    var json;
+    try{ json = b64urlDecode(body); }catch(e){
+      return { ok:false, message:"That save code is damaged or mistyped — nothing was changed." };
+    }
+    var state;
+    try{ state = JSON.parse(json); }catch(e){
+      return { ok:false, message:"That save code is damaged or mistyped — nothing was changed." };
+    }
+    if(!state || typeof state !== "object" || state.v !== 1){
+      return { ok:false, message:"That save code is from a different version and cannot be loaded." };
+    }
+    if(!state.wallet || typeof state.wallet !== "object"){
+      return { ok:false, message:"That save code is missing its balance — nothing was changed." };
+    }
+    return { ok:true, state: state };
+  }
+
+  /* Write a parsed state into the SAME keys the app already uses, so the
+     casino, the income clock and the owner money admin all pick it up. */
+  function applyState(state){
+    var w = state.wallet;
+    var wallet = {
+      t: Date.now(),
+      balance:  Math.max(0, Math.round(Number(w.balance)  || 0)),
+      incomeAt: Math.max(0, Math.round(Number(w.incomeAt) || 0)),
+      wagered:  Math.max(0, Math.round(Number(w.wagered)  || 0)),
+      won:      Math.max(0, Math.round(Number(w.won)      || 0)),
+      biggest:  Math.max(0, Math.round(Number(w.biggest)  || 0)),
+      rounds:   Math.max(0, Math.round(Number(w.rounds)   || 0)),
+      wins:     Math.max(0, Math.round(Number(w.wins)     || 0)),
+      history:  []
+    };
+    writeAll(WALLET_KEY, wallet);
+
+    if(state.ranks && typeof state.ranks === "object"){
+      var r = state.ranks;
+      writeAll(RANKS_KEY, { t: Date.now(), defs: r.defs || [], tombstones: r.tombstones || {} });
+    }
+    if(state.assign && typeof state.assign === "object"){
+      var a = state.assign;
+      writeAll(ASSIGN_KEY, { t: Date.now(), assign: a.assign || {}, at: a.at || {} });
+    }
+    if(state.rank) storeSet("ls", SAVED_RANK, String(state.rank));
+    if(state.name) storeSet("ls", NAME_KEY, String(state.name));
+    if(state.pfp)  storeSet("ls", PFP_KEY,  String(state.pfp));
+    try{
+      storeSet("ls", IDENTITY_KEY, JSON.stringify({
+        name: String(state.name || ""), rank: String(state.rank || ""),
+        pfp: String(state.pfp || ""), savedAt: Date.now()
+      }));
+    }catch(e){}
+
+    /* tell every module the wallet moved */
+    try{
+      window.dispatchEvent(new CustomEvent("idkgg-wallet", { detail: { balance: wallet.balance } }));
+    }catch(e){}
+    return wallet.balance;
+  }
+
+  var saveBtn = document.getElementById("idkSaveBtn");
+  var copyBtn = document.getElementById("idkSaveCopyBtn");
+  var loadBtn = document.getElementById("idkSaveLoadBtn");
+
+  if(saveBtn) saveBtn.addEventListener("click", function(){
+    var code = makeCode();
+    if(!code) return;
+    if(codeEl) codeEl.value = code;
+    status("Save code created. Keep it private — it is your whole save.", "ok");
+  });
+
+  if(copyBtn) copyBtn.addEventListener("click", function(){
+    var text = codeEl ? codeEl.value.trim() : "";
+    if(!text){
+      var made = makeCode();
+      if(!made) return;
+      text = made;
+      if(codeEl) codeEl.value = made;
+    }
+    var done = function(){
+      status("Copied to the clipboard. Keep it private.", "ok");
+    };
+    try{
+      if(navigator.clipboard && navigator.clipboard.writeText){
+        navigator.clipboard.writeText(text).then(done, function(){ fallbackCopy(text, done); });
+        return;
+      }
+    }catch(e){}
+    fallbackCopy(text, done);
+  });
+
+  function fallbackCopy(text, done){
+    try{
+      if(!codeEl) return;
+      codeEl.value = text;
+      codeEl.focus();
+      codeEl.select();
+      var ok = document.execCommand && document.execCommand("copy");
+      if(ok) done();
+      else status("Select the code and copy it manually.", "error");
+    }catch(e){
+      status("Select the code and copy it manually.", "error");
+    }
+  }
+
+  if(loadBtn) loadBtn.addEventListener("click", function(){
+    var raw = codeEl ? codeEl.value : "";
+    var parsed = parseCode(raw);
+    if(!parsed.ok){
+      /* A bad code changes NOTHING — the existing save is left untouched. */
+      status(parsed.message, "error");
+      return;
+    }
+    var bal = applyState(parsed.state);
+    status("Save restored. Your balance is now " + money(bal) + ".", "ok");
+    /* refresh our own leaderboard row from the restored wallet */
+    me = myIdentity();
+    peers[me.id] = { id: me.id, name: me.name, balance: myBalance(), at: Date.now() };
+    render();
+    publish(true);
+  });
+
+  /* expose a tiny probe for automated verification */
+  window.__idkggSaveCode = {
+    make: makeCode,
+    parse: parseCode,
+    apply: applyState,
+    collect: collectState,
+    checksum: checksum
+  };
+})();
+</script>
+
+<script id="idk-wallet-chip-script">
+/* ── Launcher wallet readout ───────────────────────────────────────────────
+   Read-only view of the shared wallet. The casino module is the single
+   granter of the $50 income (it owns the anchor and the cross-tab lock), so
+   this chip only ever DISPLAYS — that is what keeps two tabs from paying
+   twice. It reads the same resilient chain the casino writes to. */
+(function(){
+  var KEY = "idkgg_wallet_v1";
+  var balEl = document.getElementById("idkWalletBal");
+  var incEl = document.getElementById("idkWalletInc");
+  var chip  = document.getElementById("idkWalletChip");
+  if(!balEl || !incEl || !chip) return;
+
+  function ckRead(name){
+    try{
+      var parts = (document.cookie || "").split(";");
+      for(var i = 0; i < parts.length; i++){
+        var p = parts[i].replace(/^\s+/, "");
+        if(p.indexOf(name + "=") === 0) return decodeURIComponent(p.slice(name.length + 1));
+      }
+    }catch(e){}
+    return null;
+  }
+
+  function readWallet(){
+    var best = null;
+    var raws = [];
+    try{ raws.push(window.localStorage.getItem(KEY)); }catch(e){}
+    try{ raws.push(window.sessionStorage.getItem(KEY)); }catch(e){}
+    raws.push(ckRead(KEY));
+    for(var i = 0; i < raws.length; i++){
+      if(!raws[i]) continue;
+      var o = null;
+      try{ o = JSON.parse(raws[i]); }catch(e){ continue; }
+      if(!o || typeof o !== "object") continue;
+      var t = typeof o.t === "number" ? o.t : 0;
+      if(!best || t > best.t) best = { t: t, balance: o.balance, incomeAt: o.incomeAt };
+    }
+    return best;
+  }
+
+  function money(n){
+    n = Math.round(Number(n) || 0);
+    return "$" + String(n).replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+  }
+
+  var lastBal = null;
+
+  function paint(){
+    var w = readWallet();
+    if(!w){ balEl.textContent = "$1,000"; incEl.textContent = "10:00"; return; }
+    var bal = Math.max(0, Math.round(Number(w.balance) || 0));
+    balEl.textContent = money(bal);
+    if(lastBal !== null && bal > lastBal){
+      chip.classList.add("up");
+      setTimeout(function(){ chip.classList.remove("up"); }, 1200);
+    }
+    lastBal = bal;
+
+    var anchor = Number(w.incomeAt) || 0;
+    var MS = 10 * 60 * 1000;
+    var left = anchor ? MS - ((Date.now() - anchor) % MS) : MS;
+    left = Math.max(0, Math.ceil(left / 1000));
+    var mm = Math.floor(left / 60), ss = left % 60;
+    incEl.textContent = mm + ":" + (ss < 10 ? "0" : "") + ss;
+  }
+
+  paint();
+  setInterval(paint, 1000);
+  window.addEventListener("storage", function(e){
+    if(e && e.key === KEY) paint();
+  });
+  window.addEventListener("idkgg-wallet", paint);
+  document.addEventListener("visibilitychange", function(){
+    if(!document.hidden) paint();
+  });
+})();
+</script>
+
 </body>
 </html>
