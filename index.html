@@ -1042,6 +1042,20 @@ body::after{
   border-color:rgba(57,229,140,.65) !important;
   box-shadow:0 0 15px rgba(57,229,140,.08);
 }
+/* the featured rate, shown in the game viewer's own header */
+.zone-rate-badge{
+  display:inline-flex;align-items:center;gap:.3rem;
+  padding:.34rem .6rem;border-radius:8px;
+  font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+  font-size:.66rem;font-weight:800;letter-spacing:.04em;white-space:nowrap;
+  color:#1a1200;
+  background:linear-gradient(100deg,#fff3b0,#ffd93d 55%,#ffb300);
+  border:1px solid rgba(255,255,255,.8);
+  box-shadow:0 0 14px rgba(255,217,61,.55);
+}
+@media(max-width:760px){
+  .zone-rate-badge{font-size:.58rem;padding:.26rem .42rem}
+}
 
 /* Popups */
 #popupOverlay{
@@ -2693,7 +2707,7 @@ function saveImageForStorage(file, done){
   </select>
   <button class="fav-pill" id="favPill" onclick="toggleFavFilter()">⭐ Favorites</button>
   <div class="hud-btns">
-    <div id="idkWalletChip" title="Your IDK.GG balance — shared with the casino"><span class="w-bal" id="idkWalletBal">$1,000</span><span class="w-inc" id="idkWalletInc">10:00</span></div>
+    <div id="idkWalletChip" title="Your IDK.GG balance — shared with the casino"><span class="w-bal" id="idkWalletBal">$1,000</span><span class="w-inc" id="idkWalletInc">10:00</span><span class="w-rate" id="idkWalletRate">$50/10m</span></div>
     <button class="hud-btn" title="Refresh" onclick="refreshZones()">
       <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
         <polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/>
@@ -2775,6 +2789,7 @@ function saveImageForStorage(file, done){
       <span id="zoneId"></span>
     </div>
     <div class="zone-controls">
+      <span id="zoneRateBadge" class="zone-rate-badge" style="display:none">&#10022; $1,000 / 10 min</span>
       <button onclick="fullscreenZone()">⛶ Fullscreen</button>
       <button id="newTabBtn" aria-hidden="true" style="display:none" onclick="aboutBlank()">↗ New Tab</button>
       <button onclick="openLiveChat()">◉ Chat</button>
@@ -3082,6 +3097,8 @@ function makeCardEl(zone){
 
   if(zone.featured){
     const b=document.createElement('div');b.className='feat-badge';b.textContent='FEATURED';
+    /* the badge is also the promise: featured games pay 1000 / 10 min */
+    b.title = 'Featured game \u2014 earns $1,000 every 10 minutes while you play';
     inner.appendChild(b);
   }
 
@@ -3857,6 +3874,13 @@ const MINECRAFT_EDITOR_HTML = "<!DOCTYPE html>\n<html lang=\"en\">\n<head>\n<met
 function openZone(file){
   // Remember the attempt so the error banner's Retry button can repeat it.
   _lastZoneAttempt = file;
+  // A game marked `featured` in the list pays 1000 / 10 min while it is open.
+  // Set before the early return below so the casino counts too.
+  try{
+    if (typeof window.__idkggSetFeatured === 'function') {
+      window.__idkggSetFeatured(!!(file && file.featured), file && file.name);
+    }
+  }catch(e){}
   // The neon casino lives inside this file, so it is shown as an overlay
   // instead of being loaded into the iframe like an external game.
   if (file && String(file.url || '') === '#neon-casino') {
@@ -3945,6 +3969,10 @@ function openZone(file){
 function closeZone(){
   // One defensive close path for every way out of a zone. It restores the app
   // shell even if the casino's own state is missing, and it never throws.
+  // Leaving a game always drops the featured rate back to normal.
+  try{
+    if (typeof window.__idkggSetFeatured === 'function') window.__idkggSetFeatured(false);
+  }catch(e){}
   if (typeof window.__idkggCloseCasino === 'function') {
     window.__idkggCloseCasino();
     return;
@@ -3962,6 +3990,11 @@ function closeZone(){
    a missing element or a half-torn-down casino can never leave a blank page. */
 window.__idkggCloseCasino = function(opts){
   var fromHistory = !!(opts && opts.fromHistory);
+
+  // 0. leaving the casino drops the featured rate back to normal
+  try{
+    if (typeof window.__idkggSetFeatured === 'function') window.__idkggSetFeatured(false);
+  }catch(e){}
 
   // 1. hide the overlay (guarded: ncRoot may be gone)
   try{
@@ -10210,10 +10243,23 @@ function clearDisguiseImg(){
 }
 #idkWalletChip.up{border-color:rgba(57,255,136,.7);box-shadow:0 0 24px -6px rgba(57,255,136,.8) inset}
 #idkWalletChip.up .w-bal{color:#39ff88;text-shadow:0 0 14px rgba(57,255,136,.8)}
+/* the active income rate: $50/10m normally, $1,000/10m in a featured game */
+#idkWalletChip .w-rate{
+  font-size:.6rem;font-weight:800;letter-spacing:.03em;
+  padding:.1rem .3rem;border-radius:4px;white-space:nowrap;
+  color:#8fa3b8;background:rgba(255,255,255,.05);
+  border:1px solid rgba(255,255,255,.09);
+}
+#idkWalletChip .w-rate.featured{
+  color:#1a1200;background:linear-gradient(100deg,#fff3b0,#ffd93d 55%,#ffb300);
+  border-color:rgba(255,255,255,.8);
+  box-shadow:0 0 10px rgba(255,217,61,.6);
+}
 @media(max-width:760px){
   #idkWalletChip{padding:.26rem .45rem;gap:.4rem}
   #idkWalletChip .w-bal{font-size:.74rem}
   #idkWalletChip .w-inc{font-size:.6rem}
+  #idkWalletChip .w-rate{font-size:.52rem;padding:.08rem .22rem}
 }
 </style>
 
@@ -10651,6 +10697,49 @@ body.nc-locked{overflow:hidden}
   font-variant-numeric:tabular-nums;
   text-shadow:0 0 12px rgba(34,255,136,.45);
 }#ncRoot .income-chip.ready{border-color:rgba(34,255,136,.75);box-shadow:0 0 22px -4px rgba(34,255,136,.6)}#ncRoot .income-chip.paid{animation:nc_incomePulse .7s ease both}
+/* ── featured rate: the chip turns gold and shows 1000 / 10 min ── */
+#ncRoot .income-chip .rate-lbl{
+  font-family:var(--mono);font-size:9px;font-weight:700;letter-spacing:.1em;
+  padding:2px 6px;border-radius:5px;white-space:nowrap;
+  color:var(--dim);background:rgba(255,255,255,.05);
+  border:1px solid rgba(255,255,255,.09);
+}
+#ncRoot .income-chip.featured{
+  border-color:rgba(255,217,61,.8);
+  box-shadow:0 0 26px -4px rgba(255,217,61,.65),0 0 0 1px rgba(255,217,61,.25) inset;
+  background:linear-gradient(135deg,rgba(255,217,61,.14),rgba(255,140,0,.07));
+}
+#ncRoot .income-chip.featured .val{color:var(--gold);text-shadow:0 0 18px rgba(255,217,61,.85)}
+#ncRoot .income-chip.featured .rate-lbl{
+  color:#1a1200;background:linear-gradient(100deg,#fff3b0,#ffd93d 55%,#ffb300);
+  border-color:rgba(255,255,255,.85);text-shadow:none;
+  box-shadow:0 0 12px rgba(255,217,61,.6);
+}
+/* ── the featured banner under the topbar ── */
+#ncRoot .featured-rate-banner{
+  display:flex;align-items:center;gap:10px;flex-wrap:wrap;
+  margin:0 18px 4px;padding:9px 14px;border-radius:11px;
+  font-family:var(--mono);font-size:11px;letter-spacing:.08em;
+  color:#fff8d6;
+  background:linear-gradient(100deg,rgba(255,217,61,.16),rgba(255,140,0,.08) 60%,rgba(255,61,139,.08));
+  border:1px solid rgba(255,217,61,.45);
+  box-shadow:0 0 26px -10px rgba(255,217,61,.9) inset;
+  animation:nc_fadeUp .3s ease both;
+}
+#ncRoot .featured-rate-banner .frb-star{color:var(--gold);font-size:13px;text-shadow:0 0 12px rgba(255,217,61,.9)}
+#ncRoot .featured-rate-banner .frb-txt{text-transform:uppercase;opacity:.92}
+#ncRoot .featured-rate-banner .frb-txt b{color:#fff;font-weight:800}
+#ncRoot .featured-rate-banner .frb-amt{
+  margin-left:auto;font-weight:800;color:#1a1200;
+  padding:3px 9px;border-radius:6px;
+  background:linear-gradient(100deg,#fff3b0,#ffd93d 55%,#ffb300);
+  box-shadow:0 0 14px rgba(255,217,61,.55);
+}
+@media(max-width:700px){
+  #ncRoot .income-chip .rate-lbl{font-size:8px;padding:2px 4px;letter-spacing:.04em}
+  #ncRoot .featured-rate-banner{margin:0 12px 4px;padding:8px 10px;font-size:10px;gap:7px}
+  #ncRoot .featured-rate-banner .frb-amt{margin-left:0}
+}
 @keyframes nc_incomePulse{
   0%{transform:scale(1)}
   35%{transform:scale(1.07);box-shadow:0 0 26px -2px rgba(34,255,136,.85)}
@@ -10774,7 +10863,15 @@ body.nc-locked{overflow:hidden}
       <div class="income-chip" id="incomeChip" title="You earn $50 every 10 minutes">
         <span class="lbl">Income</span>
         <span class="val" id="incomeTtl">10:00</span>
+        <span class="rate-lbl" id="incomeRateLbl">$50 / 10 MIN</span>
       </div>
+    </div>
+
+    <!-- Shown only while a featured game is open: the rate is 1000 / 10 min -->
+    <div class="featured-rate-banner" id="featuredRateBanner" style="display:none">
+      <span class="frb-star">&#10022;</span>
+      <span class="frb-txt">FEATURED &mdash; <b id="featuredRateName">Featured game</b></span>
+      <span class="frb-amt" id="featuredRateAmt">$1,000 / 10 min</span>
     </div>
 
     <div class="tabs" role="tablist">
@@ -11035,8 +11132,51 @@ var Store = (function(){
      { t, balance, incomeAt, wagered, won, biggest, rounds, wins, history }
    ========================================================= */
 var IDKGG_WALLET_KEY = "idkgg_wallet_v1";
-var INCOME_MS = 10 * 60 * 1000;   /* $50 every ten minutes */
-var INCOME_AMOUNT = 50;
+var INCOME_MS = 10 * 60 * 1000;   /* one payout every ten minutes */
+var INCOME_AMOUNT = 50;           /* normal rate: $50 per 10 min */
+var FEATURED_AMOUNT = 1000;       /* featured-game rate: 1000 per 10 min */
+
+/* =========================================================
+   1b-i. FEATURED-GAME INCOME RATE
+   =========================================================
+   Playing a game marked `featured` in the game list pays 1000 per
+   10 minutes instead of the normal 50. The rate is NOT a separate
+   clock: the single incomeAt anchor is untouched, so switching in
+   and out of a featured game never resets progress and never pays
+   an interval twice.
+
+   FEATURED_SINCE records the moment the player entered a featured
+   game (0 = not in one). A completed interval is paid at the
+   featured rate only when it COMPLETED after that moment, which
+   means:
+     - time spent away from the page is never retro-paid at 1000
+       (FEATURED_SINCE is 0 on load, so catch-up pays the normal rate)
+     - entering a featured game cannot re-price intervals that had
+       already completed before the player got there
+   ========================================================= */
+var FEATURED_SINCE = 0;
+
+/* The rate that applies to an interval completing right now. */
+function incomeRateNow(){
+  return FEATURED_SINCE > 0 ? FEATURED_AMOUNT : INCOME_AMOUNT;
+}
+
+/* Called by the app whenever the player enters or leaves a featured game.
+   Idempotent: re-entering the same featured game does not restart the
+   clock, so a re-render cannot re-price an interval in progress. */
+function setFeatured(on, label){
+  try{
+    if(on){
+      if(!FEATURED_SINCE) FEATURED_SINCE = Date.now();
+    }else{
+      FEATURED_SINCE = 0;
+    }
+    FEATURED_LABEL = on ? String(label || "Featured game") : "";
+    paintIncome();
+    paintRateLabels();
+  }catch(e){}
+}
+var FEATURED_LABEL = "";
 
 function walletDefault(){
   return {
@@ -11326,7 +11466,21 @@ function incomeGrant(burst){
     return 0;
   }
 
-  w.balance += paid * INCOME_AMOUNT;
+  /* ── price each interval at the rate that applied when it COMPLETED ──
+     Interval k (1-based) completes at anchor + k*INCOME_MS. It is paid at
+     the featured rate only if the player was already in a featured game at
+     that moment. This is what makes switching in and out fair: an interval
+     that finished before the player entered a featured game keeps the
+     normal rate, and one that finishes while they are in it gets 1000. */
+  var total = 0, featuredPaid = 0;
+  for(var k = 1; k <= paid; k++){
+    var completedAt = w.incomeAt + k * INCOME_MS;
+    var isFeatured = FEATURED_SINCE > 0 && completedAt > FEATURED_SINCE;
+    if(isFeatured){ total += FEATURED_AMOUNT; featuredPaid++; }
+    else total += INCOME_AMOUNT;
+  }
+
+  w.balance += total;
   /* Advance the anchor by exactly the intervals actually paid, so the
      remainder still counts toward the next one. */
   w.incomeAt += paid * INCOME_MS;
@@ -11337,7 +11491,17 @@ function incomeGrant(burst){
   walletIntoSave(w);
 
   if(burst !== false){
-    toast("+" + money(paid * INCOME_AMOUNT) + " income" + (paid > 1 ? " (" + paid + " \u00d7 " + money(INCOME_AMOUNT) + ")" : ""), "ok");
+    var normalPaid = paid - featuredPaid;
+    var detail = "";
+    if(featuredPaid && normalPaid){
+      detail = " (" + featuredPaid + " \u00d7 " + money(FEATURED_AMOUNT) + " featured, " +
+               normalPaid + " \u00d7 " + money(INCOME_AMOUNT) + ")";
+    }else if(featuredPaid){
+      detail = " (" + featuredPaid + " \u00d7 " + money(FEATURED_AMOUNT) + " featured)";
+    }else if(paid > 1){
+      detail = " (" + paid + " \u00d7 " + money(INCOME_AMOUNT) + ")";
+    }
+    toast("+" + money(total) + " income" + detail, "ok");
     flash();
   }
   return paid;
@@ -12335,7 +12499,52 @@ function paintIncome(){
   var m = Math.floor(left / 60), s = left % 60;
   el.textContent = m + ":" + (s < 10 ? "0" : "") + s;
   if(chip){
-    chip.className = "income-chip" + (left <= 3 ? " ready" : "");
+    chip.className = "income-chip" + (left <= 3 ? " ready" : "") + (FEATURED_SINCE > 0 ? " featured" : "");
+    chip.setAttribute("title", FEATURED_SINCE > 0
+      ? "Featured game: you earn " + money(FEATURED_AMOUNT) + " every 10 minutes"
+      : "You earn " + money(INCOME_AMOUNT) + " every 10 minutes");
+  }
+  paintRateLabels();
+}
+
+/* The rate is shown in three places so it is never ambiguous: the casino's
+   income chip, the launcher HUD chip, and the featured-game banner. */
+function paintRateLabels(){
+  var rate = incomeRateNow();
+  var featured = FEATURED_SINCE > 0;
+
+  var lbl = $("incomeRateLbl");
+  if(lbl){
+    lbl.textContent = featured ? money(rate) + " / 10 MIN" : money(rate) + " / 10 MIN";
+    lbl.className = "rate-lbl" + (featured ? " featured" : "");
+  }
+  var chipRate = $("idkWalletRate");
+  if(chipRate){
+    chipRate.textContent = money(rate) + "/10m";
+    chipRate.className = "w-rate" + (featured ? " featured" : "");
+  }
+  var banner = $("featuredRateBanner");
+  if(banner){
+    if(featured){
+      banner.style.display = "flex";
+      var nm = $("featuredRateName");
+      if(nm) nm.textContent = FEATURED_LABEL || "Featured game";
+      var amt = $("featuredRateAmt");
+      if(amt) amt.textContent = money(FEATURED_AMOUNT) + " / 10 min";
+    }else{
+      banner.style.display = "none";
+    }
+  }
+
+  /* the game viewer's own header badge (external featured games) */
+  var zb = document.getElementById("zoneRateBadge");
+  if(zb){
+    if(featured){
+      zb.style.display = "inline-flex";
+      zb.textContent = "\u2726 " + money(FEATURED_AMOUNT) + " / 10 min";
+    }else{
+      zb.style.display = "none";
+    }
   }
 }
 
@@ -12394,6 +12603,8 @@ window.__neonCasinoClose = function(){
   try{
     if (typeof window.__idkggRestoreShell === "function") window.__idkggRestoreShell();
   }catch(e){}
+  /* the casino is a featured game: leaving it restores the normal rate */
+  try{ setFeatured(false); }catch(e){}
 };
 window.__neonCasinoIsOpen = function(){
   return !ncRoot.classList.contains("nc-hidden");
@@ -12403,6 +12614,13 @@ window.__neonCasinoIsOpen = function(){
    entry point is published on window. It is the ONLY way money moves. */
 window.__idkggApplyWalletChange = applyWalletChange;
 window.__idkggWalletRead = walletRead;
+
+/* The launcher's openZone()/closeZone() live in another IIFE too, so the
+   featured-rate switch is published here. It is the only way the rate moves. */
+window.__idkggSetFeatured = setFeatured;
+window.__idkggIncomeRate = function(){
+  return { rate: incomeRateNow(), featured: FEATURED_SINCE > 0, since: FEATURED_SINCE, label: FEATURED_LABEL };
+};
 
 /* expose a tiny read-only probe for automated verification */
 window.__casino = {
@@ -13002,6 +13220,7 @@ window.__casino = {
   var balEl = document.getElementById("idkWalletBal");
   var incEl = document.getElementById("idkWalletInc");
   var chip  = document.getElementById("idkWalletChip");
+  var rateEl = document.getElementById("idkWalletRate");
   if(!balEl || !incEl || !chip) return;
 
   function ckRead(name){
@@ -13056,6 +13275,19 @@ window.__casino = {
     left = Math.max(0, Math.ceil(left / 1000));
     var mm = Math.floor(left / 60), ss = left % 60;
     incEl.textContent = mm + ":" + (ss < 10 ? "0" : "") + ss;
+
+    /* the active rate, read from the casino module that owns it */
+    if(rateEl){
+      var info = null;
+      try{ info = window.__idkggIncomeRate ? window.__idkggIncomeRate() : null; }catch(e){}
+      var featured = !!(info && info.featured);
+      var rate = (info && info.rate) || 50;
+      rateEl.textContent = "$" + String(rate).replace(/\B(?=(\d{3})+(?!\d))/g, ",") + "/10m";
+      rateEl.className = "w-rate" + (featured ? " featured" : "");
+      chip.setAttribute("title", featured
+        ? "Featured game: you earn $" + rate + " every 10 minutes"
+        : "Your IDK.GG balance \u2014 click for the money leaderboard");
+    }
   }
 
   paint();
